@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --primary-red: #ED1C24;
+    --primary-yellow: #fdd831;
+    --text-dark: #333333;
+    --bg-light: #fffdf5;
+    --navbar-bg: #fff5f7;
+  }
+}
+
+body {
+  @apply bg-slate-50 text-slate-800 antialiased font-sans;
+}
