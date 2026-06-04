@@ -8,7 +8,7 @@ const healthPartnerSchema = new mongoose.Schema({
     category: {
         type: String,
         required: true,
-        enum: ['Hospital', 'Lab', 'Pharmacy'] // केवल यही 3 वैल्यू आ सकती हैं
+        enum: ['Hospital', 'Lab', 'Pharmacy', 'IndividualClinic'] // केवल यही 4 वैल्यू आ सकती हैं
     },
     businessName: {
         type: String,

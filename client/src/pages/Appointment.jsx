@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { verifyHealthCardId, bookAppointment } from '../api/userApi';
 import apiClient from '../api/apiClient';
-import { Calendar, Stethoscope, Search, FileText, ArrowLeft, Network, ShieldCheck, HeartHandshake, PhoneCall } from 'lucide-react';
+import { Calendar, Stethoscope, Search, FileText, ArrowLeft, Network, ShieldCheck, HeartHandshake, PhoneCall, User, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const Appointment = () => {
@@ -31,17 +31,31 @@ const Appointment = () => {
   const [cardFile, setCardFile] = useState(null);
   const [cardFileName, setCardFileName] = useState('');
 
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState('');
+
   const { register, handleSubmit, formState: { errors }, watch, setValue, reset } = useForm({
     defaultValues: {
       gender: 'Male',
       bloodGroup: 'Unknown',
-      department: 'General Medicine'
+      department: 'Hospital'
     }
   });
 
   const watchHealthId = watch('healthId');
   const watchDepartment = watch('department');
   const watchDoctor = watch('doctor'); // Ties to the hospital facility business name
+
+  // Reset state and district when department changes
+  useEffect(() => {
+    setSelectedState('');
+    setSelectedDistrict('');
+  }, [watchDepartment]);
+
+  // Reset district when state changes
+  useEffect(() => {
+    setSelectedDistrict('');
+  }, [selectedState]);
 
   // Fetch partners list on mount
   const fetchPartnersList = async () => {
@@ -212,10 +226,40 @@ const Appointment = () => {
 
   const filteredNetwork = getFilteredNetwork();
 
-  // Filtered tie-up facilities in registration form based on category
+  // Helper: normalize string to Title Case for display
+  const toTitleCase = (str) => str
+    ? str.trim().replace(/\w\S*/g, t => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase())
+    : str;
+
+  // Get unique states (title-case normalized) from partners for the selected category
+  const availableStates = Array.from(
+    new Set(
+      partners
+        .filter(p => p.category === watchDepartment)
+        .map(p => toTitleCase(p.address?.state))
+        .filter(Boolean)
+    )
+  ).sort();
+
+  // Get unique cities/districts (title-case normalized) for the selected category and state
+  const availableDistricts = Array.from(
+    new Set(
+      partners
+        .filter(p =>
+          p.category === watchDepartment &&
+          (!selectedState || toTitleCase(p.address?.state) === selectedState)
+        )
+        .map(p => toTitleCase(p.address?.city))
+        .filter(Boolean)
+    )
+  ).sort();
+
+  // Filtered tie-up facilities based on category, state, and district (case-insensitive)
   const filteredFacilities = partners.filter(p => {
-    const specs = Array.isArray(p.specialization) ? p.specialization : [p.specialization].filter(Boolean);
-    return specs.includes(watchDepartment);
+    const matchesCat = p.category === watchDepartment;
+    const matchesState = !selectedState || toTitleCase(p.address?.state) === selectedState;
+    const matchesDistrict = !selectedDistrict || toTitleCase(p.address?.city) === selectedDistrict;
+    return matchesCat && matchesState && matchesDistrict;
   });
 
   return (
@@ -510,26 +554,49 @@ const Appointment = () => {
                       <Stethoscope className="h-4 w-4" /> Medical tie-up options
                     </h4>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Specialization Category</label>
                         <select
                           {...register('department')}
                           className="block mt-1 w-full rounded-xl border border-slate-200 py-2.5 px-3 text-slate-800 text-sm focus:border-[#2563eb] bg-white outline-none"
                         >
-                          <option value="General Medicine">General Medicine</option>
-                          <option value="Cardiology ❤️">Cardiology ❤️</option>
-                          <option value="Orthopedics 🦴">Orthopedics 🦴</option>
-                          <option value="Neurology 🧠">Neurology 🧠</option>
-                          <option value="Pediatrics 👶">Pediatrics 👶</option>
-                          <option value="Dermatology ✨">Dermatology ✨</option>
-                          <option value="Gynecology 🤰">Gynecology 🤰</option>
-                          <option value="Patholab 🔬">Patholab 🔬</option>
-                          <option value="Chemist Shop 💊">Chemist Shop 💊</option>
+                          <option value="Hospital">Hospital</option>
+                          <option value="Pharmacy">Chemist Shop</option>
+                          <option value="Lab">Diagnostics Lab / Patholab</option>
+                          <option value="IndividualClinic">Individual Clinic / Doctor</option>
                         </select>
                       </div>
 
                       <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Select State</label>
+                        <select
+                          value={selectedState}
+                          onChange={(e) => setSelectedState(e.target.value)}
+                          className="block mt-1 w-full rounded-xl border border-slate-200 py-2.5 px-3 text-slate-800 text-sm focus:border-[#2563eb] bg-white outline-none"
+                        >
+                          <option value="">-- All States --</option>
+                          {availableStates.map((st, idx) => (
+                            <option key={idx} value={st}>{st}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Select District</label>
+                        <select
+                          value={selectedDistrict}
+                          onChange={(e) => setSelectedDistrict(e.target.value)}
+                          className="block mt-1 w-full rounded-xl border border-slate-200 py-2.5 px-3 text-slate-800 text-sm focus:border-[#2563eb] bg-white outline-none"
+                        >
+                          <option value="">-- All Districts --</option>
+                          {availableDistricts.map((dist, idx) => (
+                            <option key={idx} value={dist}>{dist}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="sm:col-span-2 md:col-span-1">
                         <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider text-amber-600">Tie-up Partner Clinic</label>
                         <select
                           {...register('doctor', { required: 'Please select a tie-up facility' })}
@@ -612,6 +679,7 @@ const Appointment = () => {
                   <option value="Hospital">Hospitals</option>
                   <option value="Lab">Diagnostic Labs</option>
                   <option value="Pharmacy">Pharmacy</option>
+                  <option value="IndividualClinic">Individual Clinic / Doctor</option>
                 </select>
               </div>
 

@@ -275,7 +275,7 @@ const Navbar = () => {
 
       {/* Mobile Drawer menu */}
       {isOpen && (
-        <div className="lg:hidden border-t-2 border-rose-200 bg-white py-4 px-4 shadow-inner space-y-2">
+        <div className="lg:hidden border-t-2 border-rose-200 bg-white py-4 px-4 shadow-inner space-y-2 max-h-[calc(100vh-5rem)] overflow-y-auto">
           <Link 
             to="/" 
             onClick={() => setIsOpen(false)}
