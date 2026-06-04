@@ -21,8 +21,12 @@ const razorpay = new Razorpay({
 
 // --- Multer Setup for Photo Upload ---
 const uploadDir = path.join(__dirname, '..', 'uploads');
-if (!fs.existsSync(uploadDir)){
-    fs.mkdirSync(uploadDir, { recursive: true });
+try {
+    if (!fs.existsSync(uploadDir)){
+        fs.mkdirSync(uploadDir, { recursive: true });
+    }
+} catch (err) {
+    console.warn('⚠️ Could not create uploads directory in Vercel:', err.message);
 }
 
 //✅ FILE FILTER - Only Images
