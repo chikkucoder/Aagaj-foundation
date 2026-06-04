@@ -56,7 +56,10 @@ const fileFilter = (req, file, cb) => {
 
 // Multer Setup for Photo Upload
 const storage = multer.diskStorage({
-    destination: uploadDir,
+    destination: (req, file, cb) => {
+        const dest = process.env.VERCEL ? '/tmp' : uploadDir;
+        cb(null, dest);
+    },
     filename: (_req, file, cb) => {
         const sanitized = file.originalname.replace(/[^a-zA-Z0-9.]/g, '_');
         cb(null, 'photo-' + Date.now() + '-' + sanitized);
