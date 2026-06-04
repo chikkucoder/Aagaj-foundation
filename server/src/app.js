@@ -237,8 +237,13 @@ const HealthPartner = require('./models/SwasthyaSurkshaSchema'); // ✅ Import S
 const HealthCard = require('./models/HealthCardSchema');
 
 // --- Multer Setup ---
-if (!fs.existsSync(backendUploadsDir)) {
-    fs.mkdirSync(backendUploadsDir, { recursive: true });
+// On Vercel, filesystem is read-only so we wrap in try/catch
+try {
+    if (!fs.existsSync(backendUploadsDir)) {
+        fs.mkdirSync(backendUploadsDir, { recursive: true });
+    }
+} catch (err) {
+    console.warn('⚠️ Could not create uploads dir (expected on Vercel):', err.message);
 }
 
 // ============================================
@@ -675,6 +680,12 @@ app.use((err, req, res, next) => {
     res.status(500).json({ success: false, message: "Internal Server Error" });
 });
 
-app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-});
+// Only start HTTP server when running locally (not on Vercel serverless)
+if (!process.env.VERCEL) {
+    app.listen(PORT, () => {
+        console.log(`🚀 Server running on port ${PORT}`);
+    });
+}
+
+// Export for Vercel serverless
+module.exports = app;
