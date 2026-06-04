@@ -20,8 +20,12 @@ const razorpay = new Razorpay({
 // --- Multer Setup for Member Photos ---
 // फोल्डर सुनिश्चित करें
 const uploadDir = path.join(__dirname, '..', 'uploads', 'swarojgaar');
-if (!fs.existsSync(uploadDir)){
-    fs.mkdirSync(uploadDir, { recursive: true });
+try {
+    if (!fs.existsSync(uploadDir)){
+        fs.mkdirSync(uploadDir, { recursive: true });
+    }
+} catch (err) {
+    console.warn('⚠️ Could not create swarojgaar uploads directory in Vercel:', err.message);
 }
 
 // ✅ FILE FILTER - Only Images
