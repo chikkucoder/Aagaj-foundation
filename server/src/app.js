@@ -112,7 +112,9 @@ app.use(cors({
         if (!origin) return callback(null, true);
 
         const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
-        if (isLocalhost || allowedOrigins.includes(origin)) {
+        const isVercelDomain = /\.vercel\.app$/.test(origin); // Allow any Vercel preview/production domains
+        
+        if (isLocalhost || isVercelDomain || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
             console.warn("❌ CORS BLOCKED:", origin);
