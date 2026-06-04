@@ -111,7 +111,8 @@ app.use(cors({
     origin: function (origin, callback) {
         if (!origin) return callback(null, true);
 
-        if (allowedOrigins.includes(origin)) {
+        const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+        if (isLocalhost || allowedOrigins.includes(origin)) {
             callback(null, true);
         } else {
             console.warn("❌ CORS BLOCKED:", origin);

@@ -762,7 +762,7 @@ const AdminDashboard = () => {
               onClick={syncData}
               className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700 transition-all cursor-pointer"
             >
-              <RotateCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
+              <RotateCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} /> <span className="hidden sm:inline">Refresh</span>
             </button>
             
             {currentView === 'dashboard' && (
@@ -774,7 +774,7 @@ const AdminDashboard = () => {
                 }}
                 className="flex items-center justify-center gap-1.5 rounded-xl bg-[#051630] hover:bg-slate-800 text-white shadow px-3 py-2 text-xs font-bold transition-all cursor-pointer"
               >
-                <UserPlus className="h-3.5 w-3.5" /> Grant Access Pass
+                <UserPlus className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Grant Access Pass</span>
               </button>
             )}
 
@@ -787,14 +787,14 @@ const AdminDashboard = () => {
                 }}
                 className="flex items-center justify-center gap-1.5 rounded-xl bg-[#ED1C24] hover:bg-[#b0151b] text-white shadow px-3 py-2 text-xs font-bold transition-all cursor-pointer animate-pulse"
               >
-                <Plus className="h-3.5 w-3.5" /> Register Hospital
+                <Plus className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Register Hospital</span>
               </button>
             )}
           </div>
         </header>
 
         {/* Content Container */}
-        <main className="flex-grow p-6 md:p-8 space-y-6">
+        <main className="flex-grow p-4 sm:p-6 md:p-8 space-y-6">
           
           {/* ======================================================== */}
           {/*   1. DASHBOARD OVERVIEW VIEW                             */}
@@ -802,7 +802,7 @@ const AdminDashboard = () => {
           {currentView === 'dashboard' && (
             <>
               {/* Metric Cards Grid */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 
                 <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 hover:shadow transition-all">
                   <div className="flex justify-between items-start">
@@ -843,7 +843,7 @@ const AdminDashboard = () => {
               </div>
 
               {/* Sub Yojana Cards */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-gradient-to-br from-[#e83e8c]/10 to-[#e83e8c]/5 rounded-2xl border border-[#e83e8c]/20 p-4">
                   <div className="flex justify-between">
                     <span className="text-[10px] font-bold uppercase text-[#e83e8c]">Silayi Yojana</span>
@@ -875,7 +875,7 @@ const AdminDashboard = () => {
           {currentView === 'hospitalMaster' && (
             <>
               {/* Hospital Summary stats */}
-              <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div className="bg-white rounded-xl border border-slate-100 p-4">
                   <span className="text-[10px] font-bold text-slate-400 uppercase block tracking-wider">Total Partners</span>
                   <span className="text-xl font-black text-slate-800 mt-1 block">{hospStats.totalHospitals}</span>
@@ -892,7 +892,7 @@ const AdminDashboard = () => {
                   <span className="text-[10px] font-bold text-slate-400 uppercase block tracking-wider">Treatments Log</span>
                   <span className="text-xl font-black text-slate-800 mt-1 block">{hospStats.totalTreatments}</span>
                 </div>
-                <div className="bg-white rounded-xl border border-slate-100 p-4 col-span-2 lg:col-span-1">
+                <div className="bg-white rounded-xl border border-slate-100 p-4 col-span-1 sm:col-span-2 lg:col-span-1">
                   <span className="text-[10px] font-bold text-slate-400 uppercase block tracking-wider">Doctor Appointments</span>
                   <span className="text-xl font-black text-amber-500 mt-1 block">{hospStats.totalAppointments}</span>
                 </div>
@@ -904,7 +904,7 @@ const AdminDashboard = () => {
           {/*   3. ALL TRANSACTIONS VIEW                               */}
           {/* ======================================================== */}
           {currentView === 'allTransactions' && (
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl text-emerald-800">
                 <span className="text-[10px] font-bold uppercase tracking-wider block opacity-75">Successful Payments</span>
                 <h4 className="text-2xl font-black mt-1">₹{transactions.filter(t => t.status === 'success').reduce((acc, t) => acc + (parseFloat(t.amount) || 0), 0).toFixed(2)}</h4>
@@ -924,7 +924,7 @@ const AdminDashboard = () => {
           {/*   4. DONATION HISTORY VIEW                               */}
           {/* ======================================================== */}
           {currentView === 'donationHistory' && (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="bg-gradient-to-br from-[#051630] to-indigo-950 text-white p-6 rounded-3xl border border-slate-800">
                 <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Razorpay Aggregate Donations</span>
                 <h3 className="text-3xl font-black text-[#fdd831] mt-2">₹{donations.filter(d => d.status === 'Success').reduce((acc, d) => acc + (d.amount || 0), 0).toLocaleString('en-IN')}</h3>
@@ -953,7 +953,7 @@ const AdminDashboard = () => {
           {/*   DATA DISPLAY TABLE PANEL                               */}
           {/* ======================================================== */}
           {currentView !== 'carouselControl' ? (
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-xl p-6">
+            <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-100 shadow-xl p-4 sm:p-6">
             
             {/* Table Header Filter Toolbar */}
             <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4 mb-6 pb-6 border-b border-slate-100">
@@ -1033,7 +1033,7 @@ const AdminDashboard = () => {
                   {/*  TABLE 1. DASHBOARD & JOBS CANDIDATES MAP  */}
                   {/* ========================================== */}
                   {['dashboard', 'ngoJobs', 'normalJobs'].includes(currentView) && (
-                    <table className="w-full text-left border-collapse">
+                    <table className="w-full text-left border-collapse whitespace-nowrap">
                       <thead>
                         <tr className="border-b border-slate-100 bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider">
                           <th className="py-3 px-4">Photo</th>
@@ -1131,7 +1131,7 @@ const AdminDashboard = () => {
                   {/*  TABLE 2. HOSPITAL MASTER MANAGEMENT GRID  */}
                   {/* ========================================== */}
                   {currentView === 'hospitalMaster' && (
-                    <table className="w-full text-left border-collapse">
+                    <table className="w-full text-left border-collapse whitespace-nowrap">
                       <thead>
                         <tr className="border-b border-slate-100 bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider">
                           <th className="py-3 px-4">Hospital Code</th>
@@ -1217,7 +1217,7 @@ const AdminDashboard = () => {
                   {/*  TABLE 3. HEALTH ID CARDS LOG              */}
                   {/* ========================================== */}
                   {currentView === 'healthcards' && (
-                    <table className="w-full text-left border-collapse">
+                    <table className="w-full text-left border-collapse whitespace-nowrap">
                       <thead>
                         <tr className="border-b border-slate-100 bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider">
                           <th className="py-3 px-4">Photo</th>
@@ -1276,7 +1276,7 @@ const AdminDashboard = () => {
                   {/*  TABLE 4. DOCTOR APPOINTMENTS REGISTER     */}
                   {/* ========================================== */}
                   {currentView === 'appointments' && (
-                    <table className="w-full text-left border-collapse">
+                    <table className="w-full text-left border-collapse whitespace-nowrap">
                       <thead>
                         <tr className="border-b border-slate-100 bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider">
                           <th className="py-3 px-4">Appointment Date</th>
@@ -1316,7 +1316,7 @@ const AdminDashboard = () => {
                   {/*  TABLE 5. ALL TRANSACTIONS DOCK LOG        */}
                   {/* ========================================== */}
                   {currentView === 'allTransactions' && (
-                    <table className="w-full text-left border-collapse">
+                    <table className="w-full text-left border-collapse whitespace-nowrap">
                       <thead>
                         <tr className="border-b border-slate-100 bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider">
                           <th className="py-3 px-4">Date/Time</th>
@@ -1371,7 +1371,7 @@ const AdminDashboard = () => {
                   {/*  TABLE 6. DONATIONS REGISTER               */}
                   {/* ========================================== */}
                   {currentView === 'donationHistory' && (
-                    <table className="w-full text-left border-collapse">
+                    <table className="w-full text-left border-collapse whitespace-nowrap">
                       <thead>
                         <tr className="border-b border-slate-100 bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider">
                           <th className="py-3 px-4">Date</th>
@@ -1422,7 +1422,7 @@ const AdminDashboard = () => {
                   {/*  TABLE 7. AUDIT TRAIL HISTORY              */}
                   {/* ========================================== */}
                   {currentView === 'auditLogs' && (
-                    <table className="w-full text-left border-collapse">
+                    <table className="w-full text-left border-collapse whitespace-nowrap">
                       <thead>
                         <tr className="border-b border-slate-100 bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider">
                           <th className="py-3 px-4">Timestamp</th>
@@ -1815,7 +1815,7 @@ const AdminDashboard = () => {
                     <label className="block text-[10px] font-black uppercase text-slate-500">Employee Full Name</label>
                     <input type="text" {...regAddEmp('fullName', { required: 'Name is required' })} className="block mt-1 w-full rounded-xl border border-slate-200 py-2 px-3 text-slate-800 text-xs placeholder-slate-400 outline-none focus:border-[#ED1C24]" placeholder="E.g. Vivek Kumar" />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[10px] font-black uppercase text-slate-500">Mobile Number</label>
                       <input type="text" {...regAddEmp('mobile', { required: 'Mobile required', pattern: { value: /^[0-9]{10}$/, message: 'Must be 10 digits' } })} className="block mt-1 w-full rounded-xl border border-slate-200 py-2 px-3 text-slate-800 text-xs placeholder-slate-400 outline-none focus:border-[#ED1C24]" placeholder="10 Digit Number" />
@@ -1841,7 +1841,7 @@ const AdminDashboard = () => {
                       <option value="Trainer">Trainer</option>
                     </select>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[10px] font-black uppercase text-slate-500">Assign District</label>
                       <input type="text" {...regAddEmp('district')} className="block mt-1 w-full rounded-xl border border-slate-200 py-2 px-3 text-slate-800 text-xs outline-none focus:border-[#ED1C24]" placeholder="E.g. Patna" />
@@ -1978,7 +1978,7 @@ const AdminDashboard = () => {
               
               <form onSubmit={handleEditHospSubmit(onEditHospitalSubmit)} className="space-y-4">
                 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[10px] font-black uppercase text-slate-500">Business / Hospital Name</label>
                     <input type="text" defaultValue={selectedHospital.businessName} {...regEditHosp('biz', { required: 'Hospital Name required' })} className="block mt-1 w-full rounded-xl border border-slate-200 py-2 px-3 text-slate-800 text-xs outline-none focus:border-[#ED1C24]" />
@@ -1994,7 +1994,7 @@ const AdminDashboard = () => {
                   <input type="email" defaultValue={selectedHospital.email} {...regEditHosp('email', { required: 'Email required' })} className="block mt-1 w-full rounded-xl border border-slate-200 py-2 px-3 text-slate-800 text-xs outline-none focus:border-[#ED1C24]" />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-[10px] font-black uppercase text-slate-500">Authorized Owner</label>
                     <input type="text" defaultValue={selectedHospital.contact?.ownerName} {...regEditHosp('owner', { required: 'Owner required' })} className="block mt-1 w-full rounded-xl border border-slate-200 py-2 px-3 text-slate-800 text-xs outline-none focus:border-[#ED1C24]" />
@@ -2009,7 +2009,7 @@ const AdminDashboard = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-[10px] font-black uppercase text-slate-500">City</label>
                     <input type="text" defaultValue={selectedHospital.address?.city} {...regEditHosp('city', { required: 'City required' })} className="block mt-1 w-full rounded-xl border border-slate-200 py-2 px-3 text-slate-800 text-xs outline-none focus:border-[#ED1C24]" />
@@ -2084,7 +2084,7 @@ const AdminDashboard = () => {
 
             <div className="p-6 overflow-x-auto bg-slate-100 flex justify-center">
               {/* Receipt Area wrapper */}
-              <div id="printable-area" className="w-[420px] bg-white border border-slate-300 p-6 rounded shadow-md font-sans text-slate-800">
+              <div id="printable-area" className="w-full max-w-[420px] bg-white border border-slate-300 p-6 rounded shadow-md font-sans text-slate-800">
                 <div className="text-center border-b border-slate-200 pb-4">
                   <h2 className="m-0 text-[#000080] text-lg font-black uppercase tracking-wider">Aagaj Foundation</h2>
                   <p className="m-0 text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">Under Indian Trust Act 1882 | Govt. Registration No: IV/34</p>
@@ -2176,7 +2176,7 @@ const AdminDashboard = () => {
 
             <div className="p-6 overflow-x-auto bg-slate-100 flex justify-center">
               {/* Receipt Area wrapper */}
-              <div id="printable-area" className="w-[420px] bg-white border-4 border-[#000080] p-6 rounded shadow-md font-sans text-slate-800 relative">
+              <div id="printable-area" className="w-full max-w-[420px] bg-white border-4 border-[#000080] p-6 rounded shadow-md font-sans text-slate-800 relative">
                 
                 {/* Thin inner gold border */}
                 <div className="border border-[#fdd831] p-4 flex flex-col h-full justify-between">
