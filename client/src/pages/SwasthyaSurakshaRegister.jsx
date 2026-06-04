@@ -22,13 +22,20 @@ const categoryConfig = {
     placeholder: "DD/MM/YYYY",
     licenseLabel: "फार्मेसी लाइसेंस संख्या (Pharmacy License No.)",
     services: ["Home Delivery", "Generic Meds", "Surgicals", "Refrigerated Items", "Baby Care", "Ayurvedic", "Allopathic"]
+  },
+  IndividualClinic: {
+    label: "विशेषज्ञता / अनुभव (Specialization / Experience)",
+    placeholder: "उदा. General Physician, 5 Years",
+    licenseLabel: "चिकित्सा पंजीकरण संख्या (Medical Reg No.)",
+    services: ["OPD", "General Consultation", "Minor Surgery", "Wound Dressing", "Vaccination", "Home Visit", "Online Consultation", "Diagnostic Tests"],
+    displayLabel: "Individual Clinic / Doctor"
   }
 };
 
 const SwasthyaSurakshaRegister = () => {
   const navigate = useNavigate();
   const [successPartner, setSuccessPartner] = useState(null);
-  const [customServices, setCustomServices] = useState({ Hospital: [], Lab: [], Pharmacy: [] });
+  const [customServices, setCustomServices] = useState({ Hospital: [], Lab: [], Pharmacy: [], IndividualClinic: [] });
   const [customInput, setCustomInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -264,6 +271,7 @@ const SwasthyaSurakshaRegister = () => {
                     <option value="Hospital">Hospital / Clinic</option>
                     <option value="Lab">Diagnostics Lab</option>
                     <option value="Pharmacy">Pharmacy / Medical Store</option>
+                    <option value="IndividualClinic">Individual Clinic / Doctor</option>
                   </select>
                 </div>
 

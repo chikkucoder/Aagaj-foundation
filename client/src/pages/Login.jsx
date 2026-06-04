@@ -36,7 +36,7 @@ const Login = () => {
   const onLoginSubmit = async (data) => {
     setErrorMsg('');
     setSuccessMsg('');
-    const username = activeRole === 'admin' ? data.email : (activeRole === 'hospital' ? data.hospitalId : data.username);
+    const username = data.username;
     const res = await login(username, data.password, activeRole);
     if (res.success) {
       setSuccessMsg('Login Successful! Redirecting...');
@@ -115,10 +115,11 @@ const Login = () => {
         </div>
 
         {/* Tab Buttons */}
-        <div className="flex space-x-1 rounded-2xl bg-slate-100 p-1 shadow-inner">
+        <div className="grid grid-cols-3 gap-1 rounded-2xl bg-slate-100 p-1 shadow-inner">
           <button
+            type="button"
             onClick={() => handleRoleChange('employee')}
-            className={`flex-1 rounded-xl py-2.5 text-xs sm:text-sm font-bold transition-all duration-300 ${
+            className={`rounded-xl py-2 px-1 text-[10px] sm:text-xs md:text-sm font-bold transition-all duration-300 flex items-center justify-center text-center leading-tight min-h-[40px] cursor-pointer ${
               activeRole === 'employee'
                 ? 'bg-[#ED1C24] text-white shadow'
                 : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
@@ -127,8 +128,9 @@ const Login = () => {
             Employee
           </button>
           <button
+            type="button"
             onClick={() => handleRoleChange('admin')}
-            className={`flex-1 rounded-xl py-2.5 text-xs sm:text-sm font-bold transition-all duration-300 ${
+            className={`rounded-xl py-2 px-1 text-[10px] sm:text-xs md:text-sm font-bold transition-all duration-300 flex items-center justify-center text-center leading-tight min-h-[40px] cursor-pointer ${
               activeRole === 'admin'
                 ? 'bg-[#ED1C24] text-white shadow'
                 : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
@@ -137,8 +139,9 @@ const Login = () => {
             Admin
           </button>
           <button
+            type="button"
             onClick={() => handleRoleChange('hospital')}
-            className={`flex-1 rounded-xl py-2.5 text-xs sm:text-sm font-bold transition-all duration-300 ${
+            className={`rounded-xl py-2 px-1 text-[10px] sm:text-xs md:text-sm font-bold transition-all duration-300 flex items-center justify-center text-center leading-tight min-h-[40px] cursor-pointer ${
               activeRole === 'hospital'
                 ? 'bg-[#ED1C24] text-white shadow'
                 : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
@@ -276,72 +279,51 @@ const Login = () => {
           ) : (
             /* --- LOGIN FORM (ALL ROLES) --- */
             <form onSubmit={handleLoginSubmit(onLoginSubmit)} className="space-y-6">
-              {/* Username Input based on Role */}
-              {activeRole === 'employee' && (
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-                    Employee ID / Email
-                  </label>
-                  <div className="relative mt-1">
-                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-                      <User className="h-5 w-5" />
-                    </span>
-                    <input
-                      type="text"
-                      {...regLogin('username', { required: 'Employee ID or email is required' })}
-                      placeholder="EMP1234 or name@aagaj.com"
-                      className="block w-full rounded-xl border border-slate-200 py-3 pl-10 pr-3 text-slate-800 placeholder-slate-400 outline-none focus:border-[#ED1C24] focus:ring-1 focus:ring-[#ED1C24] sm:text-sm transition-all"
-                    />
-                  </div>
-                  {loginErrors.username && (
-                    <p className="mt-1 text-xs text-rose-500 font-medium">{loginErrors.username.message}</p>
-                  )}
-                </div>
-              )}
-
-              {activeRole === 'admin' && (
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-                    Admin Email Address
-                  </label>
-                  <div className="relative mt-1">
-                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+              {/* Consolidated Username/Email/ID Input */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
+                  {activeRole === 'admin' 
+                    ? 'Admin Email Address' 
+                    : activeRole === 'hospital' 
+                    ? 'Hospital Email / User ID' 
+                    : 'Employee ID / Email'}
+                </label>
+                <div className="relative mt-1">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                    {activeRole === 'admin' ? (
                       <Mail className="h-5 w-5" />
-                    </span>
-                    <input
-                      type="email"
-                      {...regLogin('email', { required: 'Admin Email is required' })}
-                      placeholder="admin@aagaj.com"
-                      className="block w-full rounded-xl border border-slate-200 py-3 pl-10 pr-3 text-slate-800 placeholder-slate-400 outline-none focus:border-[#ED1C24] focus:ring-1 focus:ring-[#ED1C24] sm:text-sm transition-all"
-                    />
-                  </div>
-                  {loginErrors.email && (
-                    <p className="mt-1 text-xs text-rose-500 font-medium">{loginErrors.email.message}</p>
-                  )}
-                </div>
-              )}
-
-              {activeRole === 'hospital' && (
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-                    Hospital Email / User ID
-                  </label>
-                  <div className="relative mt-1">
-                    <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+                    ) : activeRole === 'hospital' ? (
                       <Building2 className="h-5 w-5" />
-                    </span>
-                    <input
-                      type="text"
-                      {...regLogin('hospitalId', { required: 'Hospital Email / User ID is required' })}
-                      placeholder="hospital@foundation.com"
-                      className="block w-full rounded-xl border border-slate-200 py-3 pl-10 pr-3 text-slate-800 placeholder-slate-400 outline-none focus:border-[#ED1C24] focus:ring-1 focus:ring-[#ED1C24] sm:text-sm transition-all"
-                    />
-                  </div>
-                  {loginErrors.hospitalId && (
-                    <p className="mt-1 text-xs text-rose-500 font-medium">{loginErrors.hospitalId.message}</p>
-                  )}
+                    ) : (
+                      <User className="h-5 w-5" />
+                    )}
+                  </span>
+                  <input
+                    type={activeRole === 'admin' ? 'email' : 'text'}
+                    {...regLogin('username', { 
+                      required: activeRole === 'admin' 
+                        ? 'Admin Email is required' 
+                        : activeRole === 'hospital' 
+                        ? 'Hospital Email / User ID is required' 
+                        : 'Employee ID or email is required',
+                      pattern: activeRole === 'admin' 
+                        ? { value: /^\S+@\S+$/i, message: 'Invalid email address' } 
+                        : undefined
+                    })}
+                    placeholder={
+                      activeRole === 'admin' 
+                        ? 'admin@aagaj.com' 
+                        : activeRole === 'hospital' 
+                        ? 'hospital@foundation.com' 
+                        : 'EMP1234 or name@aagaj.com'
+                    }
+                    className="block w-full rounded-xl border border-slate-200 py-3 pl-10 pr-3 text-slate-800 placeholder-slate-400 outline-none focus:border-[#ED1C24] focus:ring-1 focus:ring-[#ED1C24] sm:text-sm transition-all"
+                  />
                 </div>
-              )}
+                {loginErrors.username && (
+                  <p className="mt-1 text-xs text-rose-500 font-medium">{loginErrors.username.message}</p>
+                )}
+              </div>
 
               {/* Password Input */}
               <div>

@@ -77,9 +77,9 @@ router.post('/book', upload.single('healthCard'), validateRequest({ body: appoin
             });
         }
 
-        const partner = await HealthPartner.findOne({ uniqueId: hospitalId, category: 'Hospital' }).lean();
+        const partner = await HealthPartner.findOne({ uniqueId: hospitalId }).lean();
         if (!partner) {
-            return res.status(400).json({ success: false, message: 'Invalid hospital selected. Please choose a valid hospital.' });
+            return res.status(400).json({ success: false, message: 'Invalid medical facility selected. Please choose a valid facility.' });
         }
 
         const newAppointment = new Appointment({
