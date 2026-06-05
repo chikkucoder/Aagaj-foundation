@@ -173,7 +173,14 @@ app.use('/uploads', async (req, res, next) => {
 });
 
 
-mongoose.connect(process.env.MONGO_URI)
+const redactedMongoUri = (process.env.MONGO_URI || '').replace(/:([^@]+)@/, ':****@');
+console.log(`[MongoDB] Attempting to connect to: ${redactedMongoUri}`);
+
+mongoose.connect(process.env.MONGO_URI, {
+    maxPoolSize: 10,
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000
+})
     .then(async () => {
         console.log("✅ MongoDB Connected");
 
