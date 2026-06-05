@@ -11,8 +11,8 @@ export const verifyHealthCardPayment = async (data) => {
   return response.data;
 };
 
-export const checkHealthCardExists = async (params) => {
-  const response = await apiClient.get('/api/healthcard/check-exists', { params });
+export const checkHealthCardExists = async (data) => {
+  const response = await apiClient.post('/api/healthcard/check-exists', data);
   return response.data;
 };
 

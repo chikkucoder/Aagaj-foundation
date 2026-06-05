@@ -49,6 +49,19 @@ const handlePhotoUpload = (req, res, next) => {
 async function getImageBuffer(photoPath) {
     if (!photoPath || typeof photoPath !== 'string') return null;
 
+    // ✅ Handle absolute Cloudinary URLs directly
+    if (photoPath.startsWith('http://') || photoPath.startsWith('https://')) {
+        try {
+            const response = await fetch(photoPath);
+            if (response.ok) {
+                const arrayBuffer = await response.arrayBuffer();
+                return Buffer.from(arrayBuffer);
+            }
+        } catch (err) {
+            console.error("Failed to fetch photo directly from URL:", photoPath, err.message);
+        }
+    }
+
     // Clean query parameters and hash if any
     const cleanPath = photoPath.split('?')[0].split('#')[0];
     const basename = path.basename(cleanPath);
