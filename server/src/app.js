@@ -47,7 +47,8 @@ const apiLimiter = rateLimit({
     },
     standardHeaders: true,
     legacyHeaders: false,
-    skip: (req) => req.path === '/health' // Don't rate limit health check
+    skip: (req) => req.path === '/health', // Don't rate limit health check
+    validate: { trustProxy: false }
 });
 
 const authLimiter = rateLimit({
@@ -57,7 +58,8 @@ const authLimiter = rateLimit({
     message: {
         success: false,
         message: 'Too many failed login attempts. Account locked for 15 minutes.'
-    }
+    },
+    validate: { trustProxy: false }
 });
 
 const paymentLimiter = rateLimit({
@@ -66,7 +68,8 @@ const paymentLimiter = rateLimit({
     message: {
         success: false,
         message: 'Payment limit exceeded. Please try again later.'
-    }
+    },
+    validate: { trustProxy: false }
 });
 
 // --- Middleware ---
