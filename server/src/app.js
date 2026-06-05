@@ -100,14 +100,15 @@ const allowedOrigins = [
 ];
 
 if (process.env.FRONTEND_URL) {
-    allowedOrigins.push(process.env.FRONTEND_URL);
-    if (process.env.FRONTEND_URL.startsWith('https://') && !process.env.FRONTEND_URL.includes('localhost')) {
-        const domain = process.env.FRONTEND_URL.replace('https://', '');
+    const cleanFrontendUrl = process.env.FRONTEND_URL.replace(/\/+$/, '');
+    allowedOrigins.push(cleanFrontendUrl);
+    if (cleanFrontendUrl.startsWith('https://') && !cleanFrontendUrl.includes('localhost')) {
+        const domain = cleanFrontendUrl.replace('https://', '');
         allowedOrigins.push(`https://www.${domain}`);
     }
 }
 if (process.env.API_URL) {
-    allowedOrigins.push(process.env.API_URL);
+    allowedOrigins.push(process.env.API_URL.replace(/\/+$/, ''));
 }
 
 app.use(cors({

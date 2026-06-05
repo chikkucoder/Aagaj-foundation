@@ -431,7 +431,7 @@ const SwarojgaarRegister = () => {
                         </td>
                         <td className="border border-slate-900 p-1 text-center vertical-middle">
                           {member.photoUrl ? (
-                            <img src={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${member.photoUrl}`} alt="photo" className="max-h-[110px] max-w-[80px] object-cover mx-auto rounded shadow-sm border border-slate-200" />
+                            <img src={member.photoUrl.startsWith('http') ? member.photoUrl : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${member.photoUrl}`} alt="photo" className="max-h-[110px] max-w-[80px] object-cover mx-auto rounded shadow-sm border border-slate-200" />
                           ) : (
                             <span className="text-[10px] text-slate-300 font-bold font-sans">NO PHOTO</span>
                           )}
@@ -489,7 +489,7 @@ const SwarojgaarRegister = () => {
                         </td>
                         <td className="border border-slate-900 p-1 text-center vertical-middle">
                           {member.photoUrl ? (
-                            <img src={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${member.photoUrl}`} alt="photo" className="max-h-[110px] max-w-[80px] object-cover mx-auto rounded shadow-sm border border-slate-200" />
+                            <img src={member.photoUrl.startsWith('http') ? member.photoUrl : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${member.photoUrl}`} alt="photo" className="max-h-[110px] max-w-[80px] object-cover mx-auto rounded shadow-sm border border-slate-200" />
                           ) : (
                             <span className="text-[10px] text-slate-300 font-bold font-sans">NO PHOTO</span>
                           )}
