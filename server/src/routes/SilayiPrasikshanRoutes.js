@@ -42,22 +42,7 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const dest = process.env.VERCEL ? '/tmp' : uploadDir;
-        cb(null, dest);
-    },
-    filename: (req, file, cb) => {
-        const sanitized = file.originalname.replace(/[^a-zA-Z0-9.]/g, '_');
-        cb(null, 'scheme-' + Date.now() + '-' + sanitized);
-    }
-});
-
-const upload = multer({ 
-    storage: storage,
-    limits: { fileSize: 2 * 1024 * 1024 }, // 2MB max
-    fileFilter: fileFilter
-});
+const upload = require('../middleware/upload');
 
 // ==========================================
 //              API ROUTES
@@ -157,7 +142,7 @@ router.post('/create-order', upload.single('photo'), validateRequest({ body: sil
             existingSkills,
             trainingDuration,
             trainingDate: trainingDate || new Date().toLocaleDateString('en-IN'),
-            photoUrl: req.file ? `/uploads/${req.file.filename}` : '',
+            photoUrl: req.file ? req.file.path : '',
             paymentStatus: 'Pending',
             registrationFee: 799,
             orderId: orderId,
@@ -247,7 +232,7 @@ router.post('/register', upload.single('photo'), validateRequest({ body: silayiR
             existingSkills,
             trainingDuration,
             trainingDate: trainingDate || new Date().toLocaleDateString('en-IN'),
-            photoUrl: req.file ? `/uploads/${req.file.filename}` : '',
+            photoUrl: req.file ? req.file.path : '',
             
             // ✅ Payment Status: If paymentId exists (from Getepay), mark as Paid
             paymentStatus: paymentId ? 'Paid' : (paymentStatus || 'Pending'),

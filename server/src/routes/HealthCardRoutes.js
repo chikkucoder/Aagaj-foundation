@@ -33,22 +33,7 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-// Multer Setup for Photo Upload
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const dest = process.env.VERCEL ? '/tmp' : path.join(__dirname, '..', 'uploads', 'healthcards');
-        cb(null, dest);
-    },
-    filename: (req, file, cb) => {
-        const sanitized = file.originalname.replace(/[^a-zA-Z0-9.]/g, '_');
-        cb(null, 'health-' + Date.now() + '-' + sanitized);
-    }
-});
-const upload = multer({ 
-    storage: storage,
-    limits: { fileSize: 2 * 1024 * 1024 }, // 2MB max
-    fileFilter: fileFilter
-});
+const upload = require('../middleware/upload');
 
 // ✅ API to Check if User Already Exists
 router.post('/check-exists', validateRequest({ body: healthCardCheckExistsSchema }), async (req, res) => {
@@ -111,7 +96,7 @@ router.post('/create-order', upload.single('photo'), validateRequest({ body: hea
             data: {
                 fullName, mobile, aadhar, age, gender, bloodGroup,
                 village, panchayat, block, district, state, pincode,
-                photoPath: req.file ? `/uploads/healthcards/${req.file.filename}` : '',
+                photoPath: req.file ? req.file.path : '',
                 registeredBy: registeredBy || 'Self'
             }
         });
