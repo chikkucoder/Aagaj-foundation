@@ -41,23 +41,7 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const dest = process.env.VERCEL ? '/tmp' : uploadDir;
-        cb(null, dest);
-    },
-    filename: (req, file, cb) => {
-        // Sanitized filename
-        const sanitized = file.originalname.replace(/[^a-zA-Z0-9.]/g, '_');
-        cb(null, 'member-' + Date.now() + '-' + Math.round(Math.random() * 1E9) + '-' + sanitized);
-    }
-});
-
-const upload = multer({ 
-    storage: storage,
-    limits: { fileSize: 2 * 1024 * 1024 }, // 2MB max
-    fileFilter: fileFilter
-});
+const upload = require('../middleware/upload');
 
 // ==========================================
 //              API ROUTES
@@ -109,7 +93,7 @@ router.post('/create-order', upload.any(), validateRequest({ body: swarojgaarCre
                     aadharCard: detailsParts[0] || "",
                     panCard: detailsParts[1] || "",
                     mobileNumber: detailsParts[2] || "",
-                    photoUrl: photoFile ? `/uploads/swarojgaar/${photoFile.filename}` : ""
+                    photoUrl: photoFile ? photoFile.path : ""
                 };
             }).filter(m => m.fullName.trim() !== ""),
             termsAccepted: true,
@@ -275,7 +259,7 @@ router.post('/register', upload.any(), validateRequest({ body: swarojgaarRegiste
                 aadharCard: detailsParts[0] || "",
                 panCard: detailsParts[1] || "",
                 mobileNumber: detailsParts[2] || "",
-                photoUrl: photoFile ? `/uploads/swarojgaar/${photoFile.filename}` : ""
+                photoUrl: photoFile ? photoFile.path : ""
             };
         }).filter(m => m.fullName.trim() !== ""); // Filter out empty rows based on Name
 

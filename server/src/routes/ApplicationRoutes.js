@@ -27,49 +27,7 @@ try {
     console.warn('⚠️ Could not create application uploads directory in Vercel:', err.message);
 }
 
-// ✅ FILE FILTER - Images and PDF (for CV/Resume)
-const fileFilter = (req, file, cb) => {
-    const extension = path.extname(file.originalname || '').toLowerCase();
-    const allowedExts = new Set(['.jpeg', '.jpg', '.png', '.gif', '.pdf', '.heic', '.heif']);
-    const allowedMimes = new Set([
-        'image/jpeg',
-        'image/jpg',
-        'image/png',
-        'image/gif',
-        'application/pdf',
-        'image/heic',
-        'image/heif',
-        'image/heic-sequence',
-        'image/heif-sequence'
-    ]);
-
-    const mimeType = (file.mimetype || '').toLowerCase();
-    const extAllowed = allowedExts.has(extension);
-    const mimeAllowed = allowedMimes.has(mimeType);
-
-    if (extAllowed && mimeAllowed) {
-        return cb(null, true);
-    }
-
-    cb(new Error('Only image files (JPEG, JPG, PNG, GIF, HEIC, HEIF) and PDF are allowed!'));
-};
-
-// Multer Setup for Photo Upload
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const dest = process.env.VERCEL ? '/tmp' : uploadDir;
-        cb(null, dest);
-    },
-    filename: (_req, file, cb) => {
-        const sanitized = file.originalname.replace(/[^a-zA-Z0-9.]/g, '_');
-        cb(null, 'photo-' + Date.now() + '-' + sanitized);
-    }
-});
-const upload = multer({ 
-    storage: storage,
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max (larger for PDFs)
-    fileFilter: fileFilter
-});
+const upload = require('../middleware/upload');
 
 const handlePhotoUpload = (req, res, next) => {
     upload.single('photo')(req, res, (err) => {
@@ -77,18 +35,12 @@ const handlePhotoUpload = (req, res, next) => {
             return next();
         }
 
-        if (err instanceof multer.MulterError) {
-            return res.status(400).json({
-                success: false,
-                message: err.code === 'LIMIT_FILE_SIZE'
-                    ? 'Photo size must be less than or equal to 5MB.'
-                    : `Photo upload error: ${err.message}`
-            });
-        }
-
+        const isMulterError = err.name === 'MulterError' || (typeof multer !== 'undefined' && err instanceof multer.MulterError);
         return res.status(400).json({
             success: false,
-            message: err.message || 'Photo upload failed.'
+            message: isMulterError
+                ? (err.code === 'LIMIT_FILE_SIZE' ? 'Photo size must be less than or equal to 5MB.' : `Photo upload error: ${err.message}`)
+                : (err.message || 'Photo upload failed.')
         });
     });
 };
@@ -150,12 +102,10 @@ async function getImageBuffer(photoPath) {
 }
 
 // ✅ PROFESSIONAL PDF GENERATOR (With Async/Await & Education Details)
-function generatePDF(applicant, filename) {
+function generatePDF(applicant, stream) {
     return new Promise(async (resolve, reject) => {
         try {
             const doc = new PDFDocument({ margin: 30, size: 'A4' });
-            const filePath = path.join(uploadDir, filename);
-            const stream = fs.createWriteStream(filePath);
             
             // ✅ FIX: PDF jab poori save ho jaye, tabhi aage badhe
             stream.on('finish', () => resolve(true));
@@ -242,7 +192,7 @@ function generatePDF(applicant, filename) {
             });
             doc.fillColor('black');
 
-            const fallbackLogoPath = path.join(__dirname, '..', '..', 'client', 'public', 'logo.jpg');
+            const fallbackLogoPath = path.join(__dirname, '..', 'assets', 'logo.jpg');
             const photoBuffer = await getImageBuffer(applicant.photoPath || applicant.photoUrl || applicant.photo || applicant.image);
             const imageToDraw = photoBuffer || (fs.existsSync(fallbackLogoPath) ? fallbackLogoPath : null);
             
@@ -416,17 +366,9 @@ async function finalizeApplicationSubmission({
 
     await newApplicant.save();
 
-    const pdfName = `APP_AF${appData.uniqueId}_${Date.now()}.pdf`;
-    const pdfPath = `/uploads/${pdfName}`;
-
-    let pdfGenerated = false;
-    try {
-        await generatePDF({ ...appData, paymentId, applicationPdf: pdfPath }, pdfName);
-        pdfGenerated = true;
-        await SaveModel.findByIdAndUpdate(newApplicant._id, { applicationPdf: pdfPath });
-    } catch (pdfError) {
-        console.error('PDF generation failed (application):', pdfError);
-    }
+    const pdfPath = `/api/application/pdf/${newApplicant._id}`;
+    await SaveModel.findByIdAndUpdate(newApplicant._id, { applicationPdf: pdfPath });
+    const pdfGenerated = true;
 
     try {
         await sendApplicationConfirmation(appData);
@@ -453,9 +395,9 @@ async function finalizeApplicationSubmission({
         console.warn('PaymentLog write failed (application):', logError.message);
     }
 
-    const redirectUrl = `/application.html?status=success&txn=${paymentId}&name=${encodeURIComponent(appData.fullName)}&mobile=${appData.mobile}&email=${encodeURIComponent(appData.email)}&aadhar=${appData.aadhar}&unique_id=${appData.uniqueId}&dob=${appData.dob}&district=${encodeURIComponent(appData.district)}&state=${encodeURIComponent(appData.state)}&apply_for_post=${encodeURIComponent(appData.applyForPost || appData.place || '')}&role=${encodeURIComponent(appData.roleApplied)}&amount=${appData.amount}&photo=${encodeURIComponent(appData.photoPath || '')}&pdf=${encodeURIComponent(pdfGenerated ? pdfPath : '')}`;
+    const redirectUrl = `/application.html?status=success&txn=${paymentId}&name=${encodeURIComponent(appData.fullName)}&mobile=${appData.mobile}&email=${encodeURIComponent(appData.email)}&aadhar=${appData.aadhar}&unique_id=${appData.uniqueId}&dob=${appData.dob}&district=${encodeURIComponent(appData.district)}&state=${encodeURIComponent(appData.state)}&apply_for_post=${encodeURIComponent(appData.applyForPost || appData.place || '')}&role=${encodeURIComponent(appData.roleApplied)}&amount=${appData.amount}&photo=${encodeURIComponent(appData.photoPath || '')}&pdf=${encodeURIComponent(pdfPath)}`;
 
-    return { success: true, redirectUrl, pdfPath: pdfGenerated ? pdfPath : '' };
+    return { success: true, redirectUrl, pdfPath };
 }
 
 function resolvePublicUploadFile(publicPath) {
@@ -575,8 +517,8 @@ router.post('/create-order', handlePhotoUpload, validateRequest({ body: jobAppli
             aadhar: aadhar, 
             roleApplied: role_applied,
             job_category: job_category || 'NGO',
-            photoPath: req.file ? `/uploads/${req.file.filename}` : '',
-            applicationPdf: `/uploads/APP_AF${nextId}_${Date.now()}.pdf`,
+            photoPath: req.file ? req.file.path : '',
+            applicationPdf: '',
             qualifications: qualParsed,
             amount: amount ? parseInt(amount) : 499,
             emp_username: email,
@@ -689,27 +631,29 @@ router.post('/verify-payment', validateRequest({ body: paymentVerifySchema }), a
     }
 });
 
-// Open applicant PDF from admin dashboard. If missing, regenerate from stored data.
+// Open applicant PDF from admin dashboard (generates on-the-fly and streams directly)
 router.get('/pdf/:id', async (req, res) => {
     try {
         const { id } = req.params;
         let applicant = await Applicant.findById(id).lean();
-        let model = Applicant;
 
         if (!applicant) {
             applicant = await NormalApplicant.findById(id).lean();
-            model = NormalApplicant;
         }
 
         if (!applicant) {
             return res.status(404).send('Applicant not found');
         }
 
-        const pdfPath = await ensureApplicantPdf(applicant, model, true);
-        return res.redirect(pdfPath);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="APP_AF${applicant.uniqueId || id}.pdf"`);
+
+        await generatePDF(applicant, res);
     } catch (error) {
         console.error('Applicant PDF open error:', error);
-        return res.status(500).send('Unable to open PDF right now');
+        if (!res.headersSent) {
+            return res.status(500).send('Unable to open PDF right now');
+        }
     }
 });
 
