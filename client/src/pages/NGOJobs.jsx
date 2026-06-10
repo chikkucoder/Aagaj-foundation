@@ -35,14 +35,14 @@ const NGOJobs = () => {
       <section className="py-12 bg-amber-50/10 flex-grow">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
           
-          <div className="flex justify-between items-center border-b border-slate-200 pb-4">
-            <h2 className="text-2xl font-black text-[#ED1C24] tracking-tight uppercase">Build Your Career At Aagaj</h2>
-            <div className="flex items-center gap-2">
+          <div className="space-y-4 border-b border-slate-200 pb-4">
+            <h2 className="text-2xl md:text-3xl font-black text-[#ED1C24] tracking-tight uppercase">Build Your Career At Aagaj</h2>
+            <div className="flex items-center gap-3 bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm w-full sm:w-max">
               <span className="text-xs font-black uppercase text-slate-400">Filter Location:</span>
               <select 
                 value={filterLoc} 
                 onChange={(e) => setFilterLoc(e.target.value)}
-                className="bg-transparent text-sm font-bold text-[#ED1C24] cursor-pointer focus:outline-none border-b border-[#ED1C24]"
+                className="bg-transparent text-sm font-black text-[#ED1C24] cursor-pointer focus:outline-none border-b-2 border-[#ED1C24] pb-0.5"
               >
                 <option value="all">All Locations</option>
                 <option value="bihar">Bihar</option>
