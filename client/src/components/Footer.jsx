@@ -175,7 +175,7 @@ const Footer = () => {
                   <MapPin className="h-4 w-4" />
                 </div>
                 <div>
-                  <span className="text-slate-400 leading-relaxed block">Bhuriyapur Road, Near Krishi Anusandhan Kendra, Patna - 800020, Bihar</span>
+                  <span className="text-slate-400 leading-relaxed block">Bhupatipur Road, Near Krishi Anusandhan Kendra, Patna - 800020, Bihar</span>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -190,8 +190,8 @@ const Footer = () => {
                 <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-800 text-[#fdd831] shrink-0">
                   <Mail className="h-4 w-4" />
                 </div>
-                <a href="mailto:aagajfoundation@gmail.com" className="text-slate-400 hover:text-white transition-colors">
-                  aagajfoundation@gmail.com
+                <a href="mailto:info@aagajfoundation.in" className="text-slate-400 hover:text-white transition-colors">
+                  info@aagajfoundation.in
                 </a>
               </div>
               <div className="flex items-center gap-3">
