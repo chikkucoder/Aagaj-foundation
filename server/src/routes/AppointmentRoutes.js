@@ -55,13 +55,22 @@ router.post('/book', upload.single('healthCard'), validateRequest({ body: appoin
     try {
         const { 
             name, gender, age, aadhar, phone, bloodGroup, 
-            healthId, street, city, pin, department, doctor, date, message, hospitalId
+            healthId, street, city, pin, department, doctor, date, message, hospitalId,
+            appointmentType
         } = req.body;
 
-        if (!name || !aadhar || !phone || !healthId || !date || !hospitalId) {
+        if (!name || !aadhar || !phone || !healthId || !date || !hospitalId || !appointmentType) {
             return res.status(400).json({
                 success: false,
-                message: 'Required fields missing. Please select a hospital and fill all required details.'
+                message: 'Required fields missing. Please select a hospital, fill all details, and select appointment type.'
+            });
+        }
+
+        const validTypes = ['physical_visit', 'teleconsultation'];
+        if (!validTypes.includes(appointmentType)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid appointment type selected.'
             });
         }
 
@@ -91,7 +100,8 @@ router.post('/book', upload.single('healthCard'), validateRequest({ body: appoin
             hospitalId,
             hospitalName: partner.businessName,
             date,
-            message
+            message,
+            appointmentType
         });
 
         // ✅ फाइल को डेटाबेस बफर में डालना
@@ -105,7 +115,8 @@ router.post('/book', upload.single('healthCard'), validateRequest({ body: appoin
 
         // 🟢 Send SMS & WhatsApp Notification
         let notificationResults = null;
-        const appointmentMsg = `Hello ${name}, your appointment with ${doctor || 'the doctor'} at ${department || 'the clinic'} on ${date} has been successfully requested. Thank you for choosing us!`;
+        const typeLabel = appointmentType === 'teleconsultation' ? 'Teleconsultation' : 'Physical Visit';
+        const appointmentMsg = `Hello ${name}, your appointment (${typeLabel}) with ${doctor || 'the doctor'} at ${department || 'the clinic'} on ${date} has been successfully requested. Thank you for choosing us!`;
         
         if (phone) {
             const [smsResult, waResult] = await Promise.all([
@@ -135,6 +146,7 @@ router.post('/book', upload.single('healthCard'), validateRequest({ body: appoin
                 date: newAppointment.date,
                 department: newAppointment.department,
                 doctor: newAppointment.doctor,
+                appointmentType: newAppointment.appointmentType,
                 createdAt: newAppointment.createdAt
             }
         };

@@ -1284,6 +1284,7 @@ const AdminDashboard = () => {
                           <th className="py-3 px-4">Health ID</th>
                           <th className="py-3 px-4">Department</th>
                           <th className="py-3 px-4">Hospital Name</th>
+                          <th className="py-3 px-4">Type</th>
                           <th className="py-3 px-4">Issue Description</th>
                           <th className="py-3 px-4">Status</th>
                         </tr>
@@ -1291,7 +1292,7 @@ const AdminDashboard = () => {
                       <tbody className="divide-y divide-slate-100 text-slate-700 text-xs">
                         {paginatedList.length === 0 ? (
                           <tr>
-                            <td colSpan="7" className="text-center py-12 text-slate-400 font-semibold">No medical appointments booked.</td>
+                            <td colSpan="8" className="text-center py-12 text-slate-400 font-semibold">No medical appointments booked.</td>
                           </tr>
                         ) : (
                           paginatedList.map(appt => (
@@ -1301,6 +1302,15 @@ const AdminDashboard = () => {
                               <td className="py-3 px-4 font-black text-slate-600">{appt.healthId}</td>
                               <td className="py-3 px-4 text-indigo-600 font-bold">{appt.department}</td>
                               <td className="py-3 px-4 font-semibold text-slate-700">{appt.hospitalId || 'General Clinic'}</td>
+                              <td className="py-3 px-4">
+                                <span className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-black uppercase ${
+                                  appt.appointmentType === 'teleconsultation' 
+                                    ? 'bg-purple-100 text-purple-800' 
+                                    : 'bg-blue-100 text-blue-800'
+                                }`}>
+                                  {appt.appointmentType === 'teleconsultation' ? 'Teleconsultation' : 'Physical Visit'}
+                                </span>
+                              </td>
                               <td className="py-3 px-4 text-slate-500 max-w-xs truncate">{appt.message}</td>
                               <td className="py-3 px-4">
                                 <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-black text-amber-800 uppercase">{appt.status || 'Pending'}</span>
