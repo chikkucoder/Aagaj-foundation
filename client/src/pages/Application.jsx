@@ -194,7 +194,10 @@ const Application = () => {
         'district': 'District Coordinator',
         'health': 'Health Supervisor',
         'mitra': 'Mahila Mitra',
-        'trainer': 'Skill Trainer'
+        'trainer': 'Skill Trainer',
+        'Panchayat Co-ordinator': 'Panchayat Coordinator',
+        'Block Co-ordinator': 'Block Coordinator',
+        'District Co-ordinator': 'District Coordinator'
       };
       const resolvedRole = roleMap[roleParam] || roleParam || 'Panchayat Coordinator';
       setValue('role_applied', resolvedRole);
