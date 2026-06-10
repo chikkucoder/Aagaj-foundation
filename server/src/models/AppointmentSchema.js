@@ -28,6 +28,13 @@ const AppointmentSchema = new mongoose.Schema({
     healthCardContentType: { type: String }, 
     healthCardFileName: { type: String },   
 
+    appointmentType: { 
+        type: String, 
+        enum: ['physical_visit', 'teleconsultation'], 
+        default: 'physical_visit',
+        required: true
+    },
+
     status: { type: String, default: 'Pending' },
     createdAt: { type: Date, default: Date.now }
 });
