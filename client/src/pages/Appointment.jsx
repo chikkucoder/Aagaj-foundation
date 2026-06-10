@@ -38,13 +38,15 @@ const Appointment = () => {
     defaultValues: {
       gender: 'Male',
       bloodGroup: 'Unknown',
-      department: 'Hospital'
+      department: 'Hospital',
+      appointmentType: 'physical_visit'
     }
   });
 
   const watchHealthId = watch('healthId');
   const watchDepartment = watch('department');
   const watchDoctor = watch('doctor'); // Ties to the hospital facility business name
+  const watchAppointmentType = watch('appointmentType');
 
   // Reset state and district when department changes
   useEffect(() => {
@@ -165,6 +167,7 @@ const Appointment = () => {
       formData.append('hospitalId', selectedPartner.uniqueId); // Essential for billing logs mapping
       formData.append('date', data.date);
       formData.append('message', data.message);
+      formData.append('appointmentType', data.appointmentType);
       if (cardFile) {
         formData.append('healthCard', cardFile);
       }
@@ -179,6 +182,7 @@ const Appointment = () => {
           phone: data.phone,
           hospital: data.doctor,
           appointmentDate: data.date,
+          appointmentType: data.appointmentType,
           amount: res.data?.amount || 0,
           paymentId: res.data?.paymentId || 'N/A'
         };
@@ -187,7 +191,8 @@ const Appointment = () => {
         
         // Trigger WhatsApp Redirect
         const waNumber = selectedPartner.contact?.whatsappNumber || '9431430464';
-        const waMsg = `*AAGAJ FOUNDATION - BOOKING*\n--------------------------\n*Patient:* ${data.name.toUpperCase()}\n*Health ID:* ${data.healthId}\n*Mobile:* ${data.phone}\n*Specialization:* ${data.department}\n*Problem:* ${data.message}\n*Facility:* ${data.doctor}\n*Appt. Date:* ${data.date}\n*Address:* ${data.street}, ${data.city} - ${data.pin}`;
+        const typeLabel = data.appointmentType === 'teleconsultation' ? 'Teleconsultation' : 'Physical Visit';
+        const waMsg = `*AAGAJ FOUNDATION - BOOKING*\n--------------------------\n*Patient:* ${data.name.toUpperCase()}\n*Health ID:* ${data.healthId}\n*Mobile:* ${data.phone}\n*Type:* ${typeLabel}\n*Specialization:* ${data.department}\n*Problem:* ${data.message}\n*Facility:* ${data.doctor}\n*Appt. Date:* ${data.date}\n*Address:* ${data.street}, ${data.city} - ${data.pin}`;
         
         setTimeout(() => {
           window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(waMsg)}`, '_blank');
@@ -331,6 +336,12 @@ const Appointment = () => {
                   <div className="grid grid-cols-3 border-b border-slate-200/60 pb-2">
                     <span className="font-bold text-slate-400 col-span-1">Medical Facility</span>
                     <span className="font-bold text-indigo-600 col-span-2 uppercase">{successReceipt.hospital}</span>
+                  </div>
+                  <div className="grid grid-cols-3 border-b border-slate-200/60 pb-2">
+                    <span className="font-bold text-slate-400 col-span-1">Appointment Type</span>
+                    <span className="font-bold text-slate-800 col-span-2 capitalize">
+                      {successReceipt.appointmentType === 'teleconsultation' ? 'Teleconsultation' : 'Physical Visit'}
+                    </span>
                   </div>
                   <div className="grid grid-cols-3 border-b border-slate-200/60 pb-2">
                     <span className="font-bold text-slate-400 col-span-1">Booking Date</span>
@@ -608,6 +619,31 @@ const Appointment = () => {
                           ))}
                         </select>
                         {errors.doctor && <p className="text-xs text-rose-500 font-semibold mt-1">{errors.doctor.message}</p>}
+                      </div>
+
+                      <div className="sm:col-span-2 md:col-span-1">
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Appointment Type *</label>
+                        <div className="flex flex-col gap-2 mt-2">
+                          <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
+                            <input
+                              type="radio"
+                              value="physical_visit"
+                              {...register('appointmentType', { required: 'Appointment type is required' })}
+                              className="h-4 w-4 text-[#2563eb] border-slate-300 focus:ring-[#2563eb] cursor-pointer"
+                            />
+                            Physical Visit
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
+                            <input
+                              type="radio"
+                              value="teleconsultation"
+                              {...register('appointmentType', { required: 'Appointment type is required' })}
+                              className="h-4 w-4 text-[#2563eb] border-slate-300 focus:ring-[#2563eb] cursor-pointer"
+                            />
+                            Teleconsultation
+                          </label>
+                        </div>
+                        {errors.appointmentType && <p className="text-xs text-rose-500 font-semibold mt-1">{errors.appointmentType.message}</p>}
                       </div>
 
                       <div>

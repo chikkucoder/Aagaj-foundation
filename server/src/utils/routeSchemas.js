@@ -74,6 +74,7 @@ const appointmentBookSchema = Joi.object({
     doctor: Joi.string().trim().allow('', null).optional(),
     date: Joi.string().trim().required(),
     message: Joi.string().trim().allow('', null).optional(),
+    appointmentType: Joi.string().valid('physical_visit', 'teleconsultation').default('physical_visit').required(),
     hospitalId: Joi.string().trim().required()
 });
 

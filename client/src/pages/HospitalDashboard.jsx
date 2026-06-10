@@ -852,6 +852,7 @@ const HospitalDashboard = () => {
                           <th className="py-3 px-4">Booked Date</th>
                           <th className="py-3 px-4">Patient Name</th>
                           <th className="py-3 px-4">Health Card ID</th>
+                          <th className="py-3 px-4">Type</th>
                           <th className="py-3 px-4">Specialization Category</th>
                           <th className="py-3 px-4">Problem</th>
                           <th className="py-3 px-4">Status</th>
@@ -860,7 +861,7 @@ const HospitalDashboard = () => {
                       <tbody className="divide-y divide-slate-100 text-slate-700 text-xs">
                         {filteredData.length === 0 ? (
                           <tr>
-                            <td colSpan="6" className="text-center py-12 text-slate-400 font-medium">No clinic appointments booked for this location.</td>
+                            <td colSpan="7" className="text-center py-12 text-slate-400 font-medium">No clinic appointments booked for this location.</td>
                           </tr>
                         ) : (
                           filteredData.map(a => (
@@ -868,6 +869,15 @@ const HospitalDashboard = () => {
                               <td className="py-3 px-4 text-slate-400 font-bold">{a.date}</td>
                               <td className="py-3 px-4 font-bold text-slate-900">{a.name}</td>
                               <td className="py-3 px-4 font-black text-rose-600">{a.healthId}</td>
+                              <td className="py-3 px-4">
+                                <span className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-black uppercase ${
+                                  a.appointmentType === 'teleconsultation' 
+                                    ? 'bg-purple-100 text-purple-800' 
+                                    : 'bg-blue-100 text-blue-800'
+                                }`}>
+                                  {a.appointmentType === 'teleconsultation' ? 'Teleconsultation' : 'Physical Visit'}
+                                </span>
+                              </td>
                               <td className="py-3 px-4 font-semibold text-indigo-600">{a.department}</td>
                               <td className="py-3 px-4 text-slate-400 truncate max-w-xs">{a.message}</td>
                               <td className="py-3 px-4">
