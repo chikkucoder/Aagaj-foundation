@@ -46,7 +46,7 @@ const Contact = () => {
                   </div>
                   <div>
                     <h4 className="font-bold text-base text-slate-200">Address</h4>
-                    <p className="text-slate-400 text-sm font-semibold">Registered Trust Office, Main Street, Patna, Bihar, Pin - 800001</p>
+                    <p className="text-slate-400 text-sm font-semibold">Bhupatipur Road, Near Krishi Anusandhan Kendra, Patna - 800020, Bihar</p>
                   </div>
                 </div>
 
@@ -66,8 +66,8 @@ const Contact = () => {
                   </div>
                   <div>
                     <h4 className="font-bold text-base text-slate-200">Email Address</h4>
-                    <a href="mailto:vivekkumargy97@gmail.com" className="text-slate-400 hover:text-[#fdd831] text-sm font-semibold underline">
-                      vivekkumargy97@gmail.com
+                    <a href="mailto:info@aagajfoundation.in" className="text-slate-400 hover:text-[#fdd831] text-sm font-semibold underline">
+                      info@aagajfoundation.in
                     </a>
                   </div>
                 </div>
