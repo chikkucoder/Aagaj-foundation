@@ -270,7 +270,7 @@ const Appointment = () => {
   return (
     <div className="min-h-screen bg-[#f1f5f9] pb-12 px-4 sm:px-6 lg:px-8">
       {/* Back button (Hide on print) */}
-      <div className="print:hidden max-w-3xl mx-auto mb-6 flex justify-between items-center mt-6">
+      <div className="print:hidden max-w-3xl mx-auto mb-6 flex flex-col sm:flex-row justify-between items-center mt-6 gap-4">
         <Link
           to="/"
           className="inline-flex items-center gap-2 rounded-xl bg-white border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:text-rose-600 shadow-sm transition-all"
@@ -394,17 +394,17 @@ const Appointment = () => {
                   {/* Health ID Verification */}
                   <div className="bg-slate-50 p-6 rounded-2xl border border-slate-150">
                     <label className="block text-xs font-bold text-rose-600 uppercase tracking-wider">Health ID (Unique Card ID)</label>
-                    <div className="flex gap-2 mt-1">
+                    <div className="flex flex-col sm:flex-row gap-2 mt-1">
                       <input
                         type="text"
                         {...register('healthId', { required: 'Health ID is required to verify beneficiary status' })}
                         placeholder="MC-123456"
-                        className="flex-grow rounded-xl border border-slate-250 py-2.5 px-3 text-slate-800 text-sm uppercase outline-none focus:border-[#2563eb] transition-all bg-white"
+                        className="w-full sm:flex-grow rounded-xl border border-slate-250 py-2.5 px-3 text-slate-800 text-sm uppercase outline-none focus:border-[#2563eb] transition-all bg-white"
                       />
                       <button
                         type="button"
                         onClick={verifyHealthId}
-                        className="rounded-xl bg-slate-900 hover:bg-slate-800 text-white px-4 py-2.5 text-xs font-bold shrink-0 transition-all cursor-pointer"
+                        className="w-full sm:w-auto rounded-xl bg-slate-900 hover:bg-slate-800 text-white px-4 py-2.5 text-xs font-bold shrink-0 transition-all cursor-pointer"
                       >
                         Verify Identity
                       </button>
