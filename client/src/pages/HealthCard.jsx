@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { createHealthCardOrder, verifyHealthCardPayment, checkHealthCardExists } from '../api/paymentApi';
-import { Camera, RefreshCw, Printer, ShieldAlert, Award, HeartHandshake, User, MapPin, CheckCircle, ArrowLeft } from 'lucide-react';
+import { Camera, RefreshCw, Printer, ShieldAlert, Award, HeartHandshake, User, MapPin, CheckCircle, ArrowLeft, Download } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import apiClient from '../api/apiClient';
+import html2canvas from 'html2canvas';
 
 const HealthCard = () => {
   // Page States
@@ -17,6 +18,10 @@ const HealthCard = () => {
   const [showWebcam, setShowWebcam] = useState(false);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+  
+  // Refs for card download
+  const cardFrontRef = useRef(null);
+  const cardBackRef = useRef(null);
   
   // Custom uploaded or captured image
   const [photoBlob, setPhotoBlob] = useState(null);
@@ -242,6 +247,26 @@ const HealthCard = () => {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const downloadFrontCard = () => {
+    if (!cardFrontRef.current) return;
+    html2canvas(cardFrontRef.current, { scale: 3, useCORS: true }).then((canvas) => {
+      const link = document.createElement('a');
+      link.download = `Health_Card_Front_${successCard.fullName.replace(/\s+/g, '_')}_${successCard.healthId}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    });
+  };
+
+  const downloadBackCard = () => {
+    if (!cardBackRef.current) return;
+    html2canvas(cardBackRef.current, { scale: 3, useCORS: true }).then((canvas) => {
+      const link = document.createElement('a');
+      link.download = `Health_Card_Back_${successCard.fullName.replace(/\s+/g, '_')}_${successCard.healthId}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    });
   };
 
   const resolveAssetUrl = (assetPath) => {
@@ -537,25 +562,41 @@ const HealthCard = () => {
           /* --- DUAL STATE B: SUCCESS IDENTITY CARD PREVIEW --- */
           <div className="flex flex-col items-center">
             
-            {/* Header Controls for Print */}
+            {/* Header Controls for Print & Download */}
             <div className="print:hidden w-full max-w-[550px] bg-emerald-50 border border-emerald-100 rounded-3xl p-6 mb-6 flex flex-col items-center text-center">
               <CheckCircle className="h-12 w-12 text-emerald-600 mb-3" />
               <h3 className="text-base font-extrabold text-slate-850">Health Identity Card Generated!</h3>
-              <p className="text-xs text-slate-500 mt-1 max-w-sm">The digital copy has been issued successfully. Press Ctrl+P or the button below to print.</p>
+              <p className="text-xs text-slate-500 mt-1 max-w-sm">The digital copy has been issued successfully. Use the options below to print or download your cards.</p>
               
-              <div className="flex gap-2 w-full mt-4">
-                <button
-                  onClick={() => setSuccessCard(null)}
-                  className="flex-1 rounded-xl bg-white border border-slate-200 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
-                >
-                  Create Another Card
-                </button>
-                <button
-                  onClick={handlePrint}
-                  className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-[#2e3192] hover:bg-[#1a1c54] text-white py-2 text-xs font-bold shadow-md cursor-pointer"
-                >
-                  <Printer className="h-4 w-4" /> Print Card
-                </button>
+              <div className="flex flex-col gap-2.5 w-full mt-4">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSuccessCard(null)}
+                    className="flex-1 rounded-xl bg-white border border-slate-200 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer transition-all active:scale-95"
+                  >
+                    Create Another Card
+                  </button>
+                  <button
+                    onClick={handlePrint}
+                    className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-[#2e3192] hover:bg-[#1a1c54] text-white py-2.5 text-xs font-bold shadow-md cursor-pointer transition-all active:scale-95"
+                  >
+                    <Printer className="h-4 w-4" /> Print Card
+                  </button>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={downloadFrontCard}
+                    className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 text-xs font-bold shadow-md cursor-pointer transition-all active:scale-95"
+                  >
+                    <Download className="h-4 w-4" /> Download Front (PNG)
+                  </button>
+                  <button
+                    onClick={downloadBackCard}
+                    className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white py-2.5 text-xs font-bold shadow-md cursor-pointer transition-all active:scale-95"
+                  >
+                    <Download className="h-4 w-4" /> Download Back (PNG)
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -563,7 +604,10 @@ const HealthCard = () => {
             <div className="flex flex-col gap-6 items-center p-4">
               
               {/* CARD FRONT SIDE */}
-              <div className="w-[550px] h-[340px] rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden relative flex flex-col justify-between select-none font-sans">
+              <div 
+                ref={cardFrontRef}
+                className="w-[550px] h-[340px] rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden relative flex flex-col justify-between select-none font-sans"
+              >
                 
                 {/* Issued under banner strip */}
                 <div className="bg-slate-50 text-[#2e3192] text-center py-1.5 text-[10px] font-black uppercase tracking-wider border-b border-slate-100">
@@ -639,7 +683,10 @@ const HealthCard = () => {
               </div>
 
               {/* CARD BACK SIDE */}
-              <div className="w-[550px] h-[340px] rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden relative flex flex-col justify-between select-none font-sans">
+              <div 
+                ref={cardBackRef}
+                className="w-[550px] h-[340px] rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden relative flex flex-col justify-between select-none font-sans"
+              >
                 
                 {/* Back Header Banner */}
                 <div className="bg-[#ed1c24] text-white text-center py-2.5 text-xs font-black uppercase tracking-wider">
