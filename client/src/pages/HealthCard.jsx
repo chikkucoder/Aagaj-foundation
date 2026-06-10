@@ -269,15 +269,21 @@ const HealthCard = () => {
         
         {/* --- DUAL STATE CONTAINER: FORM VIEW OR ID CARD VIEW --- */}
         {!successCard ? (
-          <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-2xl print:hidden relative">
-            <img src="/logo.jpg" alt="Logo" className="absolute top-8 left-8 h-14 w-auto rounded-xl border border-slate-100 p-0.5 object-contain" />
+          <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-2xl print:hidden">
             
-            <div className="text-center pt-8 mb-8">
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold px-3 py-1 text-xs uppercase mb-2">
-                <Award className="h-3.5 w-3.5" /> Swasthya Suraksha Yojana
-              </span>
-              <h2 className="text-2xl font-black text-slate-900 tracking-tight">AAGAJ FOUNDATION</h2>
-              <p className="text-rose-600 font-black tracking-wider text-xs uppercase mt-0.5">Health Identity Enrollment</p>
+            <div className="flex flex-col items-center text-center mb-8 gap-4">
+              <img 
+                src="/logo.jpg" 
+                alt="Logo" 
+                className="h-16 w-auto rounded-2xl border border-slate-100 p-1 object-contain shadow-sm" 
+              />
+              <div className="space-y-1">
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-extrabold px-3.5 py-1 text-xs uppercase tracking-wide">
+                  <Award className="h-3.5 w-3.5" /> Swasthya Suraksha Yojana
+                </span>
+                <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase mt-1">AAGAJ FOUNDATION</h2>
+                <p className="text-rose-600 font-black tracking-widest text-xs uppercase">Health Identity Enrollment</p>
+              </div>
             </div>
 
             {errorMsg && (
