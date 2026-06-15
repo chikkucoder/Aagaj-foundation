@@ -6,7 +6,16 @@ const HealthCard = require('../models/HealthCardSchema');
 const multer = require('multer');
 const { sendSMS, sendWhatsApp } = require('../services/twilioService');
 const { validateRequest } = require('../middleware/requestValidation');
-const { appointmentBookSchema, testNotifySchema } = require('../utils/routeSchemas');
+const { appointmentBookSchema, testNotifySchema, paymentVerifySchema } = require('../utils/routeSchemas');
+const PendingPayment = require('../models/PendingPayment');
+const PaymentLog = require('../models/PaymentLog');
+const crypto = require('crypto');
+const Razorpay = require('razorpay');
+
+const razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET
+});
 
 const buildHealthIdCandidates = (rawHealthId) => {
     const input = String(rawHealthId || '').trim();
@@ -91,7 +100,78 @@ router.post('/book', upload.single('healthCard'), validateRequest({ body: appoin
             return res.status(400).json({ success: false, message: 'Invalid medical facility selected. Please choose a valid facility.' });
         }
 
-        const newAppointment = new Appointment({
+        // If Physical Visit: book directly as before
+        if (appointmentType === 'physical_visit') {
+            const newAppointment = new Appointment({
+                name, gender, age, aadhar, phone, bloodGroup,
+                healthId: verifiedCard.healthId,
+                street, city, pincode: pin,
+                department,
+                doctor: doctor || partner.businessName,
+                hospitalId,
+                hospitalName: partner.businessName,
+                date,
+                message,
+                appointmentType,
+                paymentStatus: 'Paid' // Free physical visit starts out as Paid/complete
+            });
+
+            // ✅ फाइल को डेटाबेस बफर में डालना
+            if (req.file) {
+                newAppointment.healthCardData = req.file.buffer;
+                newAppointment.healthCardContentType = req.file.mimetype;
+                newAppointment.healthCardFileName = req.file.originalname;
+            }
+
+            await newAppointment.save();
+
+            // 🟢 Send SMS & WhatsApp Notification
+            let notificationResults = null;
+            const appointmentMsg = `Hello ${name}, your appointment (Physical Visit) with ${doctor || 'the doctor'} at ${department || 'the clinic'} on ${date} has been successfully requested. Thank you for choosing us!`;
+            
+            if (phone) {
+                const [smsResult, waResult] = await Promise.all([
+                    sendSMS(phone, appointmentMsg),
+                    sendWhatsApp(phone, appointmentMsg)
+                ]);
+                notificationResults = {
+                    sms: smsResult,
+                    whatsapp: waResult
+                };
+                console.log('Appointment notification results:', {
+                    phone,
+                    sms: smsResult,
+                    whatsapp: waResult
+                });
+            }
+
+            const responsePayload = {
+                success: true,
+                message: "Registered Successfully in Database!",
+                data: {
+                    id: newAppointment._id,
+                    name: newAppointment.name,
+                    healthId: newAppointment.healthId,
+                    phone: newAppointment.phone,
+                    hospitalName: newAppointment.hospitalName,
+                    date: newAppointment.date,
+                    department: newAppointment.department,
+                    doctor: newAppointment.doctor,
+                    appointmentType: newAppointment.appointmentType,
+                    createdAt: newAppointment.createdAt
+                }
+            };
+            if (process.env.NODE_ENV !== 'production') {
+                responsePayload.notificationResults = notificationResults;
+            }
+
+            return res.status(200).json(responsePayload);
+        }
+
+        // If Teleconsultation: initiate Razorpay payment process
+        const pendingOrderId = 'APPT_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+
+        const pendingData = {
             name, gender, age, aadhar, phone, bloodGroup,
             healthId: verifiedCard.healthId,
             street, city, pincode: pin,
@@ -102,41 +182,169 @@ router.post('/book', upload.single('healthCard'), validateRequest({ body: appoin
             date,
             message,
             appointmentType
+        };
+
+        if (req.file) {
+            // Store file buffer inside pendingData
+            pendingData.healthCardData = req.file.buffer;
+            pendingData.healthCardContentType = req.file.mimetype;
+            pendingData.healthCardFileName = req.file.originalname;
+        }
+
+        await PendingPayment.create({
+            orderId: pendingOrderId,
+            paymentType: 'appointment',
+            data: pendingData
         });
 
-        // ✅ फाइल को डेटाबेस बफर में डालना
-        if (req.file) {
-            newAppointment.healthCardData = req.file.buffer;
-            newAppointment.healthCardContentType = req.file.mimetype;
-            newAppointment.healthCardFileName = req.file.originalname;
+        const order = await razorpay.orders.create({
+            amount: 20000, // 200 INR in paise
+            currency: 'INR',
+            receipt: pendingOrderId,
+            notes: {
+                paymentType: 'appointment',
+                pendingOrderId: pendingOrderId,
+                fullName: name,
+                mobile: phone
+            }
+        });
+
+        return res.json({
+            success: true,
+            requiresPayment: true,
+            orderId: order.id,
+            pendingOrderId: pendingOrderId,
+            amount: order.amount,
+            currency: order.currency,
+            key: process.env.RAZORPAY_KEY_ID
+        });
+
+    } catch (error) {
+        console.error("Booking Error:", error);
+        res.status(500).json({ success: false, message: "Database Error: " + error.message });
+    }
+});
+
+// Route: Verify Razorpay Payment for Teleconsultation Appointment
+router.post('/verify-payment', validateRequest({ body: paymentVerifySchema }), async (req, res) => {
+    try {
+        const {
+            razorpay_order_id,
+            razorpay_payment_id,
+            razorpay_signature,
+            pendingOrderId
+        } = req.body;
+
+        const generatedSignature = crypto
+            .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+            .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+            .digest('hex');
+
+        if (generatedSignature !== razorpay_signature) {
+            return res.status(400).json({ success: false, message: 'Payment signature verification failed' });
+        }
+
+        const pendingRecord = await PendingPayment.findOne({ 
+            orderId: pendingOrderId,
+            paymentType: 'appointment'
+        });
+
+        if (!pendingRecord) {
+            console.error('No pending appointment found for order:', pendingOrderId);
+            return res.status(404).json({ success: false, message: 'Pending appointment order not found' });
+        }
+
+        const pendingData = pendingRecord.data;
+
+        const newAppointment = new Appointment({
+            name: pendingData.name,
+            gender: pendingData.gender,
+            age: pendingData.age,
+            aadhar: pendingData.aadhar,
+            phone: pendingData.phone,
+            bloodGroup: pendingData.bloodGroup,
+            healthId: pendingData.healthId,
+            street: pendingData.street,
+            city: pendingData.city,
+            pincode: pendingData.pincode,
+            department: pendingData.department,
+            doctor: pendingData.doctor,
+            hospitalId: pendingData.hospitalId,
+            hospitalName: pendingData.hospitalName,
+            date: pendingData.date,
+            message: pendingData.message,
+            appointmentType: pendingData.appointmentType,
+            paymentId: razorpay_payment_id,
+            orderId: pendingOrderId,
+            paymentStatus: 'Paid'
+        });
+
+        if (pendingData.healthCardData) {
+            let bufferData;
+            if (Buffer.isBuffer(pendingData.healthCardData)) {
+                bufferData = pendingData.healthCardData;
+            } else if (pendingData.healthCardData.buffer) {
+                bufferData = Buffer.from(pendingData.healthCardData.buffer);
+            } else if (pendingData.healthCardData.data) {
+                bufferData = Buffer.from(pendingData.healthCardData.data);
+            } else if (typeof pendingData.healthCardData.value === 'function') {
+                bufferData = pendingData.healthCardData.value();
+            } else {
+                bufferData = Buffer.from(pendingData.healthCardData);
+            }
+            newAppointment.healthCardData = bufferData;
+            newAppointment.healthCardContentType = pendingData.healthCardContentType;
+            newAppointment.healthCardFileName = pendingData.healthCardFileName;
         }
 
         await newAppointment.save();
 
         // 🟢 Send SMS & WhatsApp Notification
         let notificationResults = null;
-        const typeLabel = appointmentType === 'teleconsultation' ? 'Teleconsultation' : 'Physical Visit';
-        const appointmentMsg = `Hello ${name}, your appointment (${typeLabel}) with ${doctor || 'the doctor'} at ${department || 'the clinic'} on ${date} has been successfully requested. Thank you for choosing us!`;
+        const appointmentMsg = `Hello ${pendingData.name}, your appointment (Teleconsultation) with ${pendingData.doctor || 'the doctor'} at ${pendingData.department || 'the clinic'} on ${pendingData.date} has been successfully requested. Thank you for choosing us!`;
         
-        if (phone) {
+        if (pendingData.phone) {
             const [smsResult, waResult] = await Promise.all([
-                sendSMS(phone, appointmentMsg),
-                sendWhatsApp(phone, appointmentMsg)
+                sendSMS(pendingData.phone, appointmentMsg),
+                sendWhatsApp(pendingData.phone, appointmentMsg)
             ]);
             notificationResults = {
                 sms: smsResult,
                 whatsapp: waResult
             };
-            console.log('Appointment notification results:', {
-                phone,
+            console.log('Teleconsultation notification results:', {
+                phone: pendingData.phone,
                 sms: smsResult,
                 whatsapp: waResult
             });
         }
 
+        // Write to PaymentLog
+        try {
+            await PaymentLog.create({
+                orderId: pendingOrderId,
+                amount: '200',
+                status: 'success',
+                paymentId: razorpay_payment_id,
+                transactionId: razorpay_order_id,
+                schemeType: 'appointment',
+                ipAddress: req.ip || req.connection.remoteAddress,
+                userAgent: req.get('User-Agent'),
+                rawResponse: req.body,
+                verificationStatus: 'verified',
+                amountVerified: true,
+                signatureVerified: true
+            });
+        } catch (logError) {
+            console.warn('PaymentLog write failed (appointment):', logError.message);
+        }
+
+        // Clean up pending record from MongoDB
+        await PendingPayment.deleteOne({ orderId: pendingOrderId });
+
         const responsePayload = {
             success: true,
-            message: "Registered Successfully in Database!",
+            message: "Teleconsultation booked and payment verified successfully!",
             data: {
                 id: newAppointment._id,
                 name: newAppointment.name,
@@ -147,6 +355,9 @@ router.post('/book', upload.single('healthCard'), validateRequest({ body: appoin
                 department: newAppointment.department,
                 doctor: newAppointment.doctor,
                 appointmentType: newAppointment.appointmentType,
+                paymentId: newAppointment.paymentId,
+                orderId: newAppointment.orderId,
+                paymentStatus: newAppointment.paymentStatus,
                 createdAt: newAppointment.createdAt
             }
         };
@@ -155,9 +366,8 @@ router.post('/book', upload.single('healthCard'), validateRequest({ body: appoin
         }
 
         res.status(200).json(responsePayload);
-
     } catch (error) {
-        console.error("Booking Error:", error);
+        console.error("Verify Payment Error:", error);
         res.status(500).json({ success: false, message: "Database Error: " + error.message });
     }
 });

@@ -10,7 +10,7 @@ const PendingPaymentSchema = new mongoose.Schema({
     paymentType: {
         type: String,
         required: true,
-        enum: ['silayi', 'swarojgaar', 'healthcard', 'application', 'donation']
+        enum: ['silayi', 'swarojgaar', 'healthcard', 'application', 'donation', 'appointment']
     },
     data: {
         type: mongoose.Schema.Types.Mixed,  // Flexible data storage

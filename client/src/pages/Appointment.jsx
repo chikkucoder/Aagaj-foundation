@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { verifyHealthCardId, bookAppointment } from '../api/userApi';
+import { verifyHealthCardId, bookAppointment, verifyAppointmentPayment } from '../api/userApi';
 import apiClient from '../api/apiClient';
 import { Calendar, Stethoscope, Search, FileText, ArrowLeft, Network, ShieldCheck, HeartHandshake, PhoneCall, User, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -136,6 +136,83 @@ const Appointment = () => {
     }
   };
 
+  const triggerRazorpay = (orderRes, clientData, selectedPartner) => {
+    const options = {
+      key: orderRes.key,
+      amount: orderRes.amount,
+      currency: orderRes.currency,
+      order_id: orderRes.orderId,
+      name: 'Aagaj Foundation',
+      description: 'Teleconsultation Appointment Fee',
+      prefill: {
+        name: clientData.name,
+        contact: clientData.phone
+      },
+      theme: {
+        color: '#2e3192'
+      },
+      handler: async function (response) {
+        setLoading(true);
+        try {
+          const verifyRes = await verifyAppointmentPayment({
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+            pendingOrderId: orderRes.pendingOrderId
+          });
+
+          if (verifyRes.success) {
+            const generated = {
+              id: verifyRes.data?.id || `RCPT-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
+              createdAt: verifyRes.data?.createdAt || new Date().toISOString(),
+              patientName: clientData.name,
+              healthId: clientData.healthId,
+              phone: clientData.phone,
+              hospital: clientData.doctor,
+              appointmentDate: clientData.date,
+              appointmentType: clientData.appointmentType,
+              amount: 200,
+              paymentId: response.razorpay_payment_id,
+              orderId: orderRes.pendingOrderId
+            };
+
+            setSuccessReceipt(generated);
+            
+            // Trigger WhatsApp Redirect
+            const waNumber = selectedPartner.contact?.whatsappNumber || '9431430464';
+            const typeLabel = clientData.appointmentType === 'teleconsultation' ? 'Teleconsultation' : 'Physical Visit';
+            const waMsg = `*AAGAJ FOUNDATION - BOOKING*\n--------------------------\n*Patient:* ${clientData.name.toUpperCase()}\n*Health ID:* ${clientData.healthId}\n*Mobile:* ${clientData.phone}\n*Type:* ${typeLabel}\n*Specialization:* ${clientData.department}\n*Problem:* ${clientData.message}\n*Facility:* ${clientData.doctor}\n*Appt. Date:* ${clientData.date}\n*Address:* ${clientData.street}, ${clientData.city} - ${clientData.pin}`;
+            
+            setTimeout(() => {
+              window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(waMsg)}`, '_blank');
+            }, 1200);
+
+            reset();
+            setVerifiedHealthState({ ok: false, healthId: '', card: null });
+            setVerifyStatus('');
+            setCardFile(null);
+            setCardFileName('');
+          } else {
+            alert(verifyRes.message || 'Payment verification failed.');
+          }
+        } catch (err) {
+          console.error(err);
+          alert(err.response?.data?.message || 'Error verifying transaction.');
+        } finally {
+          setLoading(false);
+        }
+      },
+      modal: {
+        ondismiss: function () {
+          setLoading(false);
+        }
+      }
+    };
+
+    const rzp = new window.Razorpay(options);
+    rzp.open();
+  };
+
   const handleBook = async (data) => {
     if (!verifiedHealthState.ok || verifiedHealthState.healthId !== data.healthId?.trim().toUpperCase()) {
       alert('Please verify a valid Health ID before booking the appointment.');
@@ -174,42 +251,57 @@ const Appointment = () => {
 
       const res = await bookAppointment(formData);
       if (res.success) {
-        const generated = {
-          id: `RCPT-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
-          createdAt: new Date().toISOString(),
-          patientName: data.name,
-          healthId: data.healthId,
-          phone: data.phone,
-          hospital: data.doctor,
-          appointmentDate: data.date,
-          appointmentType: data.appointmentType,
-          amount: res.data?.amount || 0,
-          paymentId: res.data?.paymentId || 'N/A'
-        };
+        if (res.requiresPayment) {
+          // Trigger Razorpay payment gateway
+          if (!window.Razorpay) {
+            const script = document.createElement('script');
+            script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+            script.async = true;
+            script.onload = () => triggerRazorpay(res, data, selectedPartner);
+            document.body.appendChild(script);
+          } else {
+            triggerRazorpay(res, data, selectedPartner);
+          }
+        } else {
+          // Direct booking success (physical_visit)
+          const generated = {
+            id: res.data?.id || `RCPT-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
+            createdAt: res.data?.createdAt || new Date().toISOString(),
+            patientName: data.name,
+            healthId: data.healthId,
+            phone: data.phone,
+            hospital: data.doctor,
+            appointmentDate: data.date,
+            appointmentType: data.appointmentType,
+            amount: 0,
+            paymentId: 'N/A'
+          };
 
-        setSuccessReceipt(generated);
-        
-        // Trigger WhatsApp Redirect
-        const waNumber = selectedPartner.contact?.whatsappNumber || '9431430464';
-        const typeLabel = data.appointmentType === 'teleconsultation' ? 'Teleconsultation' : 'Physical Visit';
-        const waMsg = `*AAGAJ FOUNDATION - BOOKING*\n--------------------------\n*Patient:* ${data.name.toUpperCase()}\n*Health ID:* ${data.healthId}\n*Mobile:* ${data.phone}\n*Type:* ${typeLabel}\n*Specialization:* ${data.department}\n*Problem:* ${data.message}\n*Facility:* ${data.doctor}\n*Appt. Date:* ${data.date}\n*Address:* ${data.street}, ${data.city} - ${data.pin}`;
-        
-        setTimeout(() => {
-          window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(waMsg)}`, '_blank');
-        }, 1200);
+          setSuccessReceipt(generated);
+          
+          // Trigger WhatsApp Redirect
+          const waNumber = selectedPartner.contact?.whatsappNumber || '9431430464';
+          const typeLabel = data.appointmentType === 'teleconsultation' ? 'Teleconsultation' : 'Physical Visit';
+          const waMsg = `*AAGAJ FOUNDATION - BOOKING*\n--------------------------\n*Patient:* ${data.name.toUpperCase()}\n*Health ID:* ${data.healthId}\n*Mobile:* ${data.phone}\n*Type:* ${typeLabel}\n*Specialization:* ${data.department}\n*Problem:* ${data.message}\n*Facility:* ${data.doctor}\n*Appt. Date:* ${data.date}\n*Address:* ${data.street}, ${data.city} - ${data.pin}`;
+          
+          setTimeout(() => {
+            window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(waMsg)}`, '_blank');
+          }, 1200);
 
-        reset();
-        setVerifiedHealthState({ ok: false, healthId: '', card: null });
-        setVerifyStatus('');
-        setCardFile(null);
-        setCardFileName('');
+          reset();
+          setVerifiedHealthState({ ok: false, healthId: '', card: null });
+          setVerifyStatus('');
+          setCardFile(null);
+          setCardFileName('');
+          setLoading(false);
+        }
       } else {
         alert(res.message || 'Failed to book appointment.');
+        setLoading(false);
       }
     } catch (err) {
       console.error(err);
-      alert('Server error while saving booking.');
-    } finally {
+      alert(err.response?.data?.message || 'Server error while saving booking.');
       setLoading(false);
     }
   };
