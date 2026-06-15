@@ -411,7 +411,7 @@ const EmployeeDashboard = () => {
               src={photo}
               alt="Avatar"
               className="h-8 w-8 rounded-full border border-slate-700 object-cover bg-white"
-              onError={(e) => { e.target.onerror = null; e.target.src = '/logo.jpg'; }}
+              onError={handleImageError}
             />
             <div className="truncate">
               <p className="text-xs font-bold text-white leading-none truncate">{profile?.fullName || 'Active Agent'}</p>
@@ -534,7 +534,7 @@ const EmployeeDashboard = () => {
                     src={photo}
                     alt="Agent Avatar"
                     className="h-20 w-20 rounded-full border-4 border-slate-50 object-cover bg-white p-0.5 shadow-md shadow-slate-200"
-                    onError={(e) => { e.target.onerror = null; e.target.src = '/logo.jpg'; }}
+                    onError={handleImageError}
                   />
                   <div>
                     <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Authorized Operator</span>
