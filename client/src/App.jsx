@@ -30,6 +30,7 @@ import SwarojgaarRegister from './pages/SwarojgaarRegister';
 import SwasthyaSurakshaRegister from './pages/SwasthyaSurakshaRegister';
 import Card from './pages/Card';
 import Application from './pages/Application';
+import VerifyHealthCard from './pages/VerifyHealthCard';
 
 // Layout component to wrap pages that require standard Navbar and Footer
 const AppLayout = () => {
@@ -60,6 +61,7 @@ function App() {
             <Route path="/careers/ngo-jobs" element={<NGOJobs />} />
             <Route path="/careers/general-jobs" element={<GeneralJobs />} />
             <Route path="/medical/healthcard" element={<HealthCard />} />
+            <Route path="/medical/verify-healthcard" element={<VerifyHealthCard />} />
             <Route path="/medical/appointment" element={<Appointment />} />
             <Route path="/schemes/silayi" element={<SilayiYojnaDescription />} />
             <Route path="/schemes/swarojgaar" element={<SwarojgaarDescription />} />
