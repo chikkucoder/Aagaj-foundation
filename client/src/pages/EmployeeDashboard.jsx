@@ -637,7 +637,7 @@ const EmployeeDashboard = () => {
                   </Link>
 
                   {/* Link 2: Silayi Yojana */}
-                  <Link to="/medical/healthcard" className="group bg-gradient-to-br from-white to-pink-50/20 border border-slate-100 hover:border-pink-100 p-6 rounded-3xl shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col justify-between h-48">
+                  <Link to="/silayi/register" className="group bg-gradient-to-br from-white to-pink-50/20 border border-slate-100 hover:border-pink-100 p-6 rounded-3xl shadow-sm hover:shadow-lg transition-all duration-300 flex flex-col justify-between h-48">
                     <div className="flex justify-between items-start">
                       <div className="h-12 w-12 rounded-2xl bg-pink-50 text-[#e83e8c] flex items-center justify-center group-hover:scale-110 transition-transform">
                         <Scissors className="h-6 w-6" />

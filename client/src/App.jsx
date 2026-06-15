@@ -27,6 +27,7 @@ import HospitalDashboard from './pages/HospitalDashboard';
 import SilayiYojnaDescription from './pages/SilayiYojnaDescription';
 import SwarojgaarDescription from './pages/SwarojgaarDescription';
 import SwarojgaarRegister from './pages/SwarojgaarRegister';
+import SilayiRegister from './pages/SilayiRegister';
 import SwasthyaSurakshaRegister from './pages/SwasthyaSurakshaRegister';
 import Card from './pages/Card';
 import Application from './pages/Application';
@@ -73,6 +74,7 @@ function App() {
           <Route path="/careers/apply" element={<Application />} />
           <Route path="/careers/id-card" element={<Card />} />
           <Route path="/swarojgaar/register" element={<SwarojgaarRegister />} />
+          <Route path="/silayi/register" element={<SilayiRegister />} />
           <Route path="/donation/success" element={<DonationSuccess />} />
           <Route path="/donation/failed" element={<DonationFailed />} />
 

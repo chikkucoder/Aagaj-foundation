@@ -20,7 +20,7 @@ const SilayiYojnaDescription = () => {
           </p>
           <div className="pt-4">
             <Link
-              to="/apply"
+              to="/silayi/register"
               className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#ED1C24] hover:bg-[#b0151b] font-black text-white px-8 py-4 shadow-lg hover:shadow-red-600/20 transition-all duration-300 transform active:scale-95 text-lg"
             >
               अभी पंजीकरण करें (Register Now)
