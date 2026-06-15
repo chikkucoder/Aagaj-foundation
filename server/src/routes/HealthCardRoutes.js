@@ -284,6 +284,37 @@ router.get('/get-by-order/:orderId', async (req, res) => {
     }
 });
 
+// ✅ API to Verify and Fetch Health Card by Health ID (for user verification and download)
+router.get('/verify/:healthId', async (req, res) => {
+    try {
+        const input = String(req.params.healthId || '').trim();
+        const upper = input.toUpperCase();
+        const candidates = new Set([input, upper]);
+
+        if (/^\d{6}$/.test(input)) {
+            candidates.add(`MC-${input}`);
+        }
+
+        const match = upper.match(/^MC-(\d{6})$/);
+        if (match) {
+            candidates.add(match[1]);
+        }
+
+        const candidateArray = Array.from(candidates).filter(Boolean);
+
+        const card = await HealthCard.findOne({ healthId: { $in: candidateArray } }).lean();
+
+        if (!card) {
+            return res.status(404).json({ success: false, message: 'Health ID not found. Please check your card number.' });
+        }
+
+        res.json({ success: true, data: card });
+    } catch (error) {
+        console.error("Verify Health Card ID Error:", error);
+        res.status(500).json({ success: false, message: "Server Error: " + error.message });
+    }
+});
+
 // ✅ API to get all health cards for Admin Dashboard
 router.get('/all', async (req, res) => {
     try {

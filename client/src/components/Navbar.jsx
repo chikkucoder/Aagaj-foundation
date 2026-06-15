@@ -197,14 +197,21 @@ const Navbar = () => {
                 Medical Facility <ChevronDown className="h-4 w-4" />
               </button>
               {medicalOpen && (
-                <div className="absolute right-0 top-full pt-2 w-48 origin-top-right z-50">
+                <div className="absolute right-0 top-full pt-2 w-56 origin-top-right z-50">
                   <div className="rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
                     <Link 
                       to="/medical/healthcard" 
                       onClick={() => setMedicalOpen(false)}
                       className="block px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-rose-50 hover:text-[#ED1C24]"
                     >
-                      Health Card
+                      Health Card Registration
+                    </Link>
+                    <Link 
+                      to="/medical/verify-healthcard" 
+                      onClick={() => setMedicalOpen(false)}
+                      className="block px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-rose-50 hover:text-[#ED1C24]"
+                    >
+                      Verify Health Card
                     </Link>
                     <Link 
                       to="/medical/appointment" 
@@ -369,7 +376,14 @@ const Navbar = () => {
                 onClick={() => setIsOpen(false)}
                 className="block rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-rose-50 hover:text-[#ED1C24]"
               >
-                Health Card
+                Health Card Registration
+              </Link>
+              <Link 
+                to="/medical/verify-healthcard" 
+                onClick={() => setIsOpen(false)}
+                className="block rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-rose-50 hover:text-[#ED1C24]"
+              >
+                Verify Health Card
               </Link>
               <Link 
                 to="/medical/appointment" 
