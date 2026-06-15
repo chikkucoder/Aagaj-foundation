@@ -1207,6 +1207,7 @@ const EmployeeDashboard = () => {
                               src={`https://api.qrserver.com/v1/create-qr-code/?size=65x65&data=HEALTH-ID:${selectedHealthCard.healthId}%0ANAME:${encodeURIComponent(selectedHealthCard.fullName)}`}
                               alt="QR Code"
                               className="h-14 w-14 object-contain rounded-md"
+                              crossOrigin="anonymous"
                             />
                             <span className="text-[7px] font-black text-slate-800 tracking-wider uppercase mt-0.5">Scan Profile</span>
                           </div>
