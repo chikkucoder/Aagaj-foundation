@@ -635,6 +635,7 @@ const HealthCard = () => {
                       src={successCard.photoPath ? resolveAssetUrl(successCard.photoPath) : '/logo.jpg'}
                       alt="Patient"
                       className="w-full h-full object-cover rounded-lg"
+                      crossOrigin="anonymous"
                       onError={(e) => { e.target.onerror = null; e.target.src = '/logo.jpg'; }}
                     />
                   </div>
@@ -732,6 +733,7 @@ const HealthCard = () => {
                         src={`https://api.qrserver.com/v1/create-qr-code/?size=85x85&data=HEALTH-ID:${successCard.healthId}%0ANAME:${encodeURIComponent(successCard.fullName)}`}
                         alt="Profile QR Code"
                         className="h-20 w-20 object-contain rounded-md"
+                        crossOrigin="anonymous"
                       />
                       <span className="text-[8px] font-black text-slate-800 tracking-wider uppercase mt-1">Scan Profile</span>
                     </div>
