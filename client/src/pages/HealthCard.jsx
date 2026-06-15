@@ -278,6 +278,22 @@ const HealthCard = () => {
     return `${baseUrl}/${assetPath}`;
   };
 
+  const handleImageError = (e) => {
+    const currentSrc = e.target.src;
+    const prodBase = 'https://aagajfoundation.com';
+    
+    if (currentSrc && (currentSrc.includes('localhost') || currentSrc.includes('127.0.0.1'))) {
+      try {
+        const url = new URL(currentSrc);
+        e.target.src = `${prodBase}${url.pathname}`;
+        return;
+      } catch (err) {}
+    }
+    
+    e.target.onerror = null;
+    e.target.src = '/logo.jpg';
+  };
+
   return (
     <div className="min-h-screen bg-[#f1f5f9] py-12 px-4 sm:px-6 lg:px-8">
       {/* Hide on print */}
@@ -636,7 +652,7 @@ const HealthCard = () => {
                       alt="Patient"
                       className="w-full h-full object-cover rounded-lg"
                       crossOrigin="anonymous"
-                      onError={(e) => { e.target.onerror = null; e.target.src = '/logo.jpg'; }}
+                      onError={handleImageError}
                     />
                   </div>
 
