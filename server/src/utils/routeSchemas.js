@@ -103,7 +103,9 @@ const healthCardCreateOrderSchema = Joi.object({
     district: Joi.string().trim().required(),
     state: Joi.string().trim().required(),
     pincode: Joi.string().pattern(/^\d{6}$/).allow('', null).optional(),
-    registeredBy: Joi.string().trim().allow('', null).optional()
+    registeredBy: Joi.string().trim().allow('', null).optional(),
+    cardType: Joi.string().valid('Single', 'Family').allow('', null).optional(),
+    familyMembers: Joi.string().allow('', null).optional()
 });
 
 const healthCardVerifyPaymentSchema = Joi.object({

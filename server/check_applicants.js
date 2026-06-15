@@ -11,8 +11,8 @@ async function check() {
   console.log('Connected to MongoDB');
 
   const { Applicant } = require('./src/models/ApplicationSchema');
-  const apps = await Applicant.find({}).limit(5);
-  console.log('Applicants count:', apps.length);
+  const apps = await Applicant.find({}).sort({ date: -1 });
+  console.log('Total applicants in DB:', apps.length);
   apps.forEach(a => {
     console.log(`ID: ${a.uniqueId}, Name: ${a.fullName}, photoPath: ${a.photoPath}, job_category: ${a.job_category}`);
   });

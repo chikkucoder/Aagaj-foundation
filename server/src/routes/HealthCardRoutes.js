@@ -72,7 +72,7 @@ router.post('/create-order', upload.single('photo'), validateRequest({ body: hea
         const {
             fullName, mobile, aadhar, age, gender, bloodGroup,
             village, panchayat, block, district, state, pincode,
-            registeredBy
+            registeredBy, cardType, familyMembers
         } = req.body;
 
         // 1. Validation
@@ -89,6 +89,18 @@ router.post('/create-order', upload.single('photo'), validateRequest({ body: hea
         // 3. Generate Order ID
         const orderId = `HLTHCRD${Date.now()}`;
 
+        const resolvedCardType = cardType || 'Single';
+        const finalAmount = resolvedCardType === 'Family' ? 499 : 201;
+
+        let familyMembersParsed = [];
+        if (resolvedCardType === 'Family' && familyMembers) {
+            try {
+                familyMembersParsed = typeof familyMembers === 'string' ? JSON.parse(familyMembers) : familyMembers;
+            } catch (e) {
+                console.error("Family members parsing failed:", e.message);
+            }
+        }
+
         // 4. Store pending data in MongoDB (TTL 60 minutes)
         await PendingPayment.create({
             orderId: orderId,
@@ -97,20 +109,24 @@ router.post('/create-order', upload.single('photo'), validateRequest({ body: hea
                 fullName, mobile, aadhar, age, gender, bloodGroup,
                 village, panchayat, block, district, state, pincode,
                 photoPath: req.file ? req.file.path : '',
-                registeredBy: registeredBy || 'Self'
+                registeredBy: registeredBy || 'Self',
+                cardType: resolvedCardType,
+                familyMembers: familyMembersParsed,
+                amount: finalAmount
             }
         });
 
         // 5. Create Razorpay order
         const order = await razorpay.orders.create({
-            amount: 20100,
+            amount: finalAmount * 100,
             currency: 'INR',
             receipt: orderId,
             notes: {
                 paymentType: 'healthcard',
                 pendingOrderId: orderId,
                 fullName: fullName || 'Health Card User',
-                mobile: mobile || ''
+                mobile: mobile || '',
+                cardType: resolvedCardType
             }
         });
 
@@ -191,8 +207,11 @@ router.post('/verify-payment', validateRequest({ body: healthCardVerifyPaymentSc
                 pincode: pendingCardData.pincode
             },
             photoPath: pendingCardData.photoPath,
+            cardType: pendingCardData.cardType || 'Single',
+            familyMembers: pendingCardData.familyMembers || [],
             paymentId: razorpay_payment_id,
             orderId: pendingOrderId,
+            amount: pendingCardData.amount || 201,
             paymentStatus: 'Paid',
             expiryDate,
             registeredBy: pendingCardData.registeredBy || 'Self'
@@ -202,7 +221,8 @@ router.post('/verify-payment', validateRequest({ body: healthCardVerifyPaymentSc
 
         // 🟢 Send SMS & WhatsApp Notification for Health Card
         let notificationResults = null;
-        const healthCardMsg = `Dear ${pendingCardData.fullName}, your payment was successful! Your Health Card ID is ${healthId}. It is valid until ${expiryDate.toLocaleDateString('en-IN')}. Thank you!`;
+        const cardTypeTitle = (pendingCardData.cardType || 'Single') === 'Family' ? 'Family Health Card' : 'Health Card';
+        const healthCardMsg = `Dear ${pendingCardData.fullName}, your payment was successful! Your ${cardTypeTitle} ID is ${healthId}. It is valid until ${expiryDate.toLocaleDateString('en-IN')}. Thank you!`;
         if (pendingCardData.mobile) {
             const [smsResult, waResult] = await Promise.all([
                 sendSMS(pendingCardData.mobile, healthCardMsg),
@@ -222,7 +242,7 @@ router.post('/verify-payment', validateRequest({ body: healthCardVerifyPaymentSc
         try {
             await PaymentLog.create({
                 orderId: pendingOrderId,
-                amount: 201,
+                amount: pendingCardData.amount || 201,
                 status: 'success',
                 paymentId: razorpay_payment_id,
                 transactionId: razorpay_order_id,
