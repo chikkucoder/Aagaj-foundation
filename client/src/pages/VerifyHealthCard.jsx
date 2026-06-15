@@ -233,9 +233,12 @@ const VerifyHealthCard = () => {
                     <img src="/logo.jpg" alt="Logo" className="h-11 w-11 rounded-lg bg-white p-0.5" onError={(e) => { e.target.src = '/logo.jpeg'; }} />
                     <span className="text-xl font-black text-[#ed1c24] tracking-wider uppercase">Aagaj.Foundation</span>
                   </div>
-                  <div className="text-right">
-                    <span className="text-[9px] font-bold text-slate-300 tracking-wider block">HEALTH CARD</span>
-                    <span className="text-base font-extrabold text-[#ed1c24] block">{cardData.healthId}</span>
+                  <div className="text-right flex flex-col items-end justify-center">
+                    <span className="inline-block bg-[#ed1c24] text-white text-[7px] font-black tracking-widest px-2 py-0.5 rounded-full uppercase mb-1 leading-none">
+                      {cardData.cardType === 'Family' ? 'Family Card' : 'Single Card'}
+                    </span>
+                    <span className="text-[9px] font-bold text-slate-300 tracking-wider block leading-none">HEALTH CARD</span>
+                    <span className="text-sm font-extrabold text-[#ed1c24] block mt-0.5 leading-none">{cardData.healthId}</span>
                   </div>
                 </div>
 
@@ -311,32 +314,68 @@ const VerifyHealthCard = () => {
                   
                   <div className="flex items-center justify-between">
                     {/* Multi fields */}
-                    <div className="grid grid-cols-2 gap-x-6 gap-y-3 flex-grow text-xs text-left">
-                      <div>
-                        <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">Village</label>
-                        <span className="font-bold text-slate-700 block uppercase">{cardData.address?.village}</span>
+                    {cardData.cardType === 'Family' ? (
+                      <div className="flex-grow flex flex-col justify-between text-[10px] text-left pr-4">
+                        {/* Address summary */}
+                        <div className="bg-slate-50 border border-slate-100 rounded-lg p-1.5 mb-2 leading-tight">
+                          <strong className="text-slate-500 uppercase text-[8px] block">Address:</strong>
+                          <span className="text-slate-800 font-semibold uppercase">
+                            {cardData.address?.village}, {cardData.address?.panchayat}, {cardData.address?.block}, {cardData.address?.district}, {cardData.address?.state} - {cardData.address?.pincode}
+                          </span>
+                        </div>
+
+                        {/* Family table */}
+                        <div className="border border-slate-200 rounded-xl overflow-hidden flex-grow bg-slate-50/50">
+                          <table className="w-full text-left border-collapse text-[9px]">
+                            <thead>
+                              <tr className="bg-indigo-50/70 text-[#2e3192] font-black uppercase text-[8px] border-b border-slate-200">
+                                <th className="py-1 px-2">Relation</th>
+                                <th className="py-1 px-2">Name</th>
+                                <th className="py-1 px-2 text-center">Age/Sex</th>
+                                <th className="py-1 px-2">Aadhar</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {cardData.familyMembers && cardData.familyMembers.map((m, idx) => (
+                                <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50/30">
+                                  <td className="py-1 px-2 font-black text-slate-500 uppercase text-[8px]">{m.relationship}</td>
+                                  <td className="py-1 px-2 font-extrabold text-slate-800 uppercase truncate max-w-[120px]">{m.fullName}</td>
+                                  <td className="py-1 px-2 font-bold text-slate-700 text-center">{m.age} / {m.gender?.[0]}</td>
+                                  <td className="py-1 px-2 font-bold text-slate-700 font-mono">{m.aadhar?.replace(/(\d{4})/g, '$1 ').trim()}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
-                      <div>
-                        <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">Panchayat</label>
-                        <span className="font-bold text-slate-700 block uppercase">{cardData.address?.panchayat}</span>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-x-6 gap-y-3 flex-grow text-xs text-left">
+                        <div>
+                          <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">Village</label>
+                          <span className="font-bold text-slate-700 block uppercase">{cardData.address?.village}</span>
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">Panchayat</label>
+                          <span className="font-bold text-slate-700 block uppercase">{cardData.address?.panchayat}</span>
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">Block</label>
+                          <span className="font-bold text-slate-700 block uppercase">{cardData.address?.block}</span>
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">District</label>
+                          <span className="font-bold text-slate-700 block uppercase">{cardData.address?.district}</span>
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">State</label>
+                          <span className="font-bold text-slate-700 block uppercase">{cardData.address?.state}</span>
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">Pin Code</label>
+                          <span className="font-bold text-slate-700 block">{cardData.address?.pincode}</span>
+                        </div>
                       </div>
-                      <div>
-                        <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">Block</label>
-                        <span className="font-bold text-slate-700 block uppercase">{cardData.address?.block}</span>
-                      </div>
-                      <div>
-                        <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">District</label>
-                        <span className="font-bold text-slate-700 block uppercase">{cardData.address?.district}</span>
-                      </div>
-                      <div>
-                        <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">State</label>
-                        <span className="font-bold text-slate-700 block uppercase">{cardData.address?.state}</span>
-                      </div>
-                      <div>
-                        <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">Pin Code</label>
-                        <span className="font-bold text-slate-700 block">{cardData.address?.pincode}</span>
-                      </div>
-                    </div>
+                    )}
 
                     {/* QR Code Container */}
                     <div className="flex flex-col items-center shrink-0 ml-4 p-2 bg-slate-50 border border-slate-100 rounded-2xl">

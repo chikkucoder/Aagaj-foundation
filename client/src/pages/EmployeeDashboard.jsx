@@ -832,7 +832,12 @@ const EmployeeDashboard = () => {
                                   className="h-8 w-8 rounded-full border border-slate-100 object-cover shadow-sm shrink-0"
                                   onError={handleImageError}
                                 />
-                                <span className="font-extrabold text-slate-800 uppercase">{item.fullName}</span>
+                                <div className="flex flex-col">
+                                  <span className="font-extrabold text-slate-800 uppercase leading-none">{item.fullName}</span>
+                                  <span className={`inline-block w-max text-[8px] font-bold uppercase mt-1 px-1.5 py-0.5 rounded-full ${item.cardType === 'Family' ? 'bg-indigo-50 text-indigo-700 border border-indigo-150' : 'bg-slate-100 text-slate-600'}`}>
+                                    {item.cardType || 'Single'}
+                                  </span>
+                                </div>
                               </td>
                               <td className="py-4 px-6 font-bold">{item.mobile}</td>
                               <td className="py-4 px-6 font-mono text-[11px] tracking-wide">{item.aadhar}</td>
@@ -1109,9 +1114,12 @@ const EmployeeDashboard = () => {
                           <img src="/logo.jpg" alt="Logo" className="h-9 w-9 rounded-lg bg-white p-0.5" />
                           <span className="text-base font-black text-[#ed1c24] tracking-wider uppercase">Aagaj.Foundation</span>
                         </div>
-                        <div className="text-right">
-                          <span className="text-[8px] font-bold text-slate-300 tracking-wider block">HEALTH CARD</span>
-                          <span className="text-sm font-extrabold text-[#ed1c24] block">{selectedHealthCard.healthId}</span>
+                        <div className="text-right flex flex-col items-end justify-center">
+                          <span className="inline-block bg-[#ed1c24] text-white text-[7px] font-black tracking-widest px-2 py-0.5 rounded-full uppercase mb-1 leading-none">
+                            {selectedHealthCard.cardType === 'Family' ? 'Family Card' : 'Single Card'}
+                          </span>
+                          <span className="text-[8px] font-bold text-slate-300 tracking-wider block leading-none">HEALTH CARD</span>
+                          <span className="text-sm font-extrabold text-[#ed1c24] block mt-0.5 leading-none">{selectedHealthCard.healthId}</span>
                         </div>
                       </div>
 
@@ -1175,32 +1183,68 @@ const EmployeeDashboard = () => {
 
                       <div className="flex-grow p-4 flex flex-col justify-between bg-white text-[10px]">
                         <div className="flex items-center justify-between text-left">
-                          <div className="grid grid-cols-2 gap-x-4 gap-y-2 flex-grow text-[10px]">
-                            <div>
-                              <label className="text-[8px] font-bold uppercase tracking-wider text-slate-400 block">Village</label>
-                              <span className="font-bold text-slate-700 block uppercase">{selectedHealthCard.address?.village || selectedHealthCard.village || 'N/A'}</span>
+                          {selectedHealthCard.cardType === 'Family' ? (
+                            <div className="flex-grow flex flex-col justify-between text-[9px] text-left pr-3">
+                              {/* Address summary */}
+                              <div className="bg-slate-50 border border-slate-100 rounded-lg p-1.5 mb-1.5 leading-tight">
+                                <strong className="text-slate-500 uppercase text-[7px] block">Address:</strong>
+                                <span className="text-slate-800 font-semibold uppercase">
+                                  {selectedHealthCard.address?.village || selectedHealthCard.village}, {selectedHealthCard.address?.panchayat || selectedHealthCard.panchayat}, {selectedHealthCard.address?.block || selectedHealthCard.block}, {selectedHealthCard.address?.district || selectedHealthCard.district}, {selectedHealthCard.address?.state || selectedHealthCard.state} - {selectedHealthCard.address?.pincode || selectedHealthCard.pincode}
+                                </span>
+                              </div>
+
+                              {/* Family table */}
+                              <div className="border border-slate-200 rounded-xl overflow-hidden flex-grow bg-slate-50/50">
+                                <table className="w-full text-left border-collapse text-[8px]">
+                                  <thead>
+                                    <tr className="bg-indigo-50/70 text-[#2e3192] font-black uppercase text-[7px] border-b border-slate-200">
+                                      <th className="py-0.5 px-1.5">Relation</th>
+                                      <th className="py-0.5 px-1.5">Name</th>
+                                      <th className="py-0.5 px-1.5 text-center">Age/Sex</th>
+                                      <th className="py-0.5 px-1.5">Aadhar</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {selectedHealthCard.familyMembers && selectedHealthCard.familyMembers.map((m, idx) => (
+                                      <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50/30">
+                                        <td className="py-0.5 px-1.5 font-black text-slate-500 uppercase text-[7px]">{m.relationship}</td>
+                                        <td className="py-0.5 px-1.5 font-extrabold text-slate-800 uppercase truncate max-w-[100px]">{m.fullName}</td>
+                                        <td className="py-0.5 px-1.5 font-bold text-slate-700 text-center">{m.age} / {m.gender?.[0]}</td>
+                                        <td className="py-0.5 px-1.5 font-bold text-slate-700 font-mono">{m.aadhar?.replace(/(\d{4})/g, '$1 ').trim()}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
                             </div>
-                            <div>
-                              <label className="text-[8px] font-bold uppercase tracking-wider text-slate-400 block">Panchayat</label>
-                              <span className="font-bold text-slate-700 block uppercase">{selectedHealthCard.address?.panchayat || selectedHealthCard.panchayat || 'N/A'}</span>
+                          ) : (
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-2 flex-grow text-[10px]">
+                              <div>
+                                <label className="text-[8px] font-bold uppercase tracking-wider text-slate-400 block">Village</label>
+                                <span className="font-bold text-slate-700 block uppercase">{selectedHealthCard.address?.village || selectedHealthCard.village || 'N/A'}</span>
+                              </div>
+                              <div>
+                                <label className="text-[8px] font-bold uppercase tracking-wider text-slate-400 block">Panchayat</label>
+                                <span className="font-bold text-slate-700 block uppercase">{selectedHealthCard.address?.panchayat || selectedHealthCard.panchayat || 'N/A'}</span>
+                              </div>
+                              <div>
+                                <label className="text-[8px] font-bold uppercase tracking-wider text-slate-400 block">Block</label>
+                                <span className="font-bold text-slate-700 block uppercase">{selectedHealthCard.address?.block || selectedHealthCard.block || 'N/A'}</span>
+                              </div>
+                              <div>
+                                <label className="text-[8px] font-bold uppercase tracking-wider text-slate-400 block">District</label>
+                                <span className="font-bold text-slate-700 block uppercase">{selectedHealthCard.address?.district || selectedHealthCard.district || 'N/A'}</span>
+                              </div>
+                              <div>
+                                <label className="text-[8px] font-bold uppercase tracking-wider text-slate-400 block">State</label>
+                                <span className="font-bold text-slate-700 block uppercase">{selectedHealthCard.address?.state || selectedHealthCard.state || 'N/A'}</span>
+                              </div>
+                              <div>
+                                <label className="text-[8px] font-bold uppercase tracking-wider text-slate-400 block">Pin Code</label>
+                                <span className="font-bold text-slate-700 block">{selectedHealthCard.address?.pincode || selectedHealthCard.pincode || 'N/A'}</span>
+                              </div>
                             </div>
-                            <div>
-                              <label className="text-[8px] font-bold uppercase tracking-wider text-slate-400 block">Block</label>
-                              <span className="font-bold text-slate-700 block uppercase">{selectedHealthCard.address?.block || selectedHealthCard.block || 'N/A'}</span>
-                            </div>
-                            <div>
-                              <label className="text-[8px] font-bold uppercase tracking-wider text-slate-400 block">District</label>
-                              <span className="font-bold text-slate-700 block uppercase">{selectedHealthCard.address?.district || selectedHealthCard.district || 'N/A'}</span>
-                            </div>
-                            <div>
-                              <label className="text-[8px] font-bold uppercase tracking-wider text-slate-400 block">State</label>
-                              <span className="font-bold text-slate-700 block uppercase">{selectedHealthCard.address?.state || selectedHealthCard.state || 'N/A'}</span>
-                            </div>
-                            <div>
-                              <label className="text-[8px] font-bold uppercase tracking-wider text-slate-400 block">Pin Code</label>
-                              <span className="font-bold text-slate-700 block">{selectedHealthCard.address?.pincode || selectedHealthCard.pincode || 'N/A'}</span>
-                            </div>
-                          </div>
+                          )}
 
                           <div className="flex flex-col items-center shrink-0 ml-4 p-1.5 bg-slate-50 border border-slate-100 rounded-xl">
                             <img

@@ -17,6 +17,14 @@ const HealthCardSchema = new mongoose.Schema({
         pincode: String
     },
     photoPath: { type: String },
+    cardType: { type: String, enum: ['Single', 'Family'], default: 'Single' },
+    familyMembers: [{
+        fullName: String,
+        relationship: String,
+        age: Number,
+        gender: String,
+        aadhar: String
+    }],
     paymentId: { type: String, required: true },
     orderId: { type: String, required: true },
     amount: { type: Number, default: 201 },

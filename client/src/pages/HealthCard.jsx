@@ -31,6 +31,21 @@ const HealthCard = () => {
   const [mobileExists, setMobileExists] = useState(false);
   const [aadharExists, setAadharExists] = useState(false);
 
+  // Card Type Selector State
+  const [cardType, setCardType] = useState('Single');
+  const [familyMembers, setFamilyMembers] = useState([
+    { relationship: 'Father', fullName: '', age: '', gender: 'Male', aadhar: '' },
+    { relationship: 'Mother', fullName: '', age: '', gender: 'Female', aadhar: '' },
+    { relationship: 'Child 1', fullName: '', age: '', gender: 'Male', aadhar: '' },
+    { relationship: 'Child 2', fullName: '', age: '', gender: 'Male', aadhar: '' }
+  ]);
+
+  const handleFamilyMemberChange = (index, field, value) => {
+    const updated = [...familyMembers];
+    updated[index][field] = value;
+    setFamilyMembers(updated);
+  };
+
   const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm({
     defaultValues: {
       gender: 'Male',
@@ -164,6 +179,23 @@ const HealthCard = () => {
           ? 'Admin/Self'
           : (sessionStorage.getItem('loggedInUserEmail') || sessionStorage.getItem('loggedInUser') || 'Self')
       );
+      formData.append('cardType', cardType);
+      if (cardType === 'Family') {
+        for (let i = 0; i < familyMembers.length; i++) {
+          const m = familyMembers[i];
+          if (!m.fullName || !m.age || !m.aadhar) {
+            setErrorMsg(`Please fill in all details for family member: ${m.relationship}`);
+            setLoading(false);
+            return;
+          }
+          if (m.aadhar.length !== 12) {
+            setErrorMsg(`Aadhar number must be 12 digits for family member: ${m.relationship}`);
+            setLoading(false);
+            return;
+          }
+        }
+        formData.append('familyMembers', JSON.stringify(familyMembers));
+      }
 
       // Create Razorpay Payment Order
       const res = await createHealthCardOrder(formData);
@@ -198,7 +230,7 @@ const HealthCard = () => {
       currency: orderRes.currency,
       order_id: orderRes.orderId,
       name: 'Aagaj Foundation',
-      description: 'Health Identity Card Issuance Fee',
+      description: cardType === 'Family' ? 'Family Health Identity Card Issuance Fee' : 'Health Identity Card Issuance Fee',
       prefill: {
         name: clientData.fullName,
         contact: clientData.mobile
@@ -334,6 +366,39 @@ const HealthCard = () => {
                 <span>{errorMsg}</span>
               </div>
             )}
+
+            {/* Card Selection Toggle */}
+            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-150 mb-6">
+              <h4 className="text-xs font-bold text-[#2e3192] uppercase tracking-wider mb-3 flex items-center gap-1">
+                Choose Card Type (कार्ड का प्रकार चुनें)
+              </h4>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setCardType('Single')}
+                  className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                    cardType === 'Single'
+                      ? 'border-[#2e3192] bg-indigo-50/50 text-[#2e3192]'
+                      : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                  }`}
+                >
+                  <span className="font-extrabold text-sm uppercase">Single Health Card</span>
+                  <span className="text-xs font-black text-[#ed1c24] mt-1">₹201</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCardType('Family')}
+                  className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                    cardType === 'Family'
+                      ? 'border-[#2e3192] bg-indigo-50/50 text-[#2e3192]'
+                      : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
+                  }`}
+                >
+                  <span className="font-extrabold text-sm uppercase">Family Health Card</span>
+                  <span className="text-xs font-black text-[#ed1c24] mt-1">₹499</span>
+                </button>
+              </div>
+            </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               
@@ -555,6 +620,83 @@ const HealthCard = () => {
                 </div>
               </div>
 
+              {/* Family Members Details Section (Only for Family Card) */}
+              {cardType === 'Family' && (
+                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-150 space-y-6">
+                  <h4 className="text-xs font-bold text-[#2e3192] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-200 pb-2">
+                    <HeartHandshake className="h-4 w-4" /> पारिवारिक सदस्य विवरण (Family Members Details)
+                  </h4>
+
+                  <div className="space-y-6">
+                    {familyMembers.map((member, index) => (
+                      <div key={index} className="bg-white p-4 rounded-xl border border-slate-200 space-y-3">
+                        <div className="flex justify-between items-center border-b border-slate-100 pb-1.5">
+                          <span className="text-xs font-black text-slate-800 uppercase tracking-wide">
+                            {index + 1}. {member.relationship} Details
+                          </span>
+                          <span className="text-[9px] font-bold bg-[#ed1c24]/10 text-[#ed1c24] px-2 py-0.5 rounded-full uppercase">
+                            Required
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                          <div>
+                            <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Full Name</label>
+                            <input
+                              type="text"
+                              required
+                              value={member.fullName}
+                              onChange={(e) => handleFamilyMemberChange(index, 'fullName', e.target.value)}
+                              placeholder={`Enter ${member.relationship}'s Name`}
+                              className="block mt-1 w-full rounded-xl border border-slate-250 py-2.5 px-3 text-slate-800 text-xs focus:border-[#2e3192] outline-none animate-none"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="col-span-1">
+                              <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Age</label>
+                              <input
+                                type="number"
+                                required
+                                value={member.age}
+                                onChange={(e) => handleFamilyMemberChange(index, 'age', e.target.value)}
+                                placeholder="Age"
+                                className="block mt-1 w-full rounded-xl border border-slate-250 py-2.5 px-2 text-slate-800 text-xs focus:border-[#2e3192] outline-none"
+                              />
+                            </div>
+                            <div className="col-span-2">
+                              <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Gender</label>
+                              <select
+                                value={member.gender}
+                                onChange={(e) => handleFamilyMemberChange(index, 'gender', e.target.value)}
+                                className="block mt-1 w-full rounded-xl border border-slate-250 py-2.5 px-2 text-slate-800 text-xs focus:border-[#2e3192] bg-white outline-none"
+                              >
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Others">Others</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="col-span-1 sm:col-span-2">
+                            <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Aadhar Number (12 digits)</label>
+                            <input
+                              type="text"
+                              maxLength="12"
+                              required
+                              value={member.aadhar}
+                              onChange={(e) => handleFamilyMemberChange(index, 'aadhar', e.target.value.replace(/\D/g, ''))}
+                              placeholder="0000 0000 0000"
+                              className="block mt-1 w-full rounded-xl border border-slate-250 py-2.5 px-3 text-slate-800 text-xs focus:border-[#2e3192] outline-none"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Submit Buttons */}
               <button
                 type="submit"
@@ -569,7 +711,7 @@ const HealthCard = () => {
                 ) : (
                   <>
                     <Award className="h-5 w-5 animate-pulse" />
-                    PAY & GENERATE HEALTH CARD (₹201)
+                    PAY & GENERATE {cardType === 'Family' ? 'FAMILY' : 'HEALTH'} CARD (₹{cardType === 'Family' ? '499' : '201'})
                   </>
                 )}
               </button>
@@ -637,9 +779,12 @@ const HealthCard = () => {
                     <img src="/logo.jpg" alt="Logo" className="h-11 w-11 rounded-lg bg-white p-0.5" />
                     <span className="text-xl font-black text-[#ed1c24] tracking-wider uppercase">Aagaj.Foundation</span>
                   </div>
-                  <div className="text-right">
-                    <span className="text-[9px] font-bold text-slate-300 tracking-wider block">HEALTH CARD</span>
-                    <span className="text-base font-extrabold text-[#ed1c24] block">{successCard.healthId}</span>
+                  <div className="text-right flex flex-col items-end justify-center">
+                    <span className="inline-block bg-[#ed1c24] text-white text-[7px] font-black tracking-widest px-2 py-0.5 rounded-full uppercase mb-1 leading-none">
+                      {successCard.cardType === 'Family' ? 'Family Card' : 'Single Card'}
+                    </span>
+                    <span className="text-[9px] font-bold text-slate-300 tracking-wider block leading-none">HEALTH CARD</span>
+                    <span className="text-sm font-extrabold text-[#ed1c24] block mt-0.5 leading-none">{successCard.healthId}</span>
                   </div>
                 </div>
 
@@ -716,32 +861,69 @@ const HealthCard = () => {
                   
                   <div className="flex items-center justify-between">
                     {/* Multi fields */}
-                    <div className="grid grid-cols-2 gap-x-6 gap-y-3 flex-grow text-xs">
-                      <div>
-                        <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">Village</label>
-                        <span className="font-bold text-slate-700 block uppercase">{successCard.address?.village}</span>
+                    {/* Multi fields */}
+                    {successCard.cardType === 'Family' ? (
+                      <div className="flex-grow flex flex-col justify-between text-[10px] text-left pr-4">
+                        {/* Address summary */}
+                        <div className="bg-slate-50 border border-slate-100 rounded-lg p-1.5 mb-2 leading-tight">
+                          <strong className="text-slate-500 uppercase text-[8px] block">Address:</strong>
+                          <span className="text-slate-800 font-semibold uppercase">
+                            {successCard.address?.village}, {successCard.address?.panchayat}, {successCard.address?.block}, {successCard.address?.district}, {successCard.address?.state} - {successCard.address?.pincode}
+                          </span>
+                        </div>
+
+                        {/* Family table */}
+                        <div className="border border-slate-200 rounded-xl overflow-hidden flex-grow bg-slate-50/50">
+                          <table className="w-full text-left border-collapse text-[9px]">
+                            <thead>
+                              <tr className="bg-indigo-50/70 text-[#2e3192] font-black uppercase text-[8px] border-b border-slate-200">
+                                <th className="py-1 px-2">Relation</th>
+                                <th className="py-1 px-2">Name</th>
+                                <th className="py-1 px-2 text-center">Age/Sex</th>
+                                <th className="py-1 px-2">Aadhar</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {successCard.familyMembers && successCard.familyMembers.map((m, idx) => (
+                                <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50/30">
+                                  <td className="py-1 px-2 font-black text-slate-500 uppercase text-[8px]">{m.relationship}</td>
+                                  <td className="py-1 px-2 font-extrabold text-slate-800 uppercase truncate max-w-[120px]">{m.fullName}</td>
+                                  <td className="py-1 px-2 font-bold text-slate-700 text-center">{m.age} / {m.gender?.[0]}</td>
+                                  <td className="py-1 px-2 font-bold text-slate-700 font-mono">{m.aadhar?.replace(/(\d{4})/g, '$1 ').trim()}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
-                      <div>
-                        <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">Panchayat</label>
-                        <span className="font-bold text-slate-700 block uppercase">{successCard.address?.panchayat}</span>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-x-6 gap-y-3 flex-grow text-xs text-left">
+                        <div>
+                          <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">Village</label>
+                          <span className="font-bold text-slate-700 block uppercase">{successCard.address?.village}</span>
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">Panchayat</label>
+                          <span className="font-bold text-slate-700 block uppercase">{successCard.address?.panchayat}</span>
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">Block</label>
+                          <span className="font-bold text-slate-700 block uppercase">{successCard.address?.block}</span>
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">District</label>
+                          <span className="font-bold text-slate-700 block uppercase">{successCard.address?.district}</span>
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">State</label>
+                          <span className="font-bold text-slate-700 block uppercase">{successCard.address?.state}</span>
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">Pin Code</label>
+                          <span className="font-bold text-slate-700 block">{successCard.address?.pincode}</span>
+                        </div>
                       </div>
-                      <div>
-                        <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">Block</label>
-                        <span className="font-bold text-slate-700 block uppercase">{successCard.address?.block}</span>
-                      </div>
-                      <div>
-                        <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">District</label>
-                        <span className="font-bold text-slate-700 block uppercase">{successCard.address?.district}</span>
-                      </div>
-                      <div>
-                        <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">State</label>
-                        <span className="font-bold text-slate-700 block uppercase">{successCard.address?.state}</span>
-                      </div>
-                      <div>
-                        <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">Pin Code</label>
-                        <span className="font-bold text-slate-700 block">{successCard.address?.pincode}</span>
-                      </div>
-                    </div>
+                    )}
 
                     {/* QR Code Container */}
                     <div className="flex flex-col items-center shrink-0 ml-4 p-2 bg-slate-50 border border-slate-100 rounded-2xl">
