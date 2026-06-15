@@ -28,7 +28,7 @@ const PaymentLogSchema = new mongoose.Schema({
     
     schemeType: {
         type: String,
-        enum: ['silayi', 'swarojgaar', 'health', 'application', 'donation'],
+        enum: ['silayi', 'swarojgaar', 'health', 'application', 'donation', 'healthcard', 'appointment'],
         required: true
     },
     

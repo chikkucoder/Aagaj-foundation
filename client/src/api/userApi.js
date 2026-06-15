@@ -24,6 +24,11 @@ export const bookAppointment = async (formData) => {
   return response.data;
 };
 
+export const verifyAppointmentPayment = async (data) => {
+  const response = await apiClient.post('/api/appointment/verify-payment', data);
+  return response.data;
+};
+
 export const getAllAppointments = async () => {
   const response = await apiClient.get('/api/appointment/all');
   return response.data;
