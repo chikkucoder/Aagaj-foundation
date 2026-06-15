@@ -104,8 +104,9 @@ const HealthCard = () => {
       
       canvas.toBlob((blob) => {
         if (blob) {
-          setPhotoBlob(blob);
-          const previewUrl = URL.createObjectURL(blob);
+          const file = new File([blob], `health-photo-${Date.now()}.jpg`, { type: 'image/jpeg' });
+          setPhotoBlob(file);
+          const previewUrl = URL.createObjectURL(file);
           setPhotoPreview(previewUrl);
         }
         closeCamera();
