@@ -69,6 +69,7 @@ const Card = () => {
             src={photoUrl} 
             alt="Employee Photo" 
             className="w-28 h-28 rounded-full border-4 border-[#ED1C24] object-cover p-0.5 shadow-inner"
+            crossOrigin="anonymous"
             onError={() => setPhotoUrl('https://via.placeholder.com/120?text=Photo')}
           />
           <div className="bg-[#ED1C24] text-white text-xs font-black tracking-widest px-4 py-1 rounded-full shadow mt-3 uppercase">
