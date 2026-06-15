@@ -361,4 +361,30 @@ router.get('/get-by-order/:orderId', async (req, res) => {
     }
 });
 
+// ✅ Route: Public verify beneficiary by Aadhar, Mobile or Serial Number
+router.get('/verify', async (req, res) => {
+    try {
+        const { query } = req.query;
+        if (!query) {
+            return res.status(400).json({ success: false, message: "Aadhar, Mobile, or Reg Number is required." });
+        }
+        const cleanQuery = query.toString().trim();
+        const b = await Beneficiary.findOne({
+            $or: [
+                { aadharNumber: cleanQuery },
+                { mobileNumber: cleanQuery },
+                { serialNumber: cleanQuery }
+            ]
+        });
+        if (b) {
+            res.json({ success: true, data: b });
+        } else {
+            res.json({ success: false, message: "Beneficiary registration not found." });
+        }
+    } catch (error) {
+        console.error("Verify Error:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 module.exports = router;
