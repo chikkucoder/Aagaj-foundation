@@ -33,6 +33,7 @@ import {
   Plus,
   RotateCw,
   LogOut,
+  Home,
   Trash2,
   FileSpreadsheet,
   Eye,
@@ -732,6 +733,12 @@ const AdminDashboard = () => {
               <span className="text-[10px] text-slate-500 leading-none">Super Admin</span>
             </div>
           </div>
+          <button
+            onClick={() => navigate('/')}
+            className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#fdd831]/10 border border-[#fdd831]/20 hover:bg-[#fdd831] text-[#fdd831] hover:text-[#051630] py-2 text-xs font-bold transition-all cursor-pointer shadow-sm mb-2"
+          >
+            <Home className="h-3.5 w-3.5" /> Go to Homepage
+          </button>
           <button
             onClick={handleLogout}
             className="w-full flex items-center justify-center gap-2 rounded-xl bg-rose-600/10 border border-rose-600/20 hover:bg-rose-600 text-rose-500 hover:text-white py-2 text-xs font-bold transition-all cursor-pointer shadow-sm"
