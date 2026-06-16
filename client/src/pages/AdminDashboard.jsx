@@ -127,10 +127,21 @@ const AdminDashboard = () => {
 
   const { register: regEditHosp, handleSubmit: handleEditHospSubmit, formState: { errors: editHospErrors }, reset: resetEditHospForm } = useForm();
   const [editHospError, setEditHospError] = useState('');
-
   const { register: regCredHosp, handleSubmit: handleCredHospSubmit, formState: { errors: credHospErrors }, reset: resetCredHospForm } = useForm();
   const [credHospError, setCredHospError] = useState('');
 
+  const { register: regCustomCard, handleSubmit: handleCustomCardSubmit, formState: { errors: customCardErrors }, reset: resetCustomCardForm, setValue: setCustomCardValue, watch: watchCustomCard } = useForm({
+    defaultValues: {
+      date: new Date().toISOString().split('T')[0],
+      job_category: 'NGO',
+      amount: 499
+    }
+  });
+
+  const [customCardPhotoFile, setCustomCardPhotoFile] = useState(null);
+  const [customCardPhotoPreview, setCustomCardPhotoPreview] = useState(null);
+  const [customCardSubmitting, setCustomCardSubmitting] = useState(false);
+  const [customCardError, setCustomCardError] = useState('');
   // Fetch all stats and tables
   const syncData = async () => {
     setLoading(true);
@@ -324,6 +335,86 @@ const AdminDashboard = () => {
       }
     } catch (err) {
       setAddEmpError(err.response?.data?.message || 'Server connection error.');
+    }
+  };
+
+  const handleCustomCardPhotoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Photo size must be less than 5MB.');
+        return;
+      }
+      setCustomCardPhotoFile(file);
+      const reader = new FileReader();
+      reader.onload = (event) => setCustomCardPhotoPreview(event.target.result);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const onCustomCardSubmit = async (data) => {
+    if (!customCardPhotoFile) {
+      alert('Please upload candidate photo before generating card.');
+      return;
+    }
+
+    setCustomCardSubmitting(true);
+    setCustomCardError('');
+
+    const qualificationsData = {
+      matric: { school: data.m_school, year: data.m_year, board: data.m_board, subject: data.m_sub, division: data.m_div, marks: data.m_marks, remarks: data.m_rem },
+      inter: { school: data.i_school, year: data.i_year, board: data.i_board, subject: data.i_sub, division: data.i_div, marks: data.i_marks, remarks: data.i_rem },
+      grad: { school: data.g_school, year: data.g_year, board: data.g_board, subject: data.g_sub, division: data.g_div, marks: data.g_marks, remarks: data.g_rem },
+    };
+
+    const formData = new FormData();
+    formData.append('full_name', data.fullName);
+    formData.append('email', data.email);
+    formData.append('mobile', data.mobile);
+    formData.append('dob', data.dob);
+    formData.append('district', data.district);
+    formData.append('state', data.state);
+    formData.append('block', data.block || '');
+    formData.append('panchayat', data.panchayat || '');
+    formData.append('place', data.place || '');
+    formData.append('apply_for_post', data.apply_for_post || data.role_applied);
+    formData.append('role_applied', data.role_applied);
+    formData.append('aadhar', data.aadhar);
+    formData.append('job_category', data.job_category);
+    formData.append('amount', data.amount);
+    formData.append('qualifications', JSON.stringify(qualificationsData));
+    formData.append('registeredBy', user?.email || 'Admin');
+    formData.append('photo', customCardPhotoFile);
+
+    try {
+      const response = await apiClient.post('/api/application/admin/create', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      if (response.data && response.data.success) {
+        alert("Custom job registration & ID card generated successfully!");
+        
+        // Reset form
+        resetCustomCardForm();
+        setCustomCardPhotoFile(null);
+        setCustomCardPhotoPreview(null);
+        
+        // Load stats/list
+        syncData();
+
+        // Popup Employee Pass Preview modal immediately
+        setSelectedCardUser(response.data.data);
+        setShowCardModal(true);
+      } else {
+        setCustomCardError(response.data?.message || 'Direct registration failed.');
+      }
+    } catch (err) {
+      console.error(err);
+      setCustomCardError(err.response?.data?.message || 'Server connection error.');
+    } finally {
+      setCustomCardSubmitting(false);
     }
   };
 
@@ -578,6 +669,7 @@ const AdminDashboard = () => {
       case 'donationHistory': return 'Donations Receipt Register (Razorpay)';
       case 'auditLogs': return 'Super Admin Audit Action Trails';
       case 'carouselControl': return 'Dashboard Image Control (Hero Carousel)';
+      case 'customCard': return 'Custom Job Card & Pass Generator';
       default: return 'Foundation Control Panel';
     }
   };
@@ -656,6 +748,12 @@ const AdminDashboard = () => {
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${currentView === 'normalJobs' ? 'bg-[#fdd831] text-[#051630]' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
             >
               <Store className="h-4.5 w-4.5" /> Normal Jobs
+            </button>
+            <button
+              onClick={() => { setCurrentView('customCard'); setCurrentPage(1); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${currentView === 'customCard' ? 'bg-[#fdd831] text-[#051630]' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
+            >
+              <IdCard className="h-4.5 w-4.5" /> Custom Pass Generator
             </button>
           </div>
 
@@ -959,7 +1057,7 @@ const AdminDashboard = () => {
           {/* ======================================================== */}
           {/*   DATA DISPLAY TABLE PANEL                               */}
           {/* ======================================================== */}
-          {currentView !== 'carouselControl' ? (
+          {currentView !== 'carouselControl' && currentView !== 'customCard' && (
             <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-100 shadow-xl p-4 sm:p-6">
             
             {/* Table Header Filter Toolbar */}
@@ -1546,10 +1644,11 @@ const AdminDashboard = () => {
                 )}
               </>
             )}
-
           </div>
-          ) : (
-            <div className="space-y-6">
+        )}
+
+        {currentView === 'carouselControl' && (
+          <div className="space-y-6">
               
               {/* Form Card */}
               <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
@@ -1705,7 +1804,374 @@ const AdminDashboard = () => {
               </div>
 
             </div>
-          )}
+        )}
+
+        {currentView === 'customCard' && (
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-xl p-6 md:p-10 space-y-8 max-w-[1200px] mx-auto">
+            <div className="flex flex-col sm:flex-row items-center justify-between border-b-2 border-slate-100 pb-6 gap-6">
+              <div>
+                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Direct Candidate Pass Registration</h3>
+                <p className="text-xs text-slate-400 font-semibold uppercase mt-1">Generate a successful job card & receipt bypass</p>
+              </div>
+
+              {/* Photo Frame */}
+              <div className="flex flex-col items-center space-y-1.5 shrink-0">
+                <div className="h-32 w-28 border-2 border-dashed border-slate-300 rounded-2xl overflow-hidden flex flex-col items-center justify-center relative bg-slate-50 group hover:border-[#ED1C24] transition-all">
+                  {customCardPhotoPreview ? (
+                    <img src={customCardPhotoPreview} alt="Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-[10px] font-black text-slate-400 tracking-widest uppercase">PHOTO</span>
+                  )}
+                </div>
+                <label className="cursor-pointer text-[10px] font-extrabold text-[#ED1C24] hover:underline uppercase tracking-wide">
+                  Choose Photo
+                  <input type="file" accept="image/*" className="hidden" onChange={handleCustomCardPhotoChange} />
+                </label>
+              </div>
+            </div>
+
+            <form onSubmit={handleCustomCardSubmit(onCustomCardSubmit)} className="space-y-8 text-left">
+              
+              {/* SECTION: ADMIN SETTINGS (CUSTOM ROLE & PRICE) */}
+              <div className="space-y-6">
+                <h3 className="text-sm font-extrabold uppercase text-[#0B2C66] tracking-wider border-l-4 border-[#0B2C66] pl-3 py-2 bg-slate-50 rounded-r-xl">
+                  Custom Job & Payment Settings
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-amber-50/50 border border-amber-100 rounded-2xl p-6">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Job Category</label>
+                    <select
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 focus:outline-none focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 bg-white cursor-pointer transition-all"
+                      {...regCustomCard('job_category', { required: true })}
+                    >
+                      <option value="NGO">NGO Job</option>
+                      <option value="Normal">Normal Job</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Custom Job Role</label>
+                    <input
+                      type="text"
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 bg-white transition-all uppercase"
+                      placeholder="e.g. Senior Panchayat Coordinator"
+                      {...regCustomCard('role_applied', { required: 'Job Role is required' })}
+                    />
+                    {customCardErrors.role_applied && <p className="text-red-500 text-xs font-bold">{customCardErrors.role_applied.message}</p>}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Custom Fee / Registration Price (INR)</label>
+                    <input
+                      type="number"
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 bg-white transition-all"
+                      placeholder="e.g. 999"
+                      {...regCustomCard('amount', { required: 'Registration fee is required', min: 0 })}
+                    />
+                    {customCardErrors.amount && <p className="text-red-500 text-xs font-bold">{customCardErrors.amount.message}</p>}
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 1: PERSONAL INFORMATION */}
+              <div className="space-y-6">
+                <h3 className="text-sm font-extrabold uppercase text-slate-800 tracking-wider border-l-4 border-[#ED1C24] pl-3 py-2 bg-slate-50 rounded-r-xl">
+                  1. Personal Information
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Full Name</label>
+                    <input
+                      type="text"
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all uppercase"
+                      placeholder="Enter Full Name"
+                      {...regCustomCard('fullName', { required: 'Full Name is required' })}
+                    />
+                    {customCardErrors.fullName && <p className="text-red-500 text-xs font-bold">{customCardErrors.fullName.message}</p>}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Father / Husband Name</label>
+                    <input
+                      type="text"
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all uppercase"
+                      placeholder="Enter Father / Husband Name"
+                      {...regCustomCard('fatherName', { required: 'Father/Husband Name is required' })}
+                    />
+                    {customCardErrors.fatherName && <p className="text-red-500 text-xs font-bold">{customCardErrors.fatherName.message}</p>}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Mother's Name</label>
+                    <input
+                      type="text"
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all uppercase"
+                      placeholder="Enter Mother's Name"
+                      {...regCustomCard('motherName', { required: "Mother's Name is required" })}
+                    />
+                    {customCardErrors.motherName && <p className="text-red-500 text-xs font-bold">{customCardErrors.motherName.message}</p>}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Date of Birth (DD/MM/YYYY)</label>
+                    <input
+                      type="text"
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all"
+                      placeholder="DD/MM/YYYY"
+                      maxLength={10}
+                      {...regCustomCard('dob', { 
+                        required: 'Date of Birth is required',
+                        pattern: { value: /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[012])\/(19|20)\d\d$/, message: 'Format must be DD/MM/YYYY' }
+                      })}
+                    />
+                    {customCardErrors.dob && <p className="text-red-500 text-xs font-bold">{customCardErrors.dob.message}</p>}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Mobile Number</label>
+                    <input
+                      type="text"
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all"
+                      placeholder="10-Digit Mobile Number"
+                      maxLength={10}
+                      {...regCustomCard('mobile', {
+                        required: 'Mobile is required',
+                        pattern: { value: /^[6-9]\d{9}$/, message: 'Must be exactly 10 digits starting with 6-9' }
+                      })}
+                    />
+                    {customCardErrors.mobile && <p className="text-red-500 text-xs font-bold">{customCardErrors.mobile.message}</p>}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Email ID</label>
+                    <input
+                      type="email"
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all"
+                      placeholder="name@example.com"
+                      {...regCustomCard('email', { required: 'Email ID is required' })}
+                    />
+                    {customCardErrors.email && <p className="text-red-500 text-xs font-bold">{customCardErrors.email.message}</p>}
+                  </div>
+
+                  <div className="space-y-1.5 md:col-span-2">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Aadhar Number</label>
+                    <input
+                      type="text"
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all"
+                      placeholder="12-Digit Aadhar Number"
+                      maxLength={12}
+                      {...regCustomCard('aadhar', {
+                        required: 'Aadhar Number is required',
+                        pattern: { value: /^\d{12}$/, message: 'Must be exactly 12 digits' }
+                      })}
+                    />
+                    {customCardErrors.aadhar && <p className="text-red-500 text-xs font-bold">{customCardErrors.aadhar.message}</p>}
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 2: PERMANENT HOME ADDRESS */}
+              <div className="space-y-6">
+                <h3 className="text-sm font-extrabold uppercase text-slate-800 tracking-wider border-l-4 border-[#ED1C24] pl-3 py-2 bg-slate-50 rounded-r-xl">
+                  2. Permanent Home Address
+                </h3>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Village</label>
+                    <input type="text" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all uppercase" {...regCustomCard('village', { required: true })} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Panchayat</label>
+                    <input type="text" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all uppercase" {...regCustomCard('panchayat', { required: true })} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Post Office</label>
+                    <input type="text" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all uppercase" {...regCustomCard('post', { required: true })} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Block</label>
+                    <input type="text" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all uppercase" {...regCustomCard('block', { required: true })} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Police Station</label>
+                    <input type="text" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all uppercase" {...regCustomCard('police', { required: true })} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">District</label>
+                    <input type="text" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all uppercase" {...regCustomCard('district', { required: true })} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">State</label>
+                    <input type="text" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all uppercase" {...regCustomCard('state', { required: true })} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Pin Code</label>
+                    <input type="text" maxLength={6} className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all" {...regCustomCard('pin', { required: true, pattern: /^\d{6}$/ })} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Ward No</label>
+                    <input type="text" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all" {...regCustomCard('ward')} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Total Ward</label>
+                    <input type="text" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all" {...regCustomCard('total_ward')} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Nationality</label>
+                    <input type="text" defaultValue="INDIAN" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all uppercase" {...regCustomCard('nationality', { required: true })} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Languages Known</label>
+                    <input type="text" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all uppercase" {...regCustomCard('languages_known', { required: true })} />
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 3: BANK DETAILS */}
+              <div className="space-y-6">
+                <h3 className="text-sm font-extrabold uppercase text-slate-800 tracking-wider border-l-4 border-[#ED1C24] pl-3 py-2 bg-slate-50 rounded-r-xl">
+                  3. Bank Account Details
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Account Number</label>
+                    <input type="text" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all" {...regCustomCard('bank_account')} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">IFSC Code</label>
+                    <input type="text" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all uppercase" {...regCustomCard('bank_ifsc')} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Account Holder Name</label>
+                    <input type="text" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all uppercase" {...regCustomCard('bank_holder')} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Bank Name</label>
+                    <input type="text" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all uppercase" {...regCustomCard('bank_name')} />
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 4: EDUCATIONAL QUALIFICATIONS */}
+              <div className="space-y-6">
+                <h3 className="text-sm font-extrabold uppercase text-slate-800 tracking-wider border-l-4 border-[#ED1C24] pl-3 py-2 bg-slate-50 rounded-r-xl">
+                  4. Educational Qualifications
+                </h3>
+
+                <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-inner bg-slate-50/50">
+                  <table className="min-w-[800px] w-full text-slate-700 text-xs font-semibold">
+                    <thead className="bg-slate-100 text-slate-500 border-b border-slate-200 uppercase text-[10px]">
+                      <tr>
+                        <th className="py-3 px-4 text-left">Exam</th>
+                        <th className="py-3 px-4 text-left">Name of School/College</th>
+                        <th className="py-3 px-4 text-left">Year</th>
+                        <th className="py-3 px-4 text-left">Board/University</th>
+                        <th className="py-3 px-4 text-left">Subjects</th>
+                        <th className="py-3 px-4 text-left">Division</th>
+                        <th className="py-3 px-4 text-left">% Marks</th>
+                        <th className="py-3 px-4 text-left">Remarks</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {/* Matric */}
+                      <tr>
+                        <td className="py-2.5 px-4 font-bold text-slate-800">Matric</td>
+                        <td className="py-2.5 px-2"><input type="text" className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold focus:outline-none focus:border-[#ED1C24] focus:ring-2 focus:ring-[#ED1C24]/10 bg-white transition-all uppercase" {...regCustomCard('m_school')} /></td>
+                        <td className="py-2.5 px-2"><input type="text" maxLength={4} className="w-16 border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:border-[#ED1C24] focus:ring-2 focus:ring-[#ED1C24]/10 bg-white transition-all" {...regCustomCard('m_year')} /></td>
+                        <td className="py-2.5 px-2"><input type="text" className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold focus:outline-none focus:border-[#ED1C24] focus:ring-2 focus:ring-[#ED1C24]/10 bg-white transition-all uppercase" {...regCustomCard('m_board')} /></td>
+                        <td className="py-2.5 px-2"><input type="text" className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold focus:outline-none focus:border-[#ED1C24] focus:ring-2 focus:ring-[#ED1C24]/10 bg-white transition-all uppercase" {...regCustomCard('m_sub')} /></td>
+                        <td className="py-2.5 px-2"><input type="text" className="w-16 border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:border-[#ED1C24] focus:ring-2 focus:ring-[#ED1C24]/10 bg-white transition-all uppercase" {...regCustomCard('m_div')} /></td>
+                        <td className="py-2.5 px-2"><input type="text" className="w-16 border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:border-[#ED1C24] focus:ring-2 focus:ring-[#ED1C24]/10 bg-white transition-all" {...regCustomCard('m_marks')} /></td>
+                        <td className="py-2.5 px-2"><input type="text" className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold focus:outline-none focus:border-[#ED1C24] focus:ring-2 focus:ring-[#ED1C24]/10 bg-white transition-all uppercase" {...regCustomCard('m_rem')} /></td>
+                      </tr>
+
+                      {/* Inter */}
+                      <tr>
+                        <td className="py-2.5 px-4 font-bold text-slate-800">Intermediate</td>
+                        <td className="py-2.5 px-2"><input type="text" className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold focus:outline-none focus:border-[#ED1C24] focus:ring-2 focus:ring-[#ED1C24]/10 bg-white transition-all uppercase" {...regCustomCard('i_school')} /></td>
+                        <td className="py-2.5 px-2"><input type="text" maxLength={4} className="w-16 border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:border-[#ED1C24] focus:ring-2 focus:ring-[#ED1C24]/10 bg-white transition-all" {...regCustomCard('i_year')} /></td>
+                        <td className="py-2.5 px-2"><input type="text" className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold focus:outline-none focus:border-[#ED1C24] focus:ring-2 focus:ring-[#ED1C24]/10 bg-white transition-all uppercase" {...regCustomCard('i_board')} /></td>
+                        <td className="py-2.5 px-2"><input type="text" className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold focus:outline-none focus:border-[#ED1C24] focus:ring-2 focus:ring-[#ED1C24]/10 bg-white transition-all uppercase" {...regCustomCard('i_sub')} /></td>
+                        <td className="py-2.5 px-2"><input type="text" className="w-16 border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:border-[#ED1C24] focus:ring-2 focus:ring-[#ED1C24]/10 bg-white transition-all uppercase" {...regCustomCard('i_div')} /></td>
+                        <td className="py-2.5 px-2"><input type="text" className="w-16 border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:border-[#ED1C24] focus:ring-2 focus:ring-[#ED1C24]/10 bg-white transition-all" {...regCustomCard('i_marks')} /></td>
+                        <td className="py-2.5 px-2"><input type="text" className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold focus:outline-none focus:border-[#ED1C24] focus:ring-2 focus:ring-[#ED1C24]/10 bg-white transition-all uppercase" {...regCustomCard('i_rem')} /></td>
+                      </tr>
+
+                      {/* Grad */}
+                      <tr>
+                        <td className="py-2.5 px-4 font-bold text-slate-800">Graduation</td>
+                        <td className="py-2.5 px-2"><input type="text" className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold focus:outline-none focus:border-[#ED1C24] focus:ring-2 focus:ring-[#ED1C24]/10 bg-white transition-all uppercase" {...regCustomCard('g_school')} /></td>
+                        <td className="py-2.5 px-2"><input type="text" maxLength={4} className="w-16 border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:border-[#ED1C24] focus:ring-2 focus:ring-[#ED1C24]/10 bg-white transition-all" {...regCustomCard('g_year')} /></td>
+                        <td className="py-2.5 px-2"><input type="text" className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold focus:outline-none focus:border-[#ED1C24] focus:ring-2 focus:ring-[#ED1C24]/10 bg-white transition-all uppercase" {...regCustomCard('g_board')} /></td>
+                        <td className="py-2.5 px-2"><input type="text" className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold focus:outline-none focus:border-[#ED1C24] focus:ring-2 focus:ring-[#ED1C24]/10 bg-white transition-all uppercase" {...regCustomCard('g_sub')} /></td>
+                        <td className="py-2.5 px-2"><input type="text" className="w-16 border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:border-[#ED1C24] focus:ring-2 focus:ring-[#ED1C24]/10 bg-white transition-all uppercase" {...regCustomCard('g_div')} /></td>
+                        <td className="py-2.5 px-2"><input type="text" className="w-16 border border-slate-200 rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none focus:border-[#ED1C24] focus:ring-2 focus:ring-[#ED1C24]/10 bg-white transition-all" {...regCustomCard('g_marks')} /></td>
+                        <td className="py-2.5 px-2"><input type="text" className="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold focus:outline-none focus:border-[#ED1C24] focus:ring-2 focus:ring-[#ED1C24]/10 bg-white transition-all uppercase" {...regCustomCard('g_rem')} /></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Declarations and signatures */}
+              <div className="space-y-6 pt-4 border-t border-slate-100">
+                <p className="text-center font-bold text-[#000080] text-sm leading-relaxed">
+                  I hereby declare that the information provided above is true to the best of my knowledge and belief.
+                </p>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 font-bold text-slate-500 text-xs items-end">
+                  <div className="space-y-4 text-center">
+                    <div className="h-12 border-b-2 border-slate-200"></div>
+                    <span className="text-slate-600 uppercase tracking-wide text-[10px]">Guardian Signature</span>
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <label className="uppercase text-[10px] tracking-wide text-slate-600">Place</label>
+                    <input type="text" className="w-full border border-slate-200 rounded-xl px-4 py-2 text-slate-800 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all uppercase" {...regCustomCard('place', { required: true })} />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="uppercase text-[10px] tracking-wide text-slate-600">Date</label>
+                    <input type="date" className="w-full border border-slate-200 rounded-xl px-4 py-2 text-slate-800 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all" {...regCustomCard('date', { required: true })} />
+                  </div>
+
+                  <div className="space-y-4 text-center">
+                    <div className="h-12 border-b-2 border-slate-200"></div>
+                    <span className="text-slate-600 uppercase tracking-wide text-[10px]">Coordinator Signature</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit panel */}
+              {customCardError && (
+                <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl text-rose-600 font-bold text-xs">
+                  ❌ {customCardError}
+                </div>
+              )}
+
+              <div className="flex justify-end pt-4">
+                <button
+                  type="submit"
+                  disabled={customCardSubmitting}
+                  className="rounded-xl bg-[#ED1C24] hover:bg-[#b0151b] font-black text-white px-8 py-4 shadow-lg text-base transition-all duration-300 w-full sm:w-auto disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+                >
+                  {customCardSubmitting ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                      Generating Pass...
+                    </>
+                  ) : (
+                    'Generate Custom Pass & Card'
+                  )}
+                </button>
+              </div>
+
+            </form>
+          </div>
+        )}
 
         </main>
       </div>
@@ -1739,6 +2205,7 @@ const AdminDashboard = () => {
                     src={selectedCardUser.photoPath ? resolveAssetUrl(selectedCardUser.photoPath) : '/logo.jpg'}
                     alt="Photo"
                     className="w-20 h-20 rounded-full border-4 border-[#ED1C24] object-cover bg-white p-1"
+                    crossOrigin="anonymous"
                     onError={handleImageError}
                   />
                 </div>

@@ -1,4 +1,5 @@
 const express = require('express');
+const jwt = require('jsonwebtoken');
 const router = express.Router();
 const fs = require('fs');
 const path = require('path');
@@ -667,6 +668,145 @@ router.get('/pdf/:id', async (req, res) => {
         if (!res.headersSent) {
             return res.status(500).send('Unable to open PDF right now');
         }
+    }
+});
+
+// Middleware to verify admin session
+const verifyAdmin = (req, res, next) => {
+    const token = req.header('Authorization');
+    if (!token) return res.status(401).json({ success: false, message: "Access Denied. No Token Provided." });
+
+    const tokenVal = token.replace("Bearer ", "");
+    if (tokenVal === 'employee-session') {
+        req.user = { role: 'employee' };
+        return res.status(403).json({ success: false, message: "Access Denied. Admins Only." });
+    }
+
+    try {
+        const verified = jwt.verify(tokenVal, process.env.JWT_SECRET);
+        req.user = verified;
+        if (verified.role !== 'admin') {
+            return res.status(403).json({ success: false, message: "Access Denied. Admins Only." });
+        }
+        next();
+    } catch (err) {
+        res.status(400).json({ success: false, message: "Invalid Token" });
+    }
+};
+
+// Route for admin to directly generate a candidate pass (payment bypass, custom roles & fee)
+router.post('/admin/create', verifyAdmin, handlePhotoUpload, async (req, res) => {
+    try {
+        const {
+            full_name,
+            email,
+            mobile,
+            dob,
+            district,
+            state,
+            block,
+            panchayat,
+            place,
+            apply_for_post,
+            role_applied,
+            qualifications,
+            amount,
+            aadhar,
+            job_category,
+            registeredBy
+        } = req.body;
+
+        // Validation for critical fields
+        if (!full_name || !email || !mobile || !dob || !district || !state || !apply_for_post || !role_applied || !aadhar) {
+            return res.status(400).json({ success: false, message: "Required fields are missing." });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: "Candidate photo is required to generate card." });
+        }
+
+        const TargetModel = job_category === 'Normal' ? NormalApplicant : Applicant;
+
+        // Year-and-category-wise unique ID generation
+        const currentYear = new Date().getFullYear().toString().slice(-2);
+        const idPrefix = job_category === 'Normal' ? 'NOR' : 'NGO';
+        
+        const lastApplicant = await TargetModel.findOne({ 
+            uniqueId: new RegExp(`^${idPrefix}-${currentYear}-`) 
+        }).sort({ _id: -1 });
+
+        let nextId = `${idPrefix}-${currentYear}-0001`;
+
+        if (lastApplicant && lastApplicant.uniqueId) { 
+            const parts = lastApplicant.uniqueId.split('-');
+            if (parts.length === 3 && parts[0] === idPrefix && parts[1] === currentYear) {
+                const lastNum = parseInt(parts[2], 10);
+                if (!isNaN(lastNum)) {
+                    nextId = `${idPrefix}-${currentYear}-${(lastNum + 1).toString().padStart(4, '0')}`; 
+                }
+            }
+        }
+
+        let qualParsed = {}; 
+        try { 
+            qualParsed = qualifications ? (typeof qualifications === 'string' ? JSON.parse(qualifications) : qualifications) : {}; 
+        } catch(e) { 
+            console.error("Qualifications parse error", e); 
+        }
+
+        const mockPaymentId = "OFFLINE_AD_" + Date.now();
+        const mockOrderId = "ADMIN_" + Date.now();
+
+        const appData = {
+            uniqueId: nextId, 
+            orderId: mockOrderId, 
+            status: 'Success',
+            fullName: full_name, 
+            email: email, 
+            mobile: mobile, 
+            dob: dob, 
+            district: district, 
+            state: state, 
+            block: block || '',
+            panchayat: panchayat || '',
+            place: place || '',
+            applyForPost: apply_for_post,
+            aadhar: aadhar, 
+            roleApplied: role_applied,
+            job_category: job_category || 'NGO',
+            photoPath: req.file ? req.file.path : '',
+            applicationPdf: '',
+            qualifications: qualParsed,
+            amount: amount ? parseInt(amount, 10) : 499,
+            emp_username: email,
+            registeredBy: registeredBy || req.user?.email || 'Admin'
+        };
+
+        const result = await finalizeApplicationSubmission({
+            appData,
+            paymentId: mockPaymentId,
+            orderId: mockOrderId,
+            paymentStatus: 'success',
+            transactionId: mockOrderId,
+            ipAddress: req.ip || req.connection.remoteAddress,
+            userAgent: req.get('User-Agent'),
+            rawResponse: { type: 'admin_direct_creation', admin: req.user?.email }
+        });
+
+        // Fetch saved document to send back complete entity
+        const savedApplicant = await TargetModel.findOne({ uniqueId: nextId });
+
+        return res.status(200).json({
+            success: true,
+            message: "Custom job application card generated successfully!",
+            data: savedApplicant,
+            redirectUrl: result.redirectUrl,
+            pdfPath: result.pdfPath
+        });
+
+    } catch (error) {
+        console.error("Admin Direct Candidate Register Error:", error);
+        res.status(500).json({ success: false, message: error.message });
     }
 });
 
