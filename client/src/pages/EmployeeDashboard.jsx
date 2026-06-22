@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import html2canvas from 'html2canvas';
+import html2canvas from 'html2canvas-pro';
 import { getEmployeeProfile, getAllApplicants, getAllBeneficiaries } from '../api/userApi';
 import apiClient from '../api/apiClient';
 import {
@@ -68,6 +68,7 @@ const EmployeeDashboard = () => {
   const [selectedHealthCard, setSelectedHealthCard] = useState(null);
   const [showHealthCardModal, setShowHealthCardModal] = useState(false);
   const healthCardRef = useRef(null);
+  const [healthCardPhotoUrl, setHealthCardPhotoUrl] = useState('/logo.jpg');
 
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
@@ -114,6 +115,62 @@ const EmployeeDashboard = () => {
   useEffect(() => {
     syncDashboardData(true);
   }, []);
+
+  // Resolve Health Card photo to local blob URL to bypass CORS
+  useEffect(() => {
+    let active = true;
+    let localUrl = '';
+
+    if (selectedHealthCard && selectedHealthCard.photoPath) {
+      const url = resolveAssetUrl(selectedHealthCard.photoPath);
+      fetch(url)
+        .then((res) => {
+          if (!res.ok) throw new Error('Image fetch failed');
+          return res.blob();
+        })
+        .then((blob) => {
+          if (!active) return;
+          localUrl = URL.createObjectURL(blob);
+          setHealthCardPhotoUrl(localUrl);
+        })
+        .catch((err) => {
+          console.error("CORS fetch failed, trying fallback:", err);
+          const prodBase = 'https://aagajfoundation.com';
+          if (url.includes('localhost') || url.includes('127.0.0.1')) {
+            try {
+              const urlObj = new URL(url);
+              const fallbackUrl = `${prodBase}${urlObj.pathname}`;
+              fetch(fallbackUrl)
+                .then((res) => {
+                  if (!res.ok) throw new Error('Fallback failed');
+                  return res.blob();
+                })
+                .then((blob) => {
+                  if (!active) return;
+                  localUrl = URL.createObjectURL(blob);
+                  setHealthCardPhotoUrl(localUrl);
+                })
+                .catch(() => {
+                  if (active) setHealthCardPhotoUrl('/logo.jpg');
+                });
+            } catch (e) {
+              if (active) setHealthCardPhotoUrl('/logo.jpg');
+            }
+          } else {
+            if (active) setHealthCardPhotoUrl('/logo.jpg');
+          }
+        });
+    } else {
+      setHealthCardPhotoUrl('/logo.jpg');
+    }
+
+    return () => {
+      active = false;
+      if (localUrl) {
+        URL.revokeObjectURL(localUrl);
+      }
+    };
+  }, [selectedHealthCard]);
 
   const handleLogout = () => {
     logout();
@@ -1126,7 +1183,7 @@ const EmployeeDashboard = () => {
                       <div className="flex-grow flex p-4 bg-white items-center">
                         <div className="w-[90px] h-[115px] rounded-lg border-2 border-[#2e3192] bg-slate-50 overflow-hidden shrink-0 shadow-sm p-0.5">
                           <img
-                            src={selectedHealthCard.photoPath ? resolveAssetUrl(selectedHealthCard.photoPath) : '/logo.jpg'}
+                            src={healthCardPhotoUrl}
                             alt="Patient"
                             className="w-full h-full object-cover rounded-md"
                             crossOrigin="anonymous"
@@ -1275,12 +1332,17 @@ const EmployeeDashboard = () => {
               <button
                 onClick={() => {
                   if (!healthCardRef.current) return;
-                  html2canvas(healthCardRef.current, { scale: 3, useCORS: true }).then((canvas) => {
-                    const link = document.createElement('a');
-                    link.download = `HealthCard_MC_${selectedHealthCard.healthId}.png`;
-                    link.href = canvas.toDataURL('image/png');
-                    link.click();
-                  });
+                  html2canvas(healthCardRef.current, { scale: 3, useCORS: true, allowTaint: true })
+                    .then((canvas) => {
+                      const link = document.createElement('a');
+                      link.download = `HealthCard_MC_${selectedHealthCard.healthId}.png`;
+                      link.href = canvas.toDataURL('image/png');
+                      link.click();
+                    })
+                    .catch((err) => {
+                      console.error("Error generating health card canvas:", err);
+                      alert("Failed to save image. Please try again.");
+                    });
                 }}
                 className="flex-1 flex items-center justify-center gap-1 rounded-xl bg-slate-900 hover:bg-slate-800 text-white px-4 py-2.5 text-xs font-bold shadow-md cursor-pointer"
               >

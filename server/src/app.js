@@ -608,6 +608,8 @@ app.get('/api/healthcard/all', async (req, res) => {
 
 // ✅ Connect Routes (Prefixed with /api)
 app.use('/api/admin', verifyAdmin, require('./routes/AddNewEmployeeRoutes'));
+app.use('/api/admin/enquiries', verifyAdmin, require('./routes/AdminEnquiryRoutes'));
+app.use('/api/enquiries', require('./routes/PublicEnquiryRoutes'));
 app.use('/api/schemes', require('./routes/SilayiPrasikshanRoutes'));
 app.use('/api/swarojgaar', require('./routes/SwarojgaarRegisterRoutes'));
 app.use('/api/swasthya', require('./routes/SwasthyaSurkshaRoutes'));
