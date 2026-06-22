@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import html2canvas from 'html2canvas';
+import html2canvas from 'html2canvas-pro';
 import {
   getAllApplicants,
   getAllBeneficiaries,
@@ -71,6 +71,8 @@ const AdminDashboard = () => {
   const [transactions, setTransactions] = useState([]);
   const [donations, setDonations] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
+  const [enquiries, setEnquiries] = useState([]);
+  const [selectedEnquiry, setSelectedEnquiry] = useState(null);
 
   // Hospital Master States
   const [hospStats, setHospStats] = useState({
@@ -115,6 +117,8 @@ const AdminDashboard = () => {
   const [selectedHealthCard, setSelectedHealthCard] = useState(null);
   const [showHealthCardModal, setShowHealthCardModal] = useState(false);
   const healthCardRef = useRef(null);
+  const [cardPhotoUrl, setCardPhotoUrl] = useState('/logo.jpg');
+  const [healthCardPhotoUrl, setHealthCardPhotoUrl] = useState('/logo.jpg');
 
   // Forms Hooks
   const { register: regAddEmp, handleSubmit: handleAddEmpSubmit, formState: { errors: addEmpErrors }, reset: resetAddEmpForm } = useForm();
@@ -146,7 +150,7 @@ const AdminDashboard = () => {
   const syncData = async () => {
     setLoading(true);
     try {
-      const [appRes, benRes, apptRes, hcRes, txnRes, donRes, hospStatsRes, hospListRes, hospBillsRes, auditRes] = await Promise.all([
+      const [appRes, benRes, apptRes, hcRes, txnRes, donRes, hospStatsRes, hospListRes, hospBillsRes, auditRes, enquiriesRes] = await Promise.all([
         getAllApplicants().catch(err => []),
         getAllBeneficiaries().catch(err => []),
         getAllAppointments().catch(err => ({ success: false, data: [] })),
@@ -156,7 +160,8 @@ const AdminDashboard = () => {
         getHospitalAdminStats().catch(err => ({ success: false, stats: {} })),
         getHospitalAdminHospitals().catch(err => ({ success: false, data: [] })),
         getHospitalGlobalReports().catch(err => ({ success: false, data: [] })),
-        getHospitalAuditLogs().catch(err => ({ success: false, data: [] }))
+        getHospitalAuditLogs().catch(err => ({ success: false, data: [] })),
+        apiClient.get('/api/admin/enquiries/all').catch(err => ({ data: { success: false, data: [] } }))
       ]);
 
       setApplicants(Array.isArray(appRes) ? appRes : []);
@@ -166,6 +171,7 @@ const AdminDashboard = () => {
       setTransactions(txnRes.success ? txnRes.data : []);
       setDonations(Array.isArray(donRes.data) ? donRes.data : (Array.isArray(donRes) ? donRes : []));
       setAuditLogs(auditRes.success ? auditRes.data : []);
+      setEnquiries(enquiriesRes.data?.success ? enquiriesRes.data.data : []);
 
       if (hospStatsRes.success) {
         setHospStats(hospStatsRes.stats);
@@ -212,6 +218,118 @@ const AdminDashboard = () => {
       fetchCarouselAdmin();
     }
   }, [currentView]);
+
+  // Resolve Employee Pass Card photo to local blob URL to bypass CORS
+  useEffect(() => {
+    let active = true;
+    let localUrl = '';
+
+    if (selectedCardUser && selectedCardUser.photoPath) {
+      const url = resolveAssetUrl(selectedCardUser.photoPath);
+      fetch(url)
+        .then((res) => {
+          if (!res.ok) throw new Error('Image fetch failed');
+          return res.blob();
+        })
+        .then((blob) => {
+          if (!active) return;
+          localUrl = URL.createObjectURL(blob);
+          setCardPhotoUrl(localUrl);
+        })
+        .catch((err) => {
+          console.error("CORS fetch failed, trying fallback:", err);
+          const prodBase = 'https://aagajfoundation.com';
+          if (url.includes('localhost') || url.includes('127.0.0.1')) {
+            try {
+              const urlObj = new URL(url);
+              const fallbackUrl = `${prodBase}${urlObj.pathname}`;
+              fetch(fallbackUrl)
+                .then((res) => {
+                  if (!res.ok) throw new Error('Fallback failed');
+                  return res.blob();
+                })
+                .then((blob) => {
+                  if (!active) return;
+                  localUrl = URL.createObjectURL(blob);
+                  setCardPhotoUrl(localUrl);
+                })
+                .catch(() => {
+                  if (active) setCardPhotoUrl('/logo.jpg');
+                });
+            } catch (e) {
+              if (active) setCardPhotoUrl('/logo.jpg');
+            }
+          } else {
+            if (active) setCardPhotoUrl('/logo.jpg');
+          }
+        });
+    } else {
+      setCardPhotoUrl('/logo.jpg');
+    }
+
+    return () => {
+      active = false;
+      if (localUrl) {
+        URL.revokeObjectURL(localUrl);
+      }
+    };
+  }, [selectedCardUser]);
+
+  // Resolve Health Card photo to local blob URL to bypass CORS
+  useEffect(() => {
+    let active = true;
+    let localUrl = '';
+
+    if (selectedHealthCard && selectedHealthCard.photoPath) {
+      const url = resolveAssetUrl(selectedHealthCard.photoPath);
+      fetch(url)
+        .then((res) => {
+          if (!res.ok) throw new Error('Image fetch failed');
+          return res.blob();
+        })
+        .then((blob) => {
+          if (!active) return;
+          localUrl = URL.createObjectURL(blob);
+          setHealthCardPhotoUrl(localUrl);
+        })
+        .catch((err) => {
+          console.error("CORS fetch failed, trying fallback:", err);
+          const prodBase = 'https://aagajfoundation.com';
+          if (url.includes('localhost') || url.includes('127.0.0.1')) {
+            try {
+              const urlObj = new URL(url);
+              const fallbackUrl = `${prodBase}${urlObj.pathname}`;
+              fetch(fallbackUrl)
+                .then((res) => {
+                  if (!res.ok) throw new Error('Fallback failed');
+                  return res.blob();
+                })
+                .then((blob) => {
+                  if (!active) return;
+                  localUrl = URL.createObjectURL(blob);
+                  setHealthCardPhotoUrl(localUrl);
+                })
+                .catch(() => {
+                  if (active) setHealthCardPhotoUrl('/logo.jpg');
+                });
+            } catch (e) {
+              if (active) setHealthCardPhotoUrl('/logo.jpg');
+            }
+          } else {
+            if (active) setHealthCardPhotoUrl('/logo.jpg');
+          }
+        });
+    } else {
+      setHealthCardPhotoUrl('/logo.jpg');
+    }
+
+    return () => {
+      active = false;
+      if (localUrl) {
+        URL.revokeObjectURL(localUrl);
+      }
+    };
+  }, [selectedHealthCard]);
 
   const handleCarouselUpload = async (e) => {
     e.preventDefault();
@@ -309,6 +427,37 @@ const AdminDashboard = () => {
       }
     } catch (err) {
       alert('Error connecting to the server');
+    }
+  };
+
+  const handleToggleEnquiryStatus = async (id) => {
+    try {
+      const res = await apiClient.put(`/api/admin/enquiries/${id}/status`);
+      if (res.data && res.data.success) {
+        alert(res.data.message || 'Enquiry status updated.');
+        syncData();
+      } else {
+        alert(res.data?.message || 'Failed to update status.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error updating enquiry status.');
+    }
+  };
+
+  const handleDeleteEnquiry = async (id) => {
+    if (!window.confirm('Are you sure you want to permanently delete this enquiry?')) return;
+    try {
+      const res = await apiClient.delete(`/api/admin/enquiries/${id}`);
+      if (res.data && res.data.success) {
+        alert(res.data.message || 'Enquiry deleted successfully.');
+        syncData();
+      } else {
+        alert(res.data?.message || 'Failed to delete enquiry.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error deleting enquiry.');
     }
   };
 
@@ -567,12 +716,17 @@ const AdminDashboard = () => {
   // Download ID Card PNG
   const downloadIDCard = () => {
     if (!cardRef.current) return;
-    html2canvas(cardRef.current, { scale: 3, useCORS: true }).then((canvas) => {
-      const link = document.createElement('a');
-      link.download = `Employee_Card_${selectedCardUser.fullName.replace(/\s+/g, '_')}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    });
+    html2canvas(cardRef.current, { scale: 3, useCORS: true, allowTaint: true })
+      .then((canvas) => {
+        const link = document.createElement('a');
+        link.download = `Employee_Card_${selectedCardUser.fullName.replace(/\s+/g, '_')}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      })
+      .catch((err) => {
+        console.error("Error generating ID card canvas:", err);
+        alert("Failed to save image. Please try again.");
+      });
   };
 
   // Counts & Stats
@@ -642,6 +796,15 @@ const AdminDashboard = () => {
           l.actor?.email?.toLowerCase().includes(term) || l.action?.toLowerCase().includes(term) || l.ipAddress?.includes(term) || l.userAgent?.toLowerCase().includes(term)
         ));
 
+      case 'enquiries':
+        return enquiries.filter(e => (
+          e.fullName?.toLowerCase().includes(term) ||
+          e.mobile?.includes(term) ||
+          e.email?.toLowerCase().includes(term) ||
+          e.subject?.toLowerCase().includes(term) ||
+          e.message?.toLowerCase().includes(term)
+        ));
+
       default:
         return [];
     }
@@ -670,6 +833,7 @@ const AdminDashboard = () => {
       case 'auditLogs': return 'Super Admin Audit Action Trails';
       case 'carouselControl': return 'Dashboard Image Control (Hero Carousel)';
       case 'customCard': return 'Custom Job Card & Pass Generator';
+      case 'enquiries': return 'Visitor Enquiry Management';
       default: return 'Foundation Control Panel';
     }
   };
@@ -815,6 +979,12 @@ const AdminDashboard = () => {
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${currentView === 'auditLogs' ? 'bg-[#fdd831] text-[#051630]' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
             >
               <ShieldAlert className="h-4.5 w-4.5" /> Audit Activity Trails
+            </button>
+            <button
+              onClick={() => { setCurrentView('enquiries'); setCurrentPage(1); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${currentView === 'enquiries' ? 'bg-[#fdd831] text-[#051630]' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
+            >
+              <FileText className="h-4.5 w-4.5" /> User Enquiries
             </button>
           </div>
 
@@ -1578,6 +1748,78 @@ const AdminDashboard = () => {
                     </table>
                   )}
 
+                  {/* ========================================== */}
+                  {/*  TABLE 8. USER ENQUIRIES REGISTER          */}
+                  {/* ========================================== */}
+                  {currentView === 'enquiries' && (
+                    <table className="w-full text-left border-collapse whitespace-nowrap">
+                      <thead>
+                        <tr className="border-b border-slate-100 bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                          <th className="py-3 px-4">Date</th>
+                          <th className="py-3 px-4">Full Name</th>
+                          <th className="py-3 px-4">Contact Info</th>
+                          <th className="py-3 px-4">Subject</th>
+                          <th className="py-3 px-4">Message</th>
+                          <th className="py-3 px-4">Status</th>
+                          <th className="py-3 px-4 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-slate-700 text-xs">
+                        {paginatedList.length === 0 ? (
+                          <tr>
+                            <td colSpan="7" className="text-center py-12 text-slate-400 font-semibold">No visitor enquiries received.</td>
+                          </tr>
+                        ) : (
+                          paginatedList.map(enq => (
+                            <tr key={enq._id} className="hover:bg-slate-50/50 transition-all">
+                              <td className="py-3 px-4 text-slate-400 font-bold">{new Date(enq.createdAt).toLocaleDateString()}</td>
+                              <td className="py-3 px-4 font-black text-slate-800">{enq.fullName}</td>
+                              <td className="py-3 px-4 font-semibold text-slate-600">
+                                <p>{enq.mobile}</p>
+                                <p className="text-[10px] text-indigo-500 font-medium">{enq.email || 'No Email'}</p>
+                              </td>
+                              <td className="py-3 px-4 font-bold text-[#ED1C24]">{enq.subject}</td>
+                              <td className="py-3 px-4 text-slate-600 max-w-xs break-words whitespace-normal font-medium">
+                                {enq.message}
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[9px] font-black uppercase transition-all ${
+                                  enq.status === 'Resolved' 
+                                    ? 'bg-emerald-100 text-emerald-800' 
+                                    : 'bg-amber-100 text-amber-800'
+                                }`}>
+                                  {enq.status}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-right">
+                                <div className="flex justify-end gap-1">
+                                  <button
+                                    onClick={() => handleToggleEnquiryStatus(enq._id)}
+                                    className={`rounded-lg border px-2 py-1 text-[10px] font-bold transition-all cursor-pointer ${
+                                      enq.status === 'Resolved'
+                                        ? 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100'
+                                        : 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                                    }`}
+                                    title={enq.status === 'Resolved' ? 'Mark Pending' : 'Mark Resolved'}
+                                  >
+                                    {enq.status === 'Resolved' ? 'Mark Pending' : 'Mark Resolved'}
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteEnquiry(enq._id)}
+                                    className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:text-rose-600 hover:bg-rose-50 transition-all cursor-pointer"
+                                    title="Delete"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  )}
+
                 </div>
 
                 {/* Smart Pagination */}
@@ -2202,7 +2444,7 @@ const AdminDashboard = () => {
                 
                 <div className="flex flex-col items-center mt-1">
                   <img
-                    src={selectedCardUser.photoPath ? resolveAssetUrl(selectedCardUser.photoPath) : '/logo.jpg'}
+                    src={cardPhotoUrl}
                     alt="Photo"
                     className="w-20 h-20 rounded-full border-4 border-[#ED1C24] object-cover bg-white p-1"
                     crossOrigin="anonymous"
@@ -2754,7 +2996,7 @@ const AdminDashboard = () => {
                       <div className="flex-grow flex p-4 bg-white items-center">
                         <div className="w-[90px] h-[115px] rounded-lg border-2 border-[#2e3192] bg-slate-50 overflow-hidden shrink-0 shadow-sm p-0.5">
                           <img
-                            src={selectedHealthCard.photoPath ? resolveAssetUrl(selectedHealthCard.photoPath) : '/logo.jpg'}
+                            src={healthCardPhotoUrl}
                             alt="Patient"
                             className="w-full h-full object-cover rounded-md"
                             crossOrigin="anonymous"
@@ -2902,12 +3144,17 @@ const AdminDashboard = () => {
               <button
                 onClick={() => {
                   if (!healthCardRef.current) return;
-                  html2canvas(healthCardRef.current, { scale: 3, useCORS: true }).then((canvas) => {
-                    const link = document.createElement('a');
-                    link.download = `HealthCard_MC_${selectedHealthCard.healthId}.png`;
-                    link.href = canvas.toDataURL('image/png');
-                    link.click();
-                  });
+                  html2canvas(healthCardRef.current, { scale: 3, useCORS: true, allowTaint: true })
+                    .then((canvas) => {
+                      const link = document.createElement('a');
+                      link.download = `HealthCard_MC_${selectedHealthCard.healthId}.png`;
+                      link.href = canvas.toDataURL('image/png');
+                      link.click();
+                    })
+                    .catch((err) => {
+                      console.error("Error generating health card canvas:", err);
+                      alert("Failed to save image. Please try again.");
+                    });
                 }}
                 className="flex-1 flex items-center justify-center gap-1 rounded-xl bg-slate-900 hover:bg-slate-800 text-white px-4 py-2.5 text-xs font-bold shadow-md cursor-pointer"
               >

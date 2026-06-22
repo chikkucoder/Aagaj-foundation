@@ -14,6 +14,73 @@ const Home = () => {
   const [slides, setSlides] = useState(heroImages);
   const [currentSlide, setCurrentSlide] = useState(0);
 
+  // Enquiry Form State
+  const [enquiryForm, setEnquiryForm] = useState({
+    fullName: '',
+    mobile: '',
+    email: '',
+    subject: 'General Inquiry',
+    message: ''
+  });
+  const [enquirySubmitting, setEnquirySubmitting] = useState(false);
+  const [enquirySuccess, setEnquirySuccess] = useState('');
+  const [enquiryError, setEnquiryError] = useState('');
+
+  const handleEnquiryChange = (e) => {
+    const { name, value } = e.target;
+    setEnquiryForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleEnquirySubmit = async (e) => {
+    e.preventDefault();
+    setEnquirySuccess('');
+    setEnquiryError('');
+
+    // Validations
+    if (!enquiryForm.fullName.trim()) {
+      setEnquiryError('Full Name is required.');
+      return;
+    }
+    if (!/^\d{10}$/.test(enquiryForm.mobile)) {
+      setEnquiryError('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+    if (!enquiryForm.message.trim()) {
+      setEnquiryError('Message cannot be empty.');
+      return;
+    }
+
+    setEnquirySubmitting(true);
+    try {
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${baseUrl}/api/enquiries/submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(enquiryForm)
+      });
+      const data = await response.json();
+      if (data.success) {
+        setEnquirySuccess(data.message || 'Enquiry submitted successfully!');
+        setEnquiryForm({
+          fullName: '',
+          mobile: '',
+          email: '',
+          subject: 'General Inquiry',
+          message: ''
+        });
+      } else {
+        setEnquiryError(data.message || 'Failed to submit enquiry.');
+      }
+    } catch (err) {
+      console.error(err);
+      setEnquiryError('Unable to connect to the server. Please try again.');
+    } finally {
+      setEnquirySubmitting(false);
+    }
+  };
+
   // Fetch dynamic carousel images from backend
   useEffect(() => {
     const fetchCarousel = async () => {
@@ -416,6 +483,226 @@ const Home = () => {
               >
                 Apply Now <ArrowRight className="h-4 w-4" />
               </Link>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* 8. ENQUIRY FORM SECTION */}
+      <section className="py-20 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white relative overflow-hidden">
+        {/* Decorative background lights */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-[#ED1C24]/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none"></div>
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#fdd831]/5 rounded-full blur-3xl translate-y-1/2 -translate-x-1/3 pointer-events-none"></div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-stretch">
+            
+            {/* Left Column: Direct Info */}
+            <div className="lg:col-span-5 flex flex-col justify-between space-y-8">
+              <div className="space-y-4">
+                <p className="text-sm font-extrabold uppercase tracking-widest text-[#fdd831]">
+                  Have Questions?
+                </p>
+                <h2 className="text-3xl md:text-5xl font-black tracking-tight leading-tight">
+                  Reach Out <br/>
+                  <span className="text-[#ED1C24]">To Us Today</span>
+                </h2>
+                <div className="h-1.5 w-20 bg-[#fdd831] rounded-full"></div>
+                <p className="text-slate-400 font-medium text-lg leading-relaxed pt-2">
+                  Whether you want to learn more about our programs, volunteer, collaborate, or seek assistance, our team is here to listen and help.
+                </p>
+              </div>
+
+              {/* Contact Information Details */}
+              <div className="space-y-6">
+                <div className="flex items-start gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-800/80 border border-slate-700/50 text-[#fdd831]">
+                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-200">Registered Office</h4>
+                    <p className="text-sm text-slate-400 font-medium">Patna, Bihar, India</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-800/80 border border-slate-700/50 text-[#fdd831]">
+                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.94.725l.548 2.2a1 1 0 01-.321.988l-1.305.98a10.582 10.582 0 004.872 4.872l.98-1.305a1 1 0 01.988-.321l2.2.548a1 1 0 01.725.94V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-200">Call Us</h4>
+                    <p className="text-sm text-slate-400 font-medium">+91-XXXXXXXXXX (Mon-Sat, 9AM-6PM)</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-800/80 border border-slate-700/50 text-[#fdd831]">
+                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-200">Email Us</h4>
+                    <p className="text-sm text-slate-400 font-medium">info@aagajfoundation.org</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column: Form Card */}
+            <div className="lg:col-span-7">
+              <div className="bg-slate-900/60 backdrop-blur-md rounded-3xl p-8 border border-slate-800 shadow-2xl relative">
+                
+                <h3 className="text-2xl font-black text-white mb-6 uppercase tracking-wider">
+                  Enquiry Form
+                </h3>
+
+                {enquirySuccess && (
+                  <div className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-sm font-semibold flex items-center gap-3">
+                    <div className="h-6 w-6 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+                      <Check className="h-4 w-4" />
+                    </div>
+                    {enquirySuccess}
+                  </div>
+                )}
+
+                {enquiryError && (
+                  <div className="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-400 text-sm font-semibold flex items-center gap-3">
+                    <div className="h-6 w-6 rounded-full bg-rose-500/20 flex items-center justify-center shrink-0">
+                      <span className="font-extrabold">!</span>
+                    </div>
+                    {enquiryError}
+                  </div>
+                )}
+
+                <form onSubmit={handleEnquirySubmit} className="space-y-6">
+                  
+                  {/* Name and Mobile Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label htmlFor="enquiry_fullName" className="block text-sm font-extrabold text-slate-300">
+                        Full Name <span className="text-[#ED1C24]">*</span>
+                      </label>
+                      <input
+                        id="enquiry_fullName"
+                        type="text"
+                        name="fullName"
+                        value={enquiryForm.fullName}
+                        onChange={handleEnquiryChange}
+                        placeholder="e.g. Vivek Kumar"
+                        className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-[#fdd831] focus:ring-1 focus:ring-[#fdd831] transition-all font-medium"
+                        disabled={enquirySubmitting}
+                        required
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <label htmlFor="enquiry_mobile" className="block text-sm font-extrabold text-slate-300">
+                        Mobile Number <span className="text-[#ED1C24]">*</span>
+                      </label>
+                      <input
+                        id="enquiry_mobile"
+                        type="tel"
+                        name="mobile"
+                        value={enquiryForm.mobile}
+                        onChange={handleEnquiryChange}
+                        placeholder="10-digit number"
+                        className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-[#fdd831] focus:ring-1 focus:ring-[#fdd831] transition-all font-medium"
+                        disabled={enquirySubmitting}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Email and Subject Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label htmlFor="enquiry_email" className="block text-sm font-extrabold text-slate-300">
+                        Email Address (Optional)
+                      </label>
+                      <input
+                        id="enquiry_email"
+                        type="email"
+                        name="email"
+                        value={enquiryForm.email}
+                        onChange={handleEnquiryChange}
+                        placeholder="e.g. name@example.com"
+                        className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-[#fdd831] focus:ring-1 focus:ring-[#fdd831] transition-all font-medium"
+                        disabled={enquirySubmitting}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label htmlFor="enquiry_subject" className="block text-sm font-extrabold text-slate-300">
+                        Subject <span className="text-[#ED1C24]">*</span>
+                      </label>
+                      <select
+                        id="enquiry_subject"
+                        name="subject"
+                        value={enquiryForm.subject}
+                        onChange={handleEnquiryChange}
+                        className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-[#fdd831] focus:ring-1 focus:ring-[#fdd831] transition-all font-medium"
+                        disabled={enquirySubmitting}
+                        required
+                      >
+                        <option value="General Inquiry">General Inquiry</option>
+                        <option value="Silayi Training">Silayi Training Admission</option>
+                        <option value="Health Card Support">Health Card Support</option>
+                        <option value="NGO Jobs / Career">NGO Jobs / Career</option>
+                        <option value="Donation & CSR">Donation & CSR Support</option>
+                        <option value="Other">Other Query</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Message Field */}
+                  <div className="space-y-2">
+                    <label htmlFor="enquiry_message" className="block text-sm font-extrabold text-slate-300">
+                      Message <span className="text-[#ED1C24]">*</span>
+                    </label>
+                    <textarea
+                      id="enquiry_message"
+                      name="message"
+                      value={enquiryForm.message}
+                      onChange={handleEnquiryChange}
+                      rows={4}
+                      placeholder="Type your message details here..."
+                      className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-[#fdd831] focus:ring-1 focus:ring-[#fdd831] transition-all font-medium resize-none"
+                      disabled={enquirySubmitting}
+                      required
+                    ></textarea>
+                  </div>
+
+                  {/* Submit Button */}
+                  <button
+                    id="enquiry_submit_btn"
+                    type="submit"
+                    className="w-full py-4 px-6 rounded-xl bg-[#ED1C24] hover:bg-[#b0151b] font-black uppercase tracking-wider text-white shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={enquirySubmitting}
+                  >
+                    {enquirySubmitting ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        Send Message
+                      </>
+                    )}
+                  </button>
+
+                </form>
+              </div>
             </div>
 
           </div>
