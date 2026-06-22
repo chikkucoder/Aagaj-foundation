@@ -13,3 +13,20 @@
 body {
   @apply bg-slate-50 text-slate-800 antialiased font-sans;
 }
+
+@media print {
+  body.printing-receipt #root > :not(.printable-receipt-container) {
+    display: none !important;
+  }
+  body.printing-receipt .printable-receipt-container {
+    display: block !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+}
