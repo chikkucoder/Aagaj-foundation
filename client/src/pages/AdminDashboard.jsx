@@ -534,6 +534,7 @@ const AdminDashboard = () => {
     formData.append('qualifications', JSON.stringify(qualificationsData));
     formData.append('registeredBy', user?.email || 'Admin');
     formData.append('photo', customCardPhotoFile);
+    formData.append('post_place', data.post_place || '');
 
     try {
       const response = await apiClient.post('/api/application/admin/create', formData, {
@@ -2079,7 +2080,7 @@ const AdminDashboard = () => {
                 <h3 className="text-sm font-extrabold uppercase text-[#0B2C66] tracking-wider border-l-4 border-[#0B2C66] pl-3 py-2 bg-slate-50 rounded-r-xl">
                   Custom Job & Payment Settings
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 bg-amber-50/50 border border-amber-100 rounded-2xl p-6">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 bg-amber-50/50 border border-amber-100 rounded-2xl p-6">
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Job Category</label>
                     <select
@@ -2100,6 +2101,17 @@ const AdminDashboard = () => {
                       {...regCustomCard('role_applied', { required: 'Job Role is required' })}
                     />
                     {customCardErrors.role_applied && <p className="text-red-500 text-xs font-bold">{customCardErrors.role_applied.message}</p>}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Applied Post Location</label>
+                    <input
+                      type="text"
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 bg-white transition-all uppercase"
+                      placeholder="e.g. Dalsinghsarai"
+                      {...regCustomCard('post_place', { required: 'Post location is required' })}
+                    />
+                    {customCardErrors.post_place && <p className="text-red-500 text-xs font-bold">{customCardErrors.post_place.message}</p>}
                   </div>
 
                   <div className="space-y-1.5">
@@ -2455,8 +2467,13 @@ const AdminDashboard = () => {
                 <div className="text-center px-4 mt-1 flex-grow">
                   <h4 className="text-[#000080] text-sm font-black uppercase truncate m-0">{selectedCardUser.fullName}</h4>
                   <p className="text-[#ED1C24] text-[9px] font-black tracking-wider uppercase m-0 mt-0.5">{selectedCardUser.roleApplied || 'NGO Employee'}</p>
+                  {selectedCardUser.postPlace && (
+                    <p className="text-[#000080] text-[8px] font-black uppercase m-0">{`Place: ${selectedCardUser.postPlace}`}</p>
+                  )}
                   
                   <div className="bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-left text-[9px] leading-relaxed text-slate-700 mt-2 space-y-0.5">
+                    {selectedCardUser.postPlace && <div><span className="text-[#000080] font-black inline-block w-14">Place:</span> <span className="uppercase">{selectedCardUser.postPlace}</span></div>}
+                    <div><span className="text-[#000080] font-black inline-block w-14">DOJ:</span> {selectedCardUser.date ? new Date(selectedCardUser.date).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB')}</div>
                     <div><span className="text-[#000080] font-black inline-block w-14">Post:</span> {selectedCardUser.roleApplied || 'N/A'}</div>
                     <div><span className="text-[#000080] font-black inline-block w-14">DOB:</span> {selectedCardUser.dob || 'N/A'}</div>
                     <div><span className="text-[#000080] font-black inline-block w-14">Mobile:</span> {selectedCardUser.mobile || 'N/A'}</div>

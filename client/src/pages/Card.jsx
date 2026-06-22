@@ -17,6 +17,8 @@ const Card = () => {
   const uniqueId = searchParams.get('unique_id') || '0000';
   const photoPath = searchParams.get('photo') || '';
   const role = searchParams.get('role') || 'NGO Employee';
+  const postPlace = searchParams.get('post_place') || '';
+  const doj = searchParams.get('doj') || new Date().toLocaleDateString('en-GB');
 
   const [photoUrl, setPhotoUrl] = useState('https://via.placeholder.com/120?text=Photo');
 
@@ -149,9 +151,16 @@ const Card = () => {
         <div className="px-6 text-center space-y-1.5 flex-grow pt-4">
           <h4 className="text-slate-900 text-lg font-black tracking-wide uppercase truncate">{name || 'APPLICANT NAME'}</h4>
           <p className="text-[#ED1C24] text-xs font-extrabold tracking-widest uppercase leading-none">{role}</p>
+          {postPlace && (
+            <p className="text-[#000080] text-[10px] font-black uppercase tracking-wider leading-none mt-1">
+              Place: {postPlace}
+            </p>
+          )}
           <p className="text-[#000080] text-xs font-black uppercase tracking-wide truncate">{applyForPost}</p>
 
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-left text-xs font-semibold text-slate-600 leading-relaxed mt-2.5">
+            {postPlace && <div className="flex"><strong className="text-[#000080] w-14 shrink-0">Place:</strong> <span className="text-slate-800 uppercase">{postPlace}</span></div>}
+            <div className="flex"><strong className="text-[#000080] w-14 shrink-0">DOJ:</strong> <span className="text-slate-800">{doj}</span></div>
             <div className="flex"><strong className="text-[#000080] w-14 shrink-0">DOB:</strong> <span className="text-slate-800">{dob}</span></div>
             <div className="flex"><strong className="text-[#000080] w-14 shrink-0">Mobile:</strong> <span className="text-slate-800">{mobile}</span></div>
             <div className="flex"><strong className="text-[#000080] w-14 shrink-0">Email:</strong> <span className="text-slate-800 truncate">{email}</span></div>
