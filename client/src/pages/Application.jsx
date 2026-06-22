@@ -317,6 +317,7 @@ const Application = () => {
       amount: currentFee,
       qualifications: JSON.stringify(qualificationsData),
       registeredBy: sessionStorage.getItem('loggedInRole') === 'Admin' ? 'Admin/Self' : 'Self',
+      post_place: data.post_place || '',
     };
 
     const formData = new FormData();
@@ -884,6 +885,20 @@ const Application = () => {
                   {...register('apply_for_post', { required: true })}
                 />
               </div>
+
+              {categoryParam === 'NGO' && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">
+                    {lang === 'hi' ? 'किस स्थान के लिए (पंचायत/प्रखंड/अन्य):' : 'Applied Post Location (Panchayat/Block/Other):'}
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 focus:outline-none focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 bg-white transition-all uppercase"
+                    placeholder={lang === 'hi' ? 'स्थान दर्ज करें' : 'ENTER POST LOCATION'}
+                    {...register('post_place', { required: true })}
+                  />
+                </div>
+              )}
             </div>
           </div>
 

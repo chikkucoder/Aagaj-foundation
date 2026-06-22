@@ -247,7 +247,8 @@ function generatePDF(applicant, stream) {
                 { label: 'Date of Birth', value: applicant.dob, labelWidth: 80 },
                 { label: 'District', value: applicant.district, labelWidth: 80 },
                 { label: 'State', value: applicant.state, labelWidth: 80 },
-                { label: 'Apply For', value: applicant.applyForPost || applicant.place, labelWidth: 80 }
+                { label: 'Apply For', value: applicant.applyForPost || applicant.place, labelWidth: 80 },
+                { label: 'Post Place', value: applicant.postPlace, labelWidth: 80 }
             ];
 
             rightFields.forEach(field => {
@@ -409,7 +410,7 @@ async function finalizeApplicationSubmission({
         console.warn('PaymentLog write failed (application):', logError.message);
     }
 
-    const redirectUrl = `/application.html?status=success&txn=${paymentId}&name=${encodeURIComponent(appData.fullName)}&mobile=${appData.mobile}&email=${encodeURIComponent(appData.email)}&aadhar=${appData.aadhar}&unique_id=${appData.uniqueId}&dob=${appData.dob}&district=${encodeURIComponent(appData.district)}&state=${encodeURIComponent(appData.state)}&apply_for_post=${encodeURIComponent(appData.applyForPost || appData.place || '')}&role=${encodeURIComponent(appData.roleApplied)}&amount=${appData.amount}&photo=${encodeURIComponent(appData.photoPath || '')}&pdf=${encodeURIComponent(pdfPath)}`;
+    const redirectUrl = `/application.html?status=success&txn=${paymentId}&name=${encodeURIComponent(appData.fullName)}&mobile=${appData.mobile}&email=${encodeURIComponent(appData.email)}&aadhar=${appData.aadhar}&unique_id=${appData.uniqueId}&dob=${appData.dob}&district=${encodeURIComponent(appData.district)}&state=${encodeURIComponent(appData.state)}&apply_for_post=${encodeURIComponent(appData.applyForPost || appData.place || '')}&role=${encodeURIComponent(appData.roleApplied)}&amount=${appData.amount}&photo=${encodeURIComponent(appData.photoPath || '')}&pdf=${encodeURIComponent(pdfPath)}&post_place=${encodeURIComponent(appData.postPlace || '')}&doj=${encodeURIComponent(new Date(appData.date || Date.now()).toLocaleDateString('en-GB'))}`;
 
     return { success: true, redirectUrl, pdfPath };
 }
@@ -470,7 +471,8 @@ router.post('/create-order', handlePhotoUpload, validateRequest({ body: jobAppli
             amount,
             aadhar,
             job_category,
-            registeredBy
+            registeredBy,
+            post_place
         } = req.body;
         const orderId = "APP" + Date.now();
         let TargetModel = job_category === 'Normal' ? NormalApplicant : Applicant;
@@ -536,7 +538,8 @@ router.post('/create-order', handlePhotoUpload, validateRequest({ body: jobAppli
             qualifications: qualParsed,
             amount: amount ? parseInt(amount) : 499,
             emp_username: email,
-            registeredBy: registeredBy || 'Self'
+            registeredBy: registeredBy || 'Self',
+            postPlace: post_place || ''
         });
         
         // ⚠️ DON'T SAVE YET - Only save after payment success
@@ -713,7 +716,8 @@ router.post('/admin/create', verifyAdmin, handlePhotoUpload, async (req, res) =>
             amount,
             aadhar,
             job_category,
-            registeredBy
+            registeredBy,
+            post_place
         } = req.body;
 
         // Validation for critical fields
@@ -779,7 +783,8 @@ router.post('/admin/create', verifyAdmin, handlePhotoUpload, async (req, res) =>
             qualifications: qualParsed,
             amount: amount ? parseInt(amount, 10) : 499,
             emp_username: email,
-            registeredBy: registeredBy || req.user?.email || 'Admin'
+            registeredBy: registeredBy || req.user?.email || 'Admin',
+            postPlace: post_place || ''
         };
 
         const result = await finalizeApplicationSubmission({

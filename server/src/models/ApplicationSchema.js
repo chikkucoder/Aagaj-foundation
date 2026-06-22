@@ -19,6 +19,7 @@ const applicantSchema = new mongoose.Schema({
     applicationPdf: String,
     roleApplied: String,
     job_category: String, 
+    postPlace: { type: String, default: '' },
     qualifications: { type: mongoose.Schema.Types.Mixed },
     paymentId: String,
     amount: Number,
