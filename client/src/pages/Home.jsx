@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Check, Heart, Play } from 'lucide-react';
+import { ArrowRight, Check, Heart, Play, Search, Scissors, ShieldCheck, Printer, RefreshCw, AlertTriangle } from 'lucide-react';
 
 const heroImages = [
   { src: '/pic1.jpeg', alt: 'Aagaj Foundation Rally' },
@@ -25,6 +25,8 @@ const Home = () => {
   const [enquirySubmitting, setEnquirySubmitting] = useState(false);
   const [enquirySuccess, setEnquirySuccess] = useState('');
   const [enquiryError, setEnquiryError] = useState('');
+
+
 
   const handleEnquiryChange = (e) => {
     const { name, value } = e.target;
@@ -269,7 +271,6 @@ const Home = () => {
                 </Link>
               </div>
             </div>
-
           </div>
         </div>
       </section>
