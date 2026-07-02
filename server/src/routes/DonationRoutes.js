@@ -4,6 +4,52 @@ const fetch = require('node-fetch');
 const Donation = require('../models/DonationSchema'); 
 const { validateRequest } = require('../middleware/requestValidation');
 const { createDonationOrderSchema, verifyDonationSchema } = require('../utils/routeSchemas');
+const jwt = require('jsonwebtoken');
+
+// Middleware to verify admin session
+const verifyAdmin = (req, res, next) => {
+    const token = req.header('Authorization');
+    if (!token) return res.status(401).json({ success: false, message: "Access Denied. No Token Provided." });
+
+    const tokenVal = token.replace("Bearer ", "");
+    if (tokenVal === 'employee-session') {
+        return res.status(403).json({ success: false, message: "Access Denied. Admins Only." });
+    }
+
+    try {
+        const verified = jwt.verify(tokenVal, process.env.JWT_SECRET);
+        req.user = verified;
+        if (verified.role !== 'admin') {
+            return res.status(403).json({ success: false, message: "Access Denied. Admins Only." });
+        }
+        next();
+    } catch (err) {
+        res.status(400).json({ success: false, message: "Invalid Token" });
+    }
+};
+
+// Middleware to verify session (allows either Admin JWT or employee token/session)
+const verifyAdminOrEmployee = (req, res, next) => {
+    const token = req.header('Authorization');
+    if (!token) return res.status(401).json({ success: false, message: "Access Denied. No Token Provided." });
+
+    const tokenVal = token.replace("Bearer ", "");
+    if (tokenVal === 'employee-session') {
+        req.user = { role: 'employee' };
+        return next();
+    }
+
+    try {
+        const verified = jwt.verify(tokenVal, process.env.JWT_SECRET);
+        req.user = verified;
+        if (verified.role !== 'admin' && verified.role !== 'employee') {
+            return res.status(403).json({ success: false, message: "Access Denied. Unauthorized Role." });
+        }
+        next();
+    } catch (err) {
+        res.status(400).json({ success: false, message: "Invalid Token" });
+    }
+};
 
 // ✅ Utilities for Getepay Encryption
 // const { encryptEas } = require('./utils/encryptEas'); 
@@ -296,7 +342,7 @@ router.post('/verify-donation', validateRequest({ body: verifyDonationSchema }),
 });
 
 // Donation history for admin panel
-router.get('/get-history', async (req, res) => {
+router.get('/get-history', verifyAdmin, async (req, res) => {
     try {
         const donations = await Donation.find().sort({ date: -1 });
         res.json(donations);

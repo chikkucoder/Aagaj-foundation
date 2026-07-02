@@ -43,6 +43,52 @@ const fileFilter = (req, file, cb) => {
 };
 
 const upload = require('../middleware/upload');
+const jwt = require('jsonwebtoken');
+
+// Middleware to verify admin session
+const verifyAdmin = (req, res, next) => {
+    const token = req.header('Authorization');
+    if (!token) return res.status(401).json({ success: false, message: "Access Denied. No Token Provided." });
+
+    const tokenVal = token.replace("Bearer ", "");
+    if (tokenVal === 'employee-session') {
+        return res.status(403).json({ success: false, message: "Access Denied. Admins Only." });
+    }
+
+    try {
+        const verified = jwt.verify(tokenVal, process.env.JWT_SECRET);
+        req.user = verified;
+        if (verified.role !== 'admin') {
+            return res.status(403).json({ success: false, message: "Access Denied. Admins Only." });
+        }
+        next();
+    } catch (err) {
+        res.status(400).json({ success: false, message: "Invalid Token" });
+    }
+};
+
+// Middleware to verify session (allows either Admin JWT or employee token/session)
+const verifyAdminOrEmployee = (req, res, next) => {
+    const token = req.header('Authorization');
+    if (!token) return res.status(401).json({ success: false, message: "Access Denied. No Token Provided." });
+
+    const tokenVal = token.replace("Bearer ", "");
+    if (tokenVal === 'employee-session') {
+        req.user = { role: 'employee' };
+        return next();
+    }
+
+    try {
+        const verified = jwt.verify(tokenVal, process.env.JWT_SECRET);
+        req.user = verified;
+        if (verified.role !== 'admin' && verified.role !== 'employee') {
+            return res.status(403).json({ success: false, message: "Access Denied. Unauthorized Role." });
+        }
+        next();
+    } catch (err) {
+        res.status(400).json({ success: false, message: "Invalid Token" });
+    }
+};
 
 // ==========================================
 //              API ROUTES
@@ -332,7 +378,7 @@ router.get('/get-by-order/:orderId', async (req, res) => {
 });
 
 // 3. Get All Groups (GET) - Admin Dashboard के लिए
-router.get('/all-groups', async (req, res) => {
+router.get('/all-groups', verifyAdminOrEmployee, async (req, res) => {
     try {
         const groups = await SwarojgaarGroup.find().sort({ createdAt: -1 });
         res.json({ success: true, count: groups.length, data: groups });
@@ -342,12 +388,8 @@ router.get('/all-groups', async (req, res) => {
     }
 });
 
-
-
-
-
 // ✅ 4. Delete Group (DELETE) - Admin Dashboard के लिए
-router.delete('/delete/:id', async (req, res) => {
+router.delete('/delete/:id', verifyAdmin, async (req, res) => {
     try {
         const deletedGroup = await SwarojgaarGroup.findByIdAndDelete(req.params.id);
         if (!deletedGroup) {
