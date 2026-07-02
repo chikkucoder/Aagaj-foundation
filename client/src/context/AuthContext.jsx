@@ -65,10 +65,10 @@ export const AuthProvider = ({ children }) => {
           setUser(authUser);
           setRole('hospital');
         } else {
-          // Employee login returns no token on backend
-          // We can store a mock token or session token
-          localStorage.setItem('token', 'employee-session');
-          setToken('employee-session');
+          // Store actual JWT token returned by backend, or fallback to mock token if old backend
+          const tokenToStore = data.token || 'employee-session';
+          localStorage.setItem('token', tokenToStore);
+          setToken(tokenToStore);
           
           const empDesignation = data.user.designation || data.user.roleApplied || data.user.applyForPost || 'Employee';
           sessionStorage.setItem('loggedInUser', data.user.fullName);

@@ -37,6 +37,51 @@ const fileFilter = (req, file, cb) => {
 
 const upload = require('../middleware/upload');
 
+// Middleware to verify admin session
+const verifyAdmin = (req, res, next) => {
+    const token = req.header('Authorization');
+    if (!token) return res.status(401).json({ success: false, message: "Access Denied. No Token Provided." });
+
+    const tokenVal = token.replace("Bearer ", "");
+    if (tokenVal === 'employee-session') {
+        return res.status(403).json({ success: false, message: "Access Denied. Admins Only." });
+    }
+
+    try {
+        const verified = jwt.verify(tokenVal, process.env.JWT_SECRET);
+        req.user = verified;
+        if (verified.role !== 'admin') {
+            return res.status(403).json({ success: false, message: "Access Denied. Admins Only." });
+        }
+        next();
+    } catch (err) {
+        res.status(400).json({ success: false, message: "Invalid Token" });
+    }
+};
+
+// Middleware to verify session (allows either Admin JWT or employee token/session)
+const verifyAdminOrEmployee = (req, res, next) => {
+    const token = req.header('Authorization');
+    if (!token) return res.status(401).json({ success: false, message: "Access Denied. No Token Provided." });
+
+    const tokenVal = token.replace("Bearer ", "");
+    if (tokenVal === 'employee-session') {
+        req.user = { role: 'employee' };
+        return next();
+    }
+
+    try {
+        const verified = jwt.verify(tokenVal, process.env.JWT_SECRET);
+        req.user = verified;
+        if (verified.role !== 'admin' && verified.role !== 'employee') {
+            return res.status(403).json({ success: false, message: "Access Denied. Unauthorized Role." });
+        }
+        next();
+    } catch (err) {
+        res.status(400).json({ success: false, message: "Invalid Token" });
+    }
+};
+
 // ✅ API to Check if User Already Exists
 router.post('/check-exists', validateRequest({ body: healthCardCheckExistsSchema }), async (req, res) => {
     try {
@@ -339,6 +384,33 @@ router.get('/verify/:healthId', async (req, res) => {
             return res.status(404).json({ success: false, message: 'Health ID not found. Please check your card number.' });
         }
 
+        // Mask sensitive fields
+        if (card.aadhar) {
+            card.aadhar = card.aadhar.replace(/.(?=.{4})/g, 'X');
+        }
+        if (card.mobile) {
+            card.mobile = card.mobile.replace(/.(?=.{4})/g, 'X');
+        }
+        if (card.email) {
+            const parts = card.email.split('@');
+            if (parts.length === 2) {
+                const local = parts[0];
+                const domain = parts[1];
+                const maskedLocal = local.length > 2 
+                    ? local[0] + '*'.repeat(local.length - 2) + local[local.length - 1]
+                    : '*'.repeat(local.length);
+                card.email = maskedLocal + '@' + domain;
+            }
+        }
+        if (card.familyMembers && Array.isArray(card.familyMembers)) {
+            card.familyMembers = card.familyMembers.map(member => {
+                if (member.aadhar) {
+                    member.aadhar = member.aadhar.replace(/.(?=.{4})/g, 'X');
+                }
+                return member;
+            });
+        }
+
         res.json({ success: true, data: card });
     } catch (error) {
         console.error("Verify Health Card ID Error:", error);
@@ -347,9 +419,8 @@ router.get('/verify/:healthId', async (req, res) => {
 });
 
 // ✅ API to get all health cards for Admin Dashboard
-router.get('/all', async (req, res) => {
+router.get('/all', verifyAdminOrEmployee, async (req, res) => {
     try {
-        // Add authentication check here if needed for admin routes
         const allCards = await HealthCard.find().sort({ createdAt: -1 }); // Sort by newest
         res.json({ success: true, data: allCards });
     } catch (error) {
@@ -357,29 +428,6 @@ router.get('/all', async (req, res) => {
         res.status(500).json({ success: false, message: "Server Error" });
     }
 });
-
-// Middleware to verify admin session
-const verifyAdmin = (req, res, next) => {
-    const token = req.header('Authorization');
-    if (!token) return res.status(401).json({ success: false, message: "Access Denied. No Token Provided." });
-
-    const tokenVal = token.replace("Bearer ", "");
-    if (tokenVal === 'employee-session') {
-        req.user = { role: 'employee' };
-        return res.status(403).json({ success: false, message: "Access Denied. Admins Only." });
-    }
-
-    try {
-        const verified = jwt.verify(tokenVal, process.env.JWT_SECRET);
-        req.user = verified;
-        if (verified.role !== 'admin') {
-            return res.status(403).json({ success: false, message: "Access Denied. Admins Only." });
-        }
-        next();
-    } catch (err) {
-        res.status(400).json({ success: false, message: "Invalid Token" });
-    }
-};
 
 // ✅ API for Admin to directly generate Health Card (Custom Price & Photo)
 router.post('/admin/create', verifyAdmin, upload.single('photo'), async (req, res) => {

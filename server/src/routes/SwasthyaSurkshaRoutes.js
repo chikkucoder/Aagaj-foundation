@@ -2,6 +2,30 @@ const express = require('express');
 const router = express.Router();
 const HealthPartner = require('../models/SwasthyaSurkshaSchema');
 const { sendSwasthyaPartnerConfirmation } = require('../services/emailService');
+const jwt = require('jsonwebtoken');
+
+// Middleware to verify session (allows either Admin JWT or employee token/session)
+const verifyAdminOrEmployee = (req, res, next) => {
+    const token = req.header('Authorization');
+    if (!token) return res.status(401).json({ success: false, message: "Access Denied. No Token Provided." });
+
+    const tokenVal = token.replace("Bearer ", "");
+    if (tokenVal === 'employee-session') {
+        req.user = { role: 'employee' };
+        return next();
+    }
+
+    try {
+        const verified = jwt.verify(tokenVal, process.env.JWT_SECRET);
+        req.user = verified;
+        if (verified.role !== 'admin' && verified.role !== 'employee') {
+            return res.status(403).json({ success: false, message: "Access Denied. Unauthorized Role." });
+        }
+        next();
+    } catch (err) {
+        res.status(400).json({ success: false, message: "Invalid Token" });
+    }
+};
 
 // POST: Register a new partner
 router.post('/register', async (req, res) => {
@@ -100,7 +124,7 @@ router.post('/register', async (req, res) => {
 });
 
 // GET: Get all partners (Optional, Admin use ke liye)
-router.get('/all', async (req, res) => {
+router.get('/all', verifyAdminOrEmployee, async (req, res) => {
     try {
         const partners = await HealthPartner.find().sort({ registrationDate: -1 });
         res.json({ success: true, data: partners });

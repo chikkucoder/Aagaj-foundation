@@ -155,13 +155,25 @@ const Navbar = () => {
 
   const handlePrintSilayiCert = () => {
     if (!publicCertRef.current) return;
+    
+    // Copy all parent stylesheets (both links and style blocks) to preserve Tailwind CSS classes/variables
+    const styles = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
+      .map(style => style.outerHTML)
+      .join('\n');
+
     const printable = publicCertRef.current.outerHTML;
     const win = window.open('', '_blank');
     win.document.write(`
       <html>
         <head>
           <title>Print Certificate</title>
+          <base href="${window.location.origin}/">
+          ${styles}
           <style>
+            * {
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
             body {
               margin: 0;
               display: flex;
@@ -169,8 +181,6 @@ const Navbar = () => {
               align-items: center;
               height: 100vh;
               background-color: #fff;
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
             }
             @page {
               size: A4 landscape;
@@ -182,7 +192,6 @@ const Navbar = () => {
               box-sizing: border-box;
             }
           </style>
-          <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
         </head>
         <body>
           <div class="cert-container">${printable}</div>
@@ -233,7 +242,7 @@ const Navbar = () => {
                 </span>
                 <div className="flex items-center gap-2 mt-1">
                   <img 
-                    src="https://upload.wikimedia.org/wikipedia/commons/e/ea/Skill_India_Logo.jpg" 
+                    src="/skill_india.png" 
                     alt="Skill India Logo" 
                     className="h-10 object-contain" 
                     crossOrigin="anonymous"

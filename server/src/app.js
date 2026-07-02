@@ -275,6 +275,10 @@ const verifyAdmin = (req, res, next) => {
     try {
         const verified = jwt.verify(tokenVal, process.env.JWT_SECRET);
         req.user = verified;
+        // Verify role is authorized (admin or employee) for shared backend endpoints
+        if (verified.role !== 'admin' && verified.role !== 'employee') {
+            return res.status(403).json({ success: false, message: "Access Denied. Unauthorized Role." });
+        }
         next();
     } catch (err) {
         res.status(400).json({ success: false, message: "Invalid Token" });
@@ -678,8 +682,16 @@ app.post('/api/employee/login', authLimiter, async (req, res) => {
         const passwordToCompare = user.emp_password || user.password;
         const isMatch = await bcrypt.compare(password, passwordToCompare);
 
-        if (isMatch) res.json({ success: true, user: user });
-        else res.json({ success: false, message: "Invalid Credentials" });
+        if (isMatch) {
+            const token = jwt.sign(
+                { id: user._id, email: user.email || user.emp_username, role: 'employee', designation: user.designation },
+                process.env.JWT_SECRET,
+                { expiresIn: '24h' }
+            );
+            res.json({ success: true, user: user, token: token });
+        } else {
+            res.json({ success: false, message: "Invalid Credentials" });
+        }
 
     } catch (error) { console.error("Login Error:", error); res.status(500).json({ success: false, message: "Server error during login." }); }
 });

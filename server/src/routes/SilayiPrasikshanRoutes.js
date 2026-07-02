@@ -393,7 +393,26 @@ router.get('/verify', async (req, res) => {
             ]
         });
         if (b) {
-            res.json({ success: true, data: b });
+            // Mask sensitive PII fields before sending to public frontend
+            const masked = b.toObject();
+            if (masked.aadharNumber) {
+                masked.aadharNumber = masked.aadharNumber.replace(/.(?=.{4})/g, 'X');
+            }
+            if (masked.mobileNumber) {
+                masked.mobileNumber = masked.mobileNumber.replace(/.(?=.{4})/g, 'X');
+            }
+            if (masked.email) {
+                const parts = masked.email.split('@');
+                if (parts.length === 2) {
+                    const local = parts[0];
+                    const domain = parts[1];
+                    const maskedLocal = local.length > 2 
+                        ? local[0] + '*'.repeat(local.length - 2) + local[local.length - 1]
+                        : '*'.repeat(local.length);
+                    masked.email = maskedLocal + '@' + domain;
+                }
+            }
+            res.json({ success: true, data: masked });
         } else {
             res.json({ success: false, message: "Beneficiary registration not found." });
         }
