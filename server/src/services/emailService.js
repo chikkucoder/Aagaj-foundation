@@ -68,8 +68,137 @@ const sendSwasthyaPartnerConfirmation = async (partner) => {
     });
 };
 
+const sendSilayiRegistrationConfirmation = async (beneficiary) => {
+    if (!beneficiary || !beneficiary.email) return { success: false, message: 'Missing email' };
+
+    const name = (beneficiary.name || 'Beneficiary').toString().trim();
+    const serial = (beneficiary.serialNumber || '').toString().trim();
+    const trainingName = (beneficiary.trainingName || 'Sewing Training').toString().trim();
+
+    return sendMail({
+        from: emailUser,
+        to: beneficiary.email,
+        subject: 'Aagaj Foundation - Silayi Yojana Registration Confirmed',
+        html: `
+            <h3>Hello ${name},</h3>
+            <p>We are pleased to inform you that your registration for the <strong>Mahila Silayi Prasikshan Yojana</strong> has been confirmed successfully.</p>
+            <p><strong>Registration Serial No:</strong> ${serial}</p>
+            <p><strong>Training Selected:</strong> ${trainingName}</p>
+            <p><strong>Status:</strong> Paid (Rs. ${beneficiary.registrationFee || 799})</p>
+            <br>
+            <p>Welcome to Aagaj Foundation. We wish you the best for your training!</p>
+            <p>Thank you,<br>Aagaj Foundation</p>
+        `
+    });
+};
+
+const sendSwarojgaarRegistrationConfirmation = async (group, emailAddress) => {
+    const toEmail = emailAddress || (group && group.email);
+    if (!toEmail) return { success: false, message: 'Missing email' };
+
+    const groupName = (group.groupName || 'Group').toString().trim();
+    const membersCount = Array.isArray(group.members) ? group.members.length : 0;
+
+    return sendMail({
+        from: emailUser,
+        to: toEmail,
+        subject: 'Aagaj Foundation - Swarojgaar Group Registration Confirmed',
+        html: `
+            <h3>Hello,</h3>
+            <p>Your group <strong>${groupName}</strong> has been registered successfully under the <strong>Mahila Swarojgaar Yojana</strong>.</p>
+            <p><strong>Total Registered Members:</strong> ${membersCount}</p>
+            <p><strong>Payment Status:</strong> Paid (Rs. ${group.registrationFee || 100})</p>
+            <br>
+            <p>Thank you for choosing Aagaj Foundation.</p>
+            <p>Thank you,<br>Aagaj Foundation</p>
+        `
+    });
+};
+
+const sendHealthCardConfirmation = async (card) => {
+    if (!card || !card.email) return { success: false, message: 'Missing email' };
+
+    const name = (card.fullName || 'Beneficiary').toString().trim();
+    const healthId = (card.healthId || '').toString().trim();
+    const cardType = (card.cardType || 'Single').toString().trim();
+    const expiry = card.expiryDate ? new Date(card.expiryDate).toLocaleDateString('en-IN') : 'N/A';
+
+    return sendMail({
+        from: emailUser,
+        to: card.email,
+        subject: 'Aagaj Foundation - Swasthya Suraksha Health Card Created',
+        html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+                <div style="background-color: #ED1C24; padding: 20px; text-align: center; color: white;">
+                    <h2 style="margin: 0; font-size: 24px; font-weight: bold; letter-spacing: 1px;">AAGAJ FOUNDATION</h2>
+                    <p style="margin: 5px 0 0 0; font-size: 14px; font-weight: bold;">Swasthya Suraksha Health Card</p>
+                </div>
+                <div style="padding: 24px; background-color: #ffffff; color: #334155;">
+                    <h3 style="margin-top: 0; color: #0f172a; font-size: 18px;">Dear ${name},</h3>
+                    <p style="line-height: 1.6; font-size: 14px;">Your Swasthya Suraksha Health Card has been generated successfully. Here are your card details:</p>
+                    
+                    <div style="background-color: #f8fafc; border: 1px solid #f1f5f9; border-radius: 8px; padding: 16px; margin: 20px 0;">
+                        <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 6px 0; font-weight: bold; color: #64748b; width: 40%;">Health ID:</td>
+                                <td style="padding: 6px 0; font-weight: bold; color: #0f172a;">${healthId}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 6px 0; font-weight: bold; color: #64748b;">Card Type:</td>
+                                <td style="padding: 6px 0; font-weight: bold; color: #0f172a;">${cardType} Card</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 6px 0; font-weight: bold; color: #64748b;">Expiry Date:</td>
+                                <td style="padding: 6px 0; font-weight: bold; color: #0f172a;">${expiry}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 6px 0; font-weight: bold; color: #64748b;">Blood Group:</td>
+                                <td style="padding: 6px 0; font-weight: bold; color: #0f172a;">${card.bloodGroup || 'N/A'}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 6px 0; font-weight: bold; color: #64748b;">Mobile:</td>
+                                <td style="padding: 6px 0; font-weight: bold; color: #0f172a;">${card.mobile || 'N/A'}</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    ${card.familyMembers && card.familyMembers.length > 0 ? `
+                        <h4 style="margin: 20px 0 10px 0; color: #0f172a; font-size: 14px; border-bottom: 1px solid #e2e8f0; padding-bottom: 6px;">Registered Family Members:</h4>
+                        <table style="width: 100%; font-size: 12px; border-collapse: collapse; text-align: left; margin-bottom: 20px;">
+                            <thead>
+                                <tr style="background-color: #f1f5f9; color: #475569;">
+                                    <th style="padding: 8px; font-weight: bold;">Name</th>
+                                    <th style="padding: 8px; font-weight: bold;">Relation</th>
+                                    <th style="padding: 8px; font-weight: bold;">Age</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${card.familyMembers.map(m => `
+                                    <tr style="border-bottom: 1px solid #f1f5f9;">
+                                        <td style="padding: 8px; color: #334155;">${m.fullName}</td>
+                                        <td style="padding: 8px; color: #334155;">${m.relationship}</td>
+                                        <td style="padding: 8px; color: #334155;">${m.age}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    ` : ''}
+                    
+                    <p style="line-height: 1.6; font-size: 13px; color: #64748b; margin-top: 24px;">Please present this Health ID or download your card from our website to avail of medical benefits and discounts at our partner hospitals.</p>
+                </div>
+                <div style="background-color: #f1f5f9; padding: 15px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0;">
+                    <p style="margin: 0;">© 2026 Aagaj Foundation. All Rights Reserved.</p>
+                </div>
+            </div>
+        `
+    });
+};
+
 module.exports = {
     sendMail,
     sendApplicationConfirmation,
-    sendSwasthyaPartnerConfirmation
+    sendSwasthyaPartnerConfirmation,
+    sendSilayiRegistrationConfirmation,
+    sendSwarojgaarRegistrationConfirmation,
+    sendHealthCardConfirmation
 };

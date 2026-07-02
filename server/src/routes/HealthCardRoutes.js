@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const path = require('path');
 const Razorpay = require('razorpay');
@@ -8,6 +9,7 @@ const PendingPayment = require('../models/PendingPayment');
 const PaymentLog = require('../models/PaymentLog');
 const crypto = require('crypto');
 const { sendSMS, sendWhatsApp } = require('../services/twilioService');
+const { sendHealthCardConfirmation } = require('../services/emailService');
 const { validateRequest } = require('../middleware/requestValidation');
 const {
     healthCardCheckExistsSchema,
@@ -194,6 +196,7 @@ router.post('/verify-payment', validateRequest({ body: healthCardVerifyPaymentSc
             healthId,
             fullName: pendingCardData.fullName,
             mobile: pendingCardData.mobile,
+            email: pendingCardData.email,
             aadhar: pendingCardData.aadhar,
             age: pendingCardData.age,
             gender: pendingCardData.gender,
@@ -218,6 +221,14 @@ router.post('/verify-payment', validateRequest({ body: healthCardVerifyPaymentSc
         });
 
         await newCard.save();
+
+        try {
+            if (newCard.email) {
+                await sendHealthCardConfirmation(newCard);
+            }
+        } catch (mailError) {
+            console.warn('Health card confirmation email failed:', mailError.message);
+        }
 
         // 🟢 Send SMS & WhatsApp Notification for Health Card
         let notificationResults = null;
@@ -344,6 +355,151 @@ router.get('/all', async (req, res) => {
     } catch (error) {
         console.error("Get All Health Cards Error:", error);
         res.status(500).json({ success: false, message: "Server Error" });
+    }
+});
+
+// Middleware to verify admin session
+const verifyAdmin = (req, res, next) => {
+    const token = req.header('Authorization');
+    if (!token) return res.status(401).json({ success: false, message: "Access Denied. No Token Provided." });
+
+    const tokenVal = token.replace("Bearer ", "");
+    if (tokenVal === 'employee-session') {
+        req.user = { role: 'employee' };
+        return res.status(403).json({ success: false, message: "Access Denied. Admins Only." });
+    }
+
+    try {
+        const verified = jwt.verify(tokenVal, process.env.JWT_SECRET);
+        req.user = verified;
+        if (verified.role !== 'admin') {
+            return res.status(403).json({ success: false, message: "Access Denied. Admins Only." });
+        }
+        next();
+    } catch (err) {
+        res.status(400).json({ success: false, message: "Invalid Token" });
+    }
+};
+
+// ✅ API for Admin to directly generate Health Card (Custom Price & Photo)
+router.post('/admin/create', verifyAdmin, upload.single('photo'), async (req, res) => {
+    try {
+        const {
+            fullName, mobile, email, aadhar, age, gender, bloodGroup,
+            village, panchayat, block, district, state, pincode,
+            registeredBy, cardType, familyMembers, amount
+        } = req.body;
+
+        // 1. Validation
+        if (!fullName || !mobile || !aadhar || !age) {
+            return res.status(400).json({ success: false, message: "Missing required fields (Name, Mobile, Aadhar, Age)" });
+        }
+
+        if (amount !== undefined && parseInt(amount, 10) < 0) {
+            return res.status(400).json({ success: false, message: "Custom fee cannot be negative." });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: "Candidate photo is required to generate health card." });
+        }
+
+        // 2. Check for duplicates
+        const existingUser = await HealthCard.findOne({ $or: [{ mobile }, { aadhar }] });
+        if (existingUser) {
+            return res.status(400).json({ success: false, message: "Data already exists for this Mobile or Aadhar." });
+        }
+
+        const resolvedCardType = cardType || 'Single';
+        const finalAmount = amount ? parseInt(amount, 10) : (resolvedCardType === 'Family' ? 499 : 201);
+
+        let familyMembersParsed = [];
+        if (resolvedCardType === 'Family' && familyMembers) {
+            try {
+                familyMembersParsed = typeof familyMembers === 'string' ? JSON.parse(familyMembers) : familyMembers;
+            } catch (e) {
+                console.error("Family members parsing failed:", e.message);
+            }
+        }
+
+        // 3. Generate Health ID
+        const randomNum = Math.floor(100000 + Math.random() * 900000);
+        const healthId = `MC-${randomNum}`;
+
+        // 4. Calculate Expiry Date (6 months)
+        const expiryDate = new Date();
+        expiryDate.setMonth(expiryDate.getMonth() + 6);
+
+        const mockPaymentId = "OFFLINE_AD_" + Date.now();
+        const mockOrderId = "ADMIN_" + Date.now();
+
+        // 5. Save to Database
+        const newCard = new HealthCard({
+            healthId,
+            fullName,
+            mobile,
+            email,
+            aadhar,
+            age: parseInt(age, 10),
+            gender,
+            bloodGroup,
+            address: {
+                village,
+                panchayat,
+                block,
+                district,
+                state,
+                pincode
+            },
+            photoPath: req.file ? req.file.path : '',
+            cardType: resolvedCardType,
+            familyMembers: familyMembersParsed,
+            paymentId: mockPaymentId,
+            orderId: mockOrderId,
+            amount: finalAmount,
+            paymentStatus: 'Paid',
+            expiryDate,
+            registeredBy: registeredBy || req.user?.email || 'Admin'
+        });
+
+        await newCard.save();
+
+        try {
+            if (newCard.email) {
+                await sendHealthCardConfirmation(newCard);
+            }
+        } catch (mailError) {
+            console.warn('Health card confirmation email failed:', mailError.message);
+        }
+
+        // 6. Log Transaction
+        try {
+            await PaymentLog.create({
+                orderId: mockOrderId,
+                amount: finalAmount,
+                status: 'success',
+                paymentId: mockPaymentId,
+                transactionId: mockOrderId,
+                schemeType: 'healthcard',
+                ipAddress: req.ip || req.connection.remoteAddress,
+                userAgent: req.get('User-Agent'),
+                rawResponse: { type: 'admin_direct_creation', admin: req.user?.email },
+                verificationStatus: 'verified',
+                amountVerified: true,
+                signatureVerified: true
+            });
+        } catch (logError) {
+            console.warn('PaymentLog write failed (healthcard admin):', logError.message);
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Custom health card generated successfully!",
+            data: newCard
+        });
+
+    } catch (error) {
+        console.error("Admin Direct Health Card Register Error:", error);
+        res.status(500).json({ success: false, message: error.message });
     }
 });
 

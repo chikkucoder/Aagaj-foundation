@@ -137,6 +137,32 @@ const RegistrationSchema = new mongoose.Schema({
   registeredBy: {
     type: String,
     default: 'Admin/Self' 
+  },
+
+  // ✅ New Fields for Certificate Issuance
+  certificateIssued: {
+    type: Boolean,
+    default: false
+  },
+  certificateNo: {
+    type: String,
+    default: ""
+  },
+  certificateDate: {
+    type: String,
+    default: ""
+  },
+  trainingStartDate: {
+    type: String,
+    default: ""
+  },
+  trainingEndDate: {
+    type: String,
+    default: ""
+  },
+  trainingGrade: {
+    type: String,
+    default: ""
   }
 
 }, { timestamps: true });

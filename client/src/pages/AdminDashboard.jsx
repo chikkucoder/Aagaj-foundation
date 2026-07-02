@@ -50,7 +50,8 @@ import {
   Printer,
   Edit,
   UserPlus,
-  Image
+  Image,
+  Award
 } from 'lucide-react';
 
 const AdminDashboard = () => {
@@ -120,6 +121,46 @@ const AdminDashboard = () => {
   const [cardPhotoUrl, setCardPhotoUrl] = useState('/logo.jpg');
   const [healthCardPhotoUrl, setHealthCardPhotoUrl] = useState('/logo.jpg');
 
+  // Certificate Modals
+  const [selectedCertBeneficiary, setSelectedCertBeneficiary] = useState(null);
+  const [showIssueCertModal, setShowIssueCertModal] = useState(false);
+  const [showCertPreviewModal, setShowCertPreviewModal] = useState(false);
+  const [selectedCertData, setSelectedCertData] = useState(null);
+  const [certFormSubmitting, setCertFormSubmitting] = useState(false);
+  const [certFormError, setCertFormError] = useState('');
+  const certRef = useRef(null);
+
+  const [certStartDate, setCertStartDate] = useState('');
+  const [certDuration, setCertDuration] = useState('2 माह');
+  const [certEndDate, setCertEndDate] = useState('');
+
+  useEffect(() => {
+    if (selectedCertBeneficiary) {
+      let sDate = '';
+      if (selectedCertBeneficiary.trainingDate && selectedCertBeneficiary.trainingDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        sDate = selectedCertBeneficiary.trainingDate;
+      } else {
+        sDate = new Date().toISOString().split('T')[0];
+      }
+      setCertStartDate(sDate);
+      
+      const dur = selectedCertBeneficiary.trainingDuration || '2 माह';
+      setCertDuration(dur);
+    }
+  }, [selectedCertBeneficiary]);
+
+  useEffect(() => {
+    if (certStartDate && certDuration) {
+      const date = new Date(certStartDate);
+      if (!isNaN(date.getTime())) {
+        const monthsMatch = certDuration.match(/\d+/);
+        const months = monthsMatch ? parseInt(monthsMatch[0], 10) : 2;
+        date.setMonth(date.getMonth() + months);
+        setCertEndDate(date.toISOString().split('T')[0]);
+      }
+    }
+  }, [certStartDate, certDuration]);
+
   // Forms Hooks
   const { register: regAddEmp, handleSubmit: handleAddEmpSubmit, formState: { errors: addEmpErrors }, reset: resetAddEmpForm } = useForm();
   const [addEmpSuccess, setAddEmpSuccess] = useState(null);
@@ -146,6 +187,43 @@ const AdminDashboard = () => {
   const [customCardPhotoPreview, setCustomCardPhotoPreview] = useState(null);
   const [customCardSubmitting, setCustomCardSubmitting] = useState(false);
   const [customCardError, setCustomCardError] = useState('');
+
+  // Custom Health Card Form states & hooks
+  const { register: regCustomHealthCard, handleSubmit: handleCustomHealthCardSubmit, formState: { errors: customHealthCardErrors }, reset: resetCustomHealthCardForm, setValue: setCustomHealthCardValue, watch: watchCustomHealthCard } = useForm({
+    defaultValues: {
+      cardType: 'Single',
+      gender: 'Male',
+      bloodGroup: 'A+',
+      state: 'BIHAR',
+      amount: 201
+    }
+  });
+  const [customHealthCardPhotoFile, setCustomHealthCardPhotoFile] = useState(null);
+  const [customHealthCardPhotoPreview, setCustomHealthCardPhotoPreview] = useState(null);
+  const [customHealthCardSubmitting, setCustomHealthCardSubmitting] = useState(false);
+  const [customHealthCardError, setCustomHealthCardError] = useState('');
+  const [customFamilyMembers, setCustomFamilyMembers] = useState([
+    { relationship: 'Father', fullName: '', age: '', gender: 'Male', aadhar: '' },
+    { relationship: 'Mother', fullName: '', age: '', gender: 'Female', aadhar: '' },
+    { relationship: 'Child 1', fullName: '', age: '', gender: 'Male', aadhar: '' },
+    { relationship: 'Child 2', fullName: '', age: '', gender: 'Male', aadhar: '' }
+  ]);
+
+  // Custom Silayi Yojana Form states & hooks
+  const { register: regCustomSilayi, handleSubmit: handleCustomSilayiSubmit, formState: { errors: customSilayiErrors }, reset: resetCustomSilayiForm } = useForm({
+    defaultValues: {
+      gender: 'Female',
+      amount: 799,
+      trainingName: 'Sewing machine training',
+      existingSkills: 'None',
+      trainingDuration: '3 Months',
+      trainingDate: new Date().toLocaleDateString('en-IN')
+    }
+  });
+  const [customSilayiPhotoFile, setCustomSilayiPhotoFile] = useState(null);
+  const [customSilayiPhotoPreview, setCustomSilayiPhotoPreview] = useState(null);
+  const [customSilayiSubmitting, setCustomSilayiSubmitting] = useState(false);
+  const [customSilayiError, setCustomSilayiError] = useState('');
   // Fetch all stats and tables
   const syncData = async () => {
     setLoading(true);
@@ -218,6 +296,57 @@ const AdminDashboard = () => {
       fetchCarouselAdmin();
     }
   }, [currentView]);
+
+  const formatToIndianDate = (dateStr) => {
+    if (!dateStr) return '';
+    if (dateStr.includes('/')) return dateStr;
+    const dateObj = new Date(dateStr);
+    if (isNaN(dateObj.getTime())) return dateStr;
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const year = dateObj.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  const handleIssueCertificate = async (e) => {
+    e.preventDefault();
+    if (!selectedCertBeneficiary) return;
+    
+    setCertFormSubmitting(true);
+    setCertFormError('');
+    
+    const formEl = e.currentTarget;
+    const certNo = formEl.certificateNo.value;
+    const certDate = formEl.certificateDate.value;
+    const trainingStartDate = formEl.trainingStartDate.value;
+    const trainingEndDate = formEl.trainingEndDate.value;
+    const trainingGrade = formEl.trainingGrade.value;
+    
+    try {
+      const response = await apiClient.put(`/api/schemes/admin/issue-certificate/${selectedCertBeneficiary._id}`, {
+        certificateNo: certNo,
+        certificateDate: certDate,
+        trainingStartDate: trainingStartDate,
+        trainingEndDate: trainingEndDate,
+        trainingGrade: trainingGrade
+      });
+      
+      if (response.data && response.data.success) {
+        alert("Certificate issued successfully!");
+        setShowIssueCertModal(false);
+        setBeneficiaries(prev => prev.map(b => b._id === selectedCertBeneficiary._id ? response.data.data : b));
+        setSelectedCertData(response.data.data);
+        setShowCertPreviewModal(true);
+      } else {
+        setCertFormError(response.data?.message || "Failed to issue certificate.");
+      }
+    } catch (err) {
+      console.error(err);
+      setCertFormError(err.response?.data?.message || "Server connection error.");
+    } finally {
+      setCertFormSubmitting(false);
+    }
+  };
 
   // Resolve Employee Pass Card photo to local blob URL to bypass CORS
   useEffect(() => {
@@ -777,6 +906,17 @@ const AdminDashboard = () => {
           c.fullName?.toLowerCase().includes(term) || c.mobile?.includes(term) || c.healthId?.toLowerCase().includes(term) || c.aadhar?.includes(term)
         ));
 
+      case 'silayiBeneficiaries':
+        return beneficiaries.filter(b => {
+          const isSilayi = b.yojanaName === 'Mahila Silai Prasikshan Yojana';
+          const matchesSearch = 
+            b.name?.toLowerCase().includes(term) || 
+            b.mobileNumber?.includes(term) || 
+            b.aadharNumber?.includes(term) || 
+            b.serialNumber?.toLowerCase().includes(term);
+          return isSilayi && matchesSearch;
+        });
+
       case 'appointments':
         return appointments.filter(a => (
           a.name?.toLowerCase().includes(term) || a.healthId?.toLowerCase().includes(term) || a.department?.toLowerCase().includes(term)
@@ -834,6 +974,9 @@ const AdminDashboard = () => {
       case 'auditLogs': return 'Super Admin Audit Action Trails';
       case 'carouselControl': return 'Dashboard Image Control (Hero Carousel)';
       case 'customCard': return 'Custom Job Card & Pass Generator';
+      case 'customHealthCard': return 'Custom Health Card Generator';
+      case 'customSilayiYojana': return 'Custom Mahila Silayi Yojana Generator';
+      case 'silayiBeneficiaries': return 'Mahila Silayi Yojana Beneficiaries List';
       case 'enquiries': return 'Visitor Enquiry Management';
       default: return 'Foundation Control Panel';
     }
@@ -919,6 +1062,24 @@ const AdminDashboard = () => {
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${currentView === 'customCard' ? 'bg-[#fdd831] text-[#051630]' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
             >
               <IdCard className="h-4.5 w-4.5" /> Custom Pass Generator
+            </button>
+            <button
+              onClick={() => { setCurrentView('customHealthCard'); setCurrentPage(1); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${currentView === 'customHealthCard' ? 'bg-[#fdd831] text-[#051630]' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
+            >
+              <HeartPulse className="h-4.5 w-4.5" /> Custom Health Card
+            </button>
+            <button
+              onClick={() => { setCurrentView('customSilayiYojana'); setCurrentPage(1); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${currentView === 'customSilayiYojana' ? 'bg-[#fdd831] text-[#051630]' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
+            >
+              <Scissors className="h-4.5 w-4.5" /> Custom Silayi Yojana
+            </button>
+            <button
+              onClick={() => { setCurrentView('silayiBeneficiaries'); setCurrentPage(1); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${currentView === 'silayiBeneficiaries' ? 'bg-[#fdd831] text-[#051630]' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
+            >
+              <Users className="h-4.5 w-4.5" /> Silayi Beneficiary List
             </button>
           </div>
 
@@ -1120,7 +1281,10 @@ const AdminDashboard = () => {
 
               {/* Sub Yojana Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-gradient-to-br from-[#e83e8c]/10 to-[#e83e8c]/5 rounded-2xl border border-[#e83e8c]/20 p-4">
+                <div 
+                  onClick={() => { setCurrentView('silayiBeneficiaries'); setCurrentPage(1); setSearchTerm(''); }}
+                  className="bg-gradient-to-br from-[#e83e8c]/10 to-[#e83e8c]/5 rounded-2xl border border-[#e83e8c]/20 p-4 cursor-pointer hover:shadow-md transition-all active:scale-[0.98]"
+                >
                   <div className="flex justify-between">
                     <span className="text-[10px] font-bold uppercase text-[#e83e8c]">Silayi Yojana</span>
                     <Scissors className="h-4 w-4 text-[#e83e8c]" />
@@ -1228,7 +1392,7 @@ const AdminDashboard = () => {
           {/* ======================================================== */}
           {/*   DATA DISPLAY TABLE PANEL                               */}
           {/* ======================================================== */}
-          {currentView !== 'carouselControl' && currentView !== 'customCard' && (
+          {currentView !== 'carouselControl' && currentView !== 'customCard' && currentView !== 'customHealthCard' && currentView !== 'customSilayiYojana' && (
             <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-100 shadow-xl p-4 sm:p-6">
             
             {/* Table Header Filter Toolbar */}
@@ -1598,6 +1762,105 @@ const AdminDashboard = () => {
                               </td>
                             </tr>
                           ))
+                        )}
+                      </tbody>
+                    </table>
+                  )}
+
+                  {/* ========================================== */}
+                  {/*  TABLE 4.5. SILAYI YOJANA BENEFICIARIES GRID */}
+                  {/* ========================================== */}
+                  {currentView === 'silayiBeneficiaries' && (
+                    <table className="w-full text-left border-collapse whitespace-nowrap">
+                      <thead>
+                        <tr className="border-b border-slate-100 bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                          <th className="py-3 px-4">Photo</th>
+                          <th className="py-3 px-4">Serial No (Reg)</th>
+                          <th className="py-3 px-4">Candidate Name</th>
+                          <th className="py-3 px-4">Guardian Name</th>
+                          <th className="py-3 px-4">Mobile</th>
+                          <th className="py-3 px-4">Aadhar Card</th>
+                          <th className="py-3 px-4">Training / Duration</th>
+                          <th className="py-3 px-4 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-slate-700 text-xs">
+                        {paginatedList.length === 0 ? (
+                          <tr>
+                            <td colSpan="8" className="text-center py-12 text-slate-400 font-semibold">No Silayi Yojana candidates matching filters found.</td>
+                          </tr>
+                        ) : (
+                          paginatedList.map(b => {
+                            const photo = b.photoUrl ? resolveAssetUrl(b.photoUrl) : '/logo.jpg';
+                            return (
+                              <tr key={b._id} className="hover:bg-slate-50/50 transition-all">
+                                <td className="py-3 px-4">
+                                  <img
+                                    src={photo}
+                                    alt="Trainee Photo"
+                                    className="h-9 w-9 rounded-full border border-slate-100 object-cover shadow-sm"
+                                    onError={handleImageError}
+                                  />
+                                </td>
+                                <td className="py-3 px-4 font-black text-rose-600">{b.serialNumber}</td>
+                                <td className="py-3 px-4 font-bold text-slate-900">
+                                  <p>{b.name}</p>
+                                  <span className="text-[10px] text-slate-400 font-semibold">{b.email}</span>
+                                </td>
+                                <td className="py-3 px-4 font-semibold text-slate-700">{b.guardianName || 'N/A'}</td>
+                                <td className="py-3 px-4 font-semibold text-[#000080]">+91 {b.mobileNumber}</td>
+                                <td className="py-3 px-4 font-mono font-semibold text-slate-500">{b.aadharNumber?.replace(/(\d{4})/g, '$1 ').trim()}</td>
+                                <td className="py-3 px-4">
+                                  <p className="font-bold text-slate-800 uppercase">{b.trainingName}</p>
+                                  <span className="text-[9px] text-[#e83e8c] font-black uppercase">{b.trainingDuration} (from {b.trainingDate})</span>
+                                </td>
+                                <td className="py-3 px-4 text-right font-semibold">
+                                  <div className="flex justify-end gap-1.5">
+                                    <button
+                                      onClick={() => {
+                                        setSelectedPayment({
+                                          beneficiaryName: b.name,
+                                          beneficiaryPhone: b.mobileNumber,
+                                          timestamp: b.createdAt || new Date(),
+                                          paymentId: b.paymentId,
+                                          orderId: b.orderId,
+                                          schemeType: 'Silayi Yojana',
+                                          amount: b.registrationFee || 799
+                                        });
+                                        setShowReceiptModal(true);
+                                      }}
+                                      className="inline-flex items-center gap-1 rounded bg-[#000080] text-white px-2 py-1.5 text-[10px] font-bold hover:bg-slate-800 transition-all cursor-pointer shadow-sm"
+                                    >
+                                      <Printer className="h-3.5 w-3.5" /> Invoice
+                                    </button>
+
+                                    {b.certificateIssued ? (
+                                      <button
+                                        onClick={() => {
+                                          setSelectedCertData(b);
+                                          setShowCertPreviewModal(true);
+                                        }}
+                                        className="inline-flex items-center gap-1 rounded bg-emerald-600 text-white px-2 py-1.5 text-[10px] font-bold hover:bg-emerald-700 transition-all cursor-pointer shadow-sm"
+                                      >
+                                        <Award className="h-3.5 w-3.5" /> View Cert
+                                      </button>
+                                    ) : (
+                                      <button
+                                        onClick={() => {
+                                          setSelectedCertBeneficiary(b);
+                                          setCertFormError('');
+                                          setShowIssueCertModal(true);
+                                        }}
+                                        className="inline-flex items-center gap-1 rounded bg-indigo-600 text-white px-2 py-1.5 text-[10px] font-bold hover:bg-indigo-700 transition-all cursor-pointer shadow-sm"
+                                      >
+                                        <Award className="h-3.5 w-3.5" /> Issue Cert
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
                         )}
                       </tbody>
                     </table>
@@ -2427,6 +2690,731 @@ const AdminDashboard = () => {
           </div>
         )}
 
+        {currentView === 'customHealthCard' && (
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-xl p-6 md:p-10 space-y-8 max-w-[1200px] mx-auto text-left">
+            <div className="flex flex-col sm:flex-row items-center justify-between border-b-2 border-slate-100 pb-6 gap-6">
+              <div>
+                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Direct Health Card Registration</h3>
+                <p className="text-xs text-slate-400 font-semibold uppercase mt-1">Generate a successful health card & payment bypass</p>
+              </div>
+
+              {/* Photo Frame */}
+              <div className="flex flex-col items-center space-y-1.5 shrink-0">
+                <div className="h-32 w-28 border-2 border-dashed border-slate-300 rounded-2xl overflow-hidden flex flex-col items-center justify-center relative bg-slate-50 group hover:border-[#ED1C24] transition-all">
+                  {customHealthCardPhotoPreview ? (
+                    <img src={customHealthCardPhotoPreview} alt="Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-[10px] font-black text-slate-400 tracking-widest uppercase">PHOTO</span>
+                  )}
+                </div>
+                <label className="cursor-pointer text-[10px] font-extrabold text-[#ED1C24] hover:underline uppercase tracking-wide">
+                  Choose Photo
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      if (file.size > 5 * 1024 * 1024) {
+                        alert('Photo size must be less than 5MB.');
+                        return;
+                      }
+                      setCustomHealthCardPhotoFile(file);
+                      const reader = new FileReader();
+                      reader.onload = (event) => setCustomHealthCardPhotoPreview(event.target.result);
+                      reader.readAsDataURL(file);
+                    }
+                  }} />
+                </label>
+              </div>
+            </div>
+
+            <form onSubmit={handleCustomHealthCardSubmit(async (data) => {
+              if (parseInt(data.amount, 10) < 0) {
+                alert('Fee cannot be negative');
+                return;
+              }
+              if (!customHealthCardPhotoFile) {
+                alert('Please upload candidate photo before generating card.');
+                return;
+              }
+              setCustomHealthCardSubmitting(true);
+              setCustomHealthCardError('');
+
+              const formData = new FormData();
+              formData.append('fullName', data.fullName);
+              formData.append('mobile', data.mobile);
+              if (data.email) {
+                formData.append('email', data.email);
+              }
+              formData.append('aadhar', data.aadhar);
+              formData.append('age', data.age);
+              formData.append('gender', data.gender);
+              formData.append('bloodGroup', data.bloodGroup);
+              formData.append('village', data.village);
+              formData.append('panchayat', data.panchayat);
+              formData.append('block', data.block);
+              formData.append('district', data.district);
+              formData.append('state', data.state);
+              formData.append('pincode', data.pincode);
+              formData.append('photo', customHealthCardPhotoFile);
+              formData.append('cardType', data.cardType);
+              formData.append('amount', data.amount);
+              formData.append('registeredBy', user?.email || 'Admin');
+
+              if (data.cardType === 'Family') {
+                formData.append('familyMembers', JSON.stringify(customFamilyMembers));
+              }
+
+              try {
+                const response = await apiClient.post('/api/healthcard/admin/create', formData, {
+                  headers: { 'Content-Type': 'multipart/form-data' }
+                });
+
+                if (response.data && response.data.success) {
+                  alert("Custom health card generated successfully!");
+                  resetCustomHealthCardForm();
+                  setCustomHealthCardPhotoFile(null);
+                  setCustomHealthCardPhotoPreview(null);
+                  syncData();
+                  setSelectedHealthCard(response.data.data);
+                  setShowHealthCardModal(true);
+                } else {
+                  setCustomHealthCardError(response.data?.message || 'Direct creation failed.');
+                }
+              } catch (err) {
+                console.error(err);
+                setCustomHealthCardError(err.response?.data?.message || 'Server connection error.');
+              } finally {
+                setCustomHealthCardSubmitting(false);
+              }
+            })} className="space-y-8">
+              
+              {/* Settings Card */}
+              <div className="space-y-6">
+                <h3 className="text-sm font-extrabold uppercase text-[#0B2C66] tracking-wider border-l-4 border-[#0B2C66] pl-3 py-2 bg-slate-50 rounded-r-xl">
+                  Custom Card & Payment Settings
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-amber-50/50 border border-amber-100 rounded-2xl p-6">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Card Type</label>
+                    <select
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-700 focus:outline-none focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 bg-white cursor-pointer transition-all"
+                      {...regCustomHealthCard('cardType', { 
+                        required: true,
+                        onChange: (e) => {
+                          const val = e.target.value;
+                          setCustomHealthCardValue('amount', val === 'Family' ? 499 : 201);
+                        }
+                      })}
+                    >
+                      <option value="Single">Single Health Card</option>
+                      <option value="Family">Family Health Card</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Custom Fee / Registration Price (INR)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      onKeyDown={(e) => {
+                        if (e.key === '-' || e.key === 'e') {
+                          e.preventDefault();
+                        }
+                      }}
+                      onInput={(e) => {
+                        if (Number(e.target.value) < 0) {
+                          e.target.value = 0;
+                        }
+                      }}
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 bg-white transition-all"
+                      placeholder="e.g. 201"
+                      {...regCustomHealthCard('amount', { 
+                        required: 'Fee is required', 
+                        valueAsNumber: true,
+                        min: { value: 0, message: 'Fee cannot be negative' } 
+                      })}
+                    />
+                    {customHealthCardErrors.amount && <p className="text-red-500 text-xs font-bold">{customHealthCardErrors.amount.message}</p>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Personal Particulars */}
+              <div className="space-y-6">
+                <h3 className="text-sm font-extrabold uppercase text-slate-800 tracking-wider border-l-4 border-[#ED1C24] pl-3 py-2 bg-slate-50 rounded-r-xl">
+                  1. Personal Particulars
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Full Name</label>
+                    <input
+                      type="text"
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-850 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all uppercase"
+                      placeholder="Enter Full Name"
+                      {...regCustomHealthCard('fullName', { required: 'Full Name is required' })}
+                    />
+                    {customHealthCardErrors.fullName && <p className="text-red-500 text-xs font-bold">{customHealthCardErrors.fullName.message}</p>}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Contact Number (WhatsApp)</label>
+                    <input
+                      type="text"
+                      maxLength={10}
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-850 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all"
+                      placeholder="10-Digit Mobile Number"
+                      {...regCustomHealthCard('mobile', {
+                        required: 'Mobile is required',
+                        pattern: { value: /^[6-9]\d{9}$/, message: 'Must be exactly 10 digits starting with 6-9' }
+                      })}
+                    />
+                    {customHealthCardErrors.mobile && <p className="text-red-500 text-xs font-bold">{customHealthCardErrors.mobile.message}</p>}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Aadhar Number (12 Digits)</label>
+                    <input
+                      type="text"
+                      maxLength={12}
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-850 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all"
+                      placeholder="12-Digit Aadhar Number"
+                      {...regCustomHealthCard('aadhar', {
+                        required: 'Aadhar Number is required',
+                        pattern: { value: /^\d{12}$/, message: 'Must be exactly 12 digits' }
+                      })}
+                    />
+                    {customHealthCardErrors.aadhar && <p className="text-red-500 text-xs font-bold">{customHealthCardErrors.aadhar.message}</p>}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Email Address (Optional)</label>
+                    <input
+                      type="email"
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-850 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all"
+                      placeholder="Enter Email Address"
+                      {...regCustomHealthCard('email', {
+                        pattern: { value: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, message: 'Invalid email format' }
+                      })}
+                    />
+                    {customHealthCardErrors.email && <p className="text-red-500 text-xs font-bold">{customHealthCardErrors.email.message}</p>}
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Age</label>
+                      <input
+                        type="number"
+                        className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-850 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all"
+                        placeholder="Age"
+                        {...regCustomHealthCard('age', { required: 'Age is required', min: 1 })}
+                      />
+                      {customHealthCardErrors.age && <p className="text-red-500 text-xs font-bold">{customHealthCardErrors.age.message}</p>}
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Gender</label>
+                      <select
+                        className="w-full border border-slate-200 rounded-xl px-2 py-2.5 text-sm font-bold text-slate-750 focus:outline-none bg-white cursor-pointer transition-all"
+                        {...regCustomHealthCard('gender')}
+                      >
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Blood</label>
+                      <select
+                        className="w-full border border-slate-200 rounded-xl px-2 py-2.5 text-sm font-bold text-slate-750 focus:outline-none bg-white cursor-pointer transition-all"
+                        {...regCustomHealthCard('bloodGroup')}
+                      >
+                        <option value="A+">A+</option>
+                        <option value="A-">A-</option>
+                        <option value="B+">B+</option>
+                        <option value="B-">B-</option>
+                        <option value="O+">O+</option>
+                        <option value="O-">O-</option>
+                        <option value="AB+">AB+</option>
+                        <option value="AB-">AB-</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Address Form Section */}
+              <div className="space-y-6">
+                <h3 className="text-sm font-extrabold uppercase text-slate-800 tracking-wider border-l-4 border-[#ED1C24] pl-3 py-2 bg-slate-50 rounded-r-xl">
+                  2. Residential Address
+                </h3>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Village</label>
+                    <input type="text" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all uppercase" {...regCustomHealthCard('village', { required: true })} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Panchayat</label>
+                    <input type="text" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all uppercase" {...regCustomHealthCard('panchayat', { required: true })} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Block</label>
+                    <input type="text" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all uppercase" {...regCustomHealthCard('block', { required: true })} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">District</label>
+                    <input type="text" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all uppercase" {...regCustomHealthCard('district', { required: true })} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">State</label>
+                    <input type="text" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all uppercase" {...regCustomHealthCard('state', { required: true })} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Pin Code</label>
+                    <input type="text" maxLength={6} className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all" {...regCustomHealthCard('pincode', { required: true, pattern: /^\d{6}$/ })} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Family Members Section */}
+              {watchCustomHealthCard('cardType') === 'Family' && (
+                <div className="space-y-6">
+                  <h3 className="text-sm font-extrabold uppercase text-slate-800 tracking-wider border-l-4 border-[#ED1C24] pl-3 py-2 bg-slate-50 rounded-r-xl">
+                    3. Family Members Details
+                  </h3>
+
+                  <div className="space-y-6">
+                    {customFamilyMembers.map((member, index) => (
+                      <div key={index} className="bg-white p-6 rounded-2xl border border-slate-200 space-y-4">
+                        <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                          <span className="text-xs font-black text-[#0B2C66] uppercase tracking-wide">
+                            {index + 1}. {member.relationship} Details
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Full Name</label>
+                            <input
+                              type="text"
+                              value={member.fullName}
+                              onChange={(e) => {
+                                const updated = [...customFamilyMembers];
+                                updated[index].fullName = e.target.value;
+                                setCustomFamilyMembers(updated);
+                              }}
+                              placeholder={`Enter Name`}
+                              className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 text-xs font-bold focus:outline-none focus:border-[#ED1C24] uppercase"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="space-y-1.5 col-span-1">
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Age</label>
+                              <input
+                                type="number"
+                                value={member.age}
+                                onChange={(e) => {
+                                  const updated = [...customFamilyMembers];
+                                  updated[index].age = e.target.value;
+                                  setCustomFamilyMembers(updated);
+                                }}
+                                placeholder="Age"
+                                className="w-full border border-slate-200 rounded-xl px-2 py-2 text-slate-850 text-xs font-bold focus:outline-none focus:border-[#ED1C24]"
+                              />
+                            </div>
+                            <div className="space-y-1.5 col-span-2">
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Gender</label>
+                              <select
+                                value={member.gender}
+                                onChange={(e) => {
+                                  const updated = [...customFamilyMembers];
+                                  updated[index].gender = e.target.value;
+                                  setCustomFamilyMembers(updated);
+                                }}
+                                className="w-full border border-slate-200 rounded-xl px-2 py-2.5 text-xs font-bold text-slate-700 focus:outline-none bg-white cursor-pointer"
+                              >
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1.5 md:col-span-2">
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Aadhar Number (12 Digits)</label>
+                            <input
+                              type="text"
+                              maxLength={12}
+                              value={member.aadhar}
+                              onChange={(e) => {
+                                const updated = [...customFamilyMembers];
+                                updated[index].aadhar = e.target.value.replace(/\D/g, '');
+                                setCustomFamilyMembers(updated);
+                              }}
+                              placeholder="0000 0000 0000"
+                              className="w-full border border-slate-200 rounded-xl px-4 py-2 text-slate-800 text-xs font-bold focus:outline-none focus:border-[#ED1C24]"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Submit error panel */}
+              {customHealthCardError && (
+                <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl text-rose-600 font-bold text-xs">
+                  ❌ {customHealthCardError}
+                </div>
+              )}
+
+              <div className="flex justify-end pt-4 border-t border-slate-100">
+                <button
+                  type="submit"
+                  disabled={customHealthCardSubmitting}
+                  className="rounded-xl bg-[#ED1C24] hover:bg-[#b0151b] font-black text-white px-8 py-4 shadow-lg text-base transition-all duration-300 w-full sm:w-auto disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+                >
+                  {customHealthCardSubmitting ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                      Generating Health Card...
+                    </>
+                  ) : (
+                    'Generate Custom Health Card'
+                  )}
+                </button>
+              </div>
+
+            </form>
+          </div>
+        )}
+
+        {currentView === 'customSilayiYojana' && (
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-xl p-6 md:p-10 space-y-8 max-w-[1200px] mx-auto text-left">
+            <div className="flex flex-col sm:flex-row items-center justify-between border-b-2 border-slate-100 pb-6 gap-6">
+              <div>
+                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Direct Silayi Yojana Registration</h3>
+                <p className="text-xs text-slate-400 font-semibold uppercase mt-1">Generate a successful sewing training admission & payment bypass</p>
+              </div>
+
+              {/* Photo Frame */}
+              <div className="flex flex-col items-center space-y-1.5 shrink-0">
+                <div className="h-32 w-28 border-2 border-dashed border-slate-300 rounded-2xl overflow-hidden flex flex-col items-center justify-center relative bg-slate-50 group hover:border-[#ED1C24] transition-all">
+                  {customSilayiPhotoPreview ? (
+                    <img src={customSilayiPhotoPreview} alt="Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-[10px] font-black text-slate-400 tracking-widest uppercase">PHOTO</span>
+                  )}
+                </div>
+                <label className="cursor-pointer text-[10px] font-extrabold text-[#ED1C24] hover:underline uppercase tracking-wide">
+                  Choose Photo
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      if (file.size > 5 * 1024 * 1024) {
+                        alert('Photo size must be less than 5MB.');
+                        return;
+                      }
+                      setCustomSilayiPhotoFile(file);
+                      const reader = new FileReader();
+                      reader.onload = (event) => setCustomSilayiPhotoPreview(event.target.result);
+                      reader.readAsDataURL(file);
+                    }
+                  }} />
+                </label>
+              </div>
+            </div>
+
+            <form onSubmit={handleCustomSilayiSubmit(async (data) => {
+              if (parseInt(data.amount, 10) < 0) {
+                alert('Fee cannot be negative');
+                return;
+              }
+              if (!customSilayiPhotoFile) {
+                alert('Please upload candidate photo before submitting registration.');
+                return;
+              }
+              setCustomSilayiSubmitting(true);
+              setCustomSilayiError('');
+
+              const formData = new FormData();
+              formData.append('name', data.name);
+              formData.append('guardianName', data.guardianName);
+              formData.append('address', data.address);
+              formData.append('mobileNumber', data.mobileNumber);
+              formData.append('gender', data.gender);
+              formData.append('email', data.email || '');
+              formData.append('aadharNumber', data.aadharNumber);
+              formData.append('age', data.age || '');
+              formData.append('caste', data.caste || '');
+              formData.append('trainingName', data.trainingName);
+              formData.append('existingSkills', data.existingSkills);
+              formData.append('trainingDuration', data.trainingDuration);
+              formData.append('trainingDate', data.trainingDate);
+              formData.append('amount', data.amount);
+              formData.append('photo', customSilayiPhotoFile);
+              formData.append('registeredBy', user?.email || 'Admin');
+
+              try {
+                const response = await apiClient.post('/api/schemes/admin/create', formData, {
+                  headers: { 'Content-Type': 'multipart/form-data' }
+                });
+
+                if (response.data && response.data.success) {
+                  alert("Custom Silayi Yojana registration & invoice generated successfully!");
+                  resetCustomSilayiForm();
+                  setCustomSilayiPhotoFile(null);
+                  setCustomSilayiPhotoPreview(null);
+                  syncData();
+                  setSelectedPayment({
+                    beneficiaryName: response.data.data.name,
+                    beneficiaryPhone: response.data.data.mobileNumber,
+                    timestamp: response.data.data.createdAt || new Date(),
+                    paymentId: response.data.data.paymentId,
+                    orderId: response.data.data.orderId,
+                    schemeType: 'Silayi Yojana',
+                    amount: response.data.data.registrationFee || 799
+                  });
+                  setShowReceiptModal(true);
+                } else {
+                  setCustomSilayiError(response.data?.message || 'Direct creation failed.');
+                }
+              } catch (err) {
+                console.error(err);
+                setCustomSilayiError(err.response?.data?.message || 'Server connection error.');
+              } finally {
+                setCustomSilayiSubmitting(false);
+              }
+            })} className="space-y-8">
+              
+              {/* Payment Settings */}
+              <div className="space-y-6">
+                <h3 className="text-sm font-extrabold uppercase text-[#0B2C66] tracking-wider border-l-4 border-[#0B2C66] pl-3 py-2 bg-slate-50 rounded-r-xl">
+                  Custom Registration & Fee Settings
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-amber-50/50 border border-amber-100 rounded-2xl p-6">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Custom Fee / Registration Price (INR)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      onKeyDown={(e) => {
+                        if (e.key === '-' || e.key === 'e') {
+                          e.preventDefault();
+                        }
+                      }}
+                      onInput={(e) => {
+                        if (Number(e.target.value) < 0) {
+                          e.target.value = 0;
+                        }
+                      }}
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold text-slate-800 outline-none focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 bg-white transition-all"
+                      placeholder="e.g. 799"
+                      {...regCustomSilayi('amount', { 
+                        required: 'Fee is required', 
+                        valueAsNumber: true,
+                        min: { value: 0, message: 'Fee cannot be negative' } 
+                      })}
+                    />
+                    {customSilayiErrors.amount && <p className="text-red-500 text-xs font-bold">{customSilayiErrors.amount.message}</p>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Personal Details */}
+              <div className="space-y-6">
+                <h3 className="text-sm font-extrabold uppercase text-slate-800 tracking-wider border-l-4 border-[#ED1C24] pl-3 py-2 bg-slate-50 rounded-r-xl">
+                  1. Candidate Particulars
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Candidate Full Name</label>
+                    <input
+                      type="text"
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-850 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all uppercase"
+                      placeholder="Enter Full Name"
+                      {...regCustomSilayi('name', { required: 'Name is required' })}
+                    />
+                    {customSilayiErrors.name && <p className="text-red-500 text-xs font-bold">{customSilayiErrors.name.message}</p>}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Father / Husband Name</label>
+                    <input
+                      type="text"
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-850 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all uppercase"
+                      placeholder="Enter Guardian/Husband Name"
+                      {...regCustomSilayi('guardianName', { required: 'Guardian Name is required' })}
+                    />
+                    {customSilayiErrors.guardianName && <p className="text-red-500 text-xs font-bold">{customSilayiErrors.guardianName.message}</p>}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Mobile Number</label>
+                    <input
+                      type="text"
+                      maxLength={10}
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-850 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all"
+                      placeholder="10-Digit Mobile Number"
+                      {...regCustomSilayi('mobileNumber', {
+                        required: 'Mobile is required',
+                        pattern: { value: /^[6-9]\d{9}$/, message: 'Must be exactly 10 digits starting with 6-9' }
+                      })}
+                    />
+                    {customSilayiErrors.mobileNumber && <p className="text-red-500 text-xs font-bold">{customSilayiErrors.mobileNumber.message}</p>}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Aadhar Number (12 digits)</label>
+                    <input
+                      type="text"
+                      maxLength={12}
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-850 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all"
+                      placeholder="12-Digit Aadhar Number"
+                      {...regCustomSilayi('aadharNumber', {
+                        required: 'Aadhar is required',
+                        pattern: { value: /^\d{12}$/, message: 'Must be exactly 12 digits' }
+                      })}
+                    />
+                    {customSilayiErrors.aadharNumber && <p className="text-red-500 text-xs font-bold">{customSilayiErrors.aadharNumber.message}</p>}
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="space-y-1.5 col-span-1">
+                      <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Age</label>
+                      <input
+                        type="number"
+                        className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-850 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all"
+                        placeholder="Age"
+                        {...regCustomSilayi('age')}
+                      />
+                    </div>
+                    <div className="space-y-1.5 col-span-1">
+                      <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Gender</label>
+                      <select
+                        className="w-full border border-slate-200 rounded-xl px-2 py-2.5 text-sm font-bold text-slate-700 focus:outline-none bg-white cursor-pointer transition-all"
+                        {...regCustomSilayi('gender')}
+                      >
+                        <option value="Female">Female</option>
+                        <option value="Male">Male</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1.5 col-span-1">
+                      <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Caste</label>
+                      <input
+                        type="text"
+                        className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-850 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all uppercase"
+                        placeholder="Caste"
+                        {...regCustomSilayi('caste')}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Email Address</label>
+                    <input
+                      type="email"
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-850 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all"
+                      placeholder="Email Address"
+                      {...regCustomSilayi('email')}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 md:col-span-2">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Complete Residential Address</label>
+                    <textarea
+                      rows={2}
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-850 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all uppercase"
+                      placeholder="Village, Panchayat, Block, District, State, Pincode"
+                      {...regCustomSilayi('address', { required: 'Address is required' })}
+                    />
+                    {customSilayiErrors.address && <p className="text-red-500 text-xs font-bold">{customSilayiErrors.address.message}</p>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Training and Skills */}
+              <div className="space-y-6">
+                <h3 className="text-sm font-extrabold uppercase text-slate-800 tracking-wider border-l-4 border-[#ED1C24] pl-3 py-2 bg-slate-50 rounded-r-xl">
+                  2. Training & Skills Details
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Training Name</label>
+                    <input
+                      type="text"
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-850 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all uppercase"
+                      placeholder="e.g. Sewing Machine Training"
+                      {...regCustomSilayi('trainingName', { required: true })}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Existing Skills</label>
+                    <input
+                      type="text"
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-850 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all uppercase"
+                      placeholder="e.g. None or Basic Stitching"
+                      {...regCustomSilayi('existingSkills', { required: true })}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Training Duration</label>
+                    <input
+                      type="text"
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-850 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all uppercase"
+                      placeholder="e.g. 3 Months"
+                      {...regCustomSilayi('trainingDuration', { required: true })}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Training Start Date</label>
+                    <input
+                      type="text"
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-850 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all"
+                      placeholder="e.g. 01/07/2026"
+                      {...regCustomSilayi('trainingDate', { required: true })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit error panel */}
+              {customSilayiError && (
+                <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl text-rose-600 font-bold text-xs">
+                  ❌ {customSilayiError}
+                </div>
+              )}
+
+              <div className="flex justify-end pt-4 border-t border-slate-100">
+                <button
+                  type="submit"
+                  disabled={customSilayiSubmitting}
+                  className="rounded-xl bg-[#ED1C24] hover:bg-[#b0151b] font-black text-white px-8 py-4 shadow-lg text-base transition-all duration-300 w-full sm:w-auto disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+                >
+                  {customSilayiSubmitting ? (
+                    <>
+                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                      Submitting Registration...
+                    </>
+                  ) : (
+                    'Generate Custom Registration & Receipt'
+                  )}
+                </button>
+              </div>
+
+            </form>
+          </div>
+        )}
+
         </main>
       </div>
 
@@ -3179,6 +4167,428 @@ const AdminDashboard = () => {
               </button>
               <button onClick={() => window.print()} className="flex-1 flex items-center justify-center gap-1 rounded-xl bg-[#ED1C24] hover:bg-[#b0151b] text-white px-4 py-2.5 text-xs font-bold shadow-md cursor-pointer">
                 <Printer className="h-4 w-4" /> Print Card
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL 9. ISSUE TRAINING CERTIFICATE --- */}
+      {showIssueCertModal && selectedCertBeneficiary && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
+          <div className="w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 animate-fade-in text-left">
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 p-4">
+              <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                <Award className="h-4.5 w-4.5 text-[#000080]" /> Issue Training Certificate
+              </h3>
+              <button onClick={() => setShowIssueCertModal(false)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 cursor-pointer">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleIssueCertificate} className="p-6 space-y-4">
+              {certFormError && (
+                <div className="p-3 bg-red-50 border border-red-150 text-red-700 text-xs font-bold rounded-xl">
+                  {certFormError}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Trainee Name</label>
+                  <input
+                    type="text"
+                    value={selectedCertBeneficiary.name}
+                    readOnly
+                    className="w-full border border-slate-200 bg-slate-50 text-slate-800 font-bold rounded-xl px-3 py-2 text-xs focus:outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Father/Husband Name</label>
+                  <input
+                    type="text"
+                    value={selectedCertBeneficiary.guardianName}
+                    readOnly
+                    className="w-full border border-slate-200 bg-slate-50 text-slate-800 font-bold rounded-xl px-3 py-2 text-xs focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase">Certificate No.</label>
+                <input
+                  type="text"
+                  name="certificateNo"
+                  required
+                  defaultValue={`MUZ/25-26/KUD/${selectedCertBeneficiary.serialNumber ? selectedCertBeneficiary.serialNumber.slice(-3) : '212'}`}
+                  className="w-full border border-slate-200 font-bold rounded-xl px-3 py-2 text-xs focus:border-[#000080] focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Training Start Date</label>
+                  <input
+                    type="date"
+                    name="trainingStartDate"
+                    value={certStartDate}
+                    onChange={(e) => setCertStartDate(e.target.value)}
+                    required
+                    className="w-full border border-slate-200 font-bold rounded-xl px-3 py-2 text-xs focus:border-[#000080] focus:outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Duration (Months/Days)</label>
+                  <input
+                    type="text"
+                    name="trainingDuration"
+                    value={certDuration}
+                    onChange={(e) => setCertDuration(e.target.value)}
+                    required
+                    placeholder="e.g. 2 माह"
+                    className="w-full border border-slate-200 font-bold rounded-xl px-3 py-2 text-xs focus:border-[#000080] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Training End Date</label>
+                  <input
+                    type="date"
+                    name="trainingEndDate"
+                    value={certEndDate}
+                    onChange={(e) => setCertEndDate(e.target.value)}
+                    required
+                    className="w-full border border-slate-200 font-bold rounded-xl px-3 py-2 text-xs focus:border-[#000080] focus:outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Date of Issue</label>
+                  <input
+                    type="date"
+                    name="certificateDate"
+                    required
+                    defaultValue={new Date().toISOString().split('T')[0]}
+                    className="w-full border border-slate-200 font-bold rounded-xl px-3 py-2 text-xs focus:border-[#000080] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase">Performance Grade</label>
+                <select
+                  name="trainingGrade"
+                  required
+                  defaultValue="उत्कृष्ट"
+                  className="w-full border border-slate-200 font-bold rounded-xl px-3 py-2 text-xs focus:border-[#000080] focus:outline-none bg-white"
+                >
+                  <option value="उत्कृष्ट">उत्कृष्ट (Excellent)</option>
+                  <option value="सामान्य">सामान्य (Average)</option>
+                </select>
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowIssueCertModal(false)}
+                  className="flex-1 rounded-xl bg-white border border-slate-200 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={certFormSubmitting}
+                  className="flex-1 rounded-xl bg-[#000080] hover:bg-slate-900 text-white py-2.5 text-xs font-bold cursor-pointer disabled:opacity-50"
+                >
+                  {certFormSubmitting ? 'Saving...' : 'Generate & Issue'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL 10. TRAINING CERTIFICATE PREVIEW --- */}
+      {showCertPreviewModal && selectedCertData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
+          <div className="w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 text-left">
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 p-4">
+              <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                <Award className="h-4.5 w-4.5 text-[#000080]" /> Issued Training Certificate View
+              </h3>
+              <button onClick={() => setShowCertPreviewModal(false)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 cursor-pointer">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6 bg-slate-100 overflow-hidden flex justify-center items-center h-[240px] sm:h-[380px] md:h-[480px] lg:h-[610px]">
+              <div className="origin-center scale-[0.38] sm:scale-[0.58] md:scale-[0.8] lg:scale-100 shrink-0">
+                <div 
+                  ref={certRef}
+                  className="w-[842px] h-[595px] bg-white p-3 select-none relative font-sans text-slate-800 shrink-0 border-[3px] border-[#ff6600]"
+                style={{ 
+                  backgroundImage: 'radial-gradient(circle, #fdfcf9 0%, #ffffff 100%)',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
+                }}
+              >
+                {/* Middle Blue Border */}
+                <div className="w-full h-full border-[3px] border-[#000080] p-1 relative">
+                  
+                  {/* Innermost Orange Border */}
+                  <div className="w-full h-full border-2 border-[#ff6600] p-4 flex flex-col justify-between relative bg-white/95">
+                    
+                    {/* Top Row: Reg details and logos */}
+                    <div className="flex justify-between items-start w-full">
+                      {/* Left: Reg No and Aagaj Logo */}
+                      <div className="flex flex-col items-start gap-1">
+                        <span className="text-[10px] font-black text-[#ff6600] tracking-wide uppercase">
+                          REG NO : 759445
+                        </span>
+                        <div className="flex items-center gap-2 mt-1">
+                          <img src="/logo.jpg" alt="Aagaj Logo" className="h-10 w-10 object-contain rounded-full" />
+                          <div className="flex flex-col text-left">
+                            <span className="text-[10px] font-black text-[#000080] leading-none tracking-wide">AAGAJ</span>
+                            <span className="text-[8px] font-bold text-slate-500 leading-none">FOUNDATION</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: NGO Darpan and Skill India Logo */}
+                      <div className="flex flex-col items-end gap-1">
+                        <span className="text-[10px] font-black text-[#ff6600] tracking-wide uppercase">
+                          NGO DARPAN NO – BR/2020/0260968
+                        </span>
+                        <div className="flex items-center gap-2 mt-1">
+                          <img 
+                            src="https://upload.wikimedia.org/wikipedia/commons/e/ea/Skill_India_Logo.jpg" 
+                            alt="Skill India Logo" 
+                            className="h-10 object-contain" 
+                            crossOrigin="anonymous"
+                            onError={(e) => { e.target.src = '/logo.jpg'; }}
+                          />
+                          <div className="flex flex-col text-right">
+                            <span className="text-[10px] font-black text-[#000080] leading-none">Skill India</span>
+                            <span className="text-[7px] font-bold text-[#ff6600] leading-none mt-0.5">कौशल भारत - कुशल भारत</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Center Content Group */}
+                    <div className="flex flex-col items-center justify-center flex-grow py-2 text-center">
+                      
+                      {/* Main Hindi Title */}
+                      <h1 className="text-4xl font-extrabold text-[#0056b3] tracking-wide font-serif mb-1.5" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.1)' }}>
+                        आगाज फाउंडेशन
+                      </h1>
+
+                      {/* Sub-header Orange Border Box */}
+                      <div className="border-[3px] border-[#ffb900] bg-white rounded-xl px-8 py-1.5 shadow-sm mb-2 max-w-md">
+                        <h2 className="text-xl font-extrabold text-[#800000] tracking-wider uppercase font-serif">
+                          महिला सिलाई प्रशिक्षण केंद्र
+                        </h2>
+                      </div>
+
+                      {/* Certificate Word Heading */}
+                      <div className="relative mb-3 flex flex-col items-center">
+                        <h3 className="text-2xl font-black text-[#0056b3] tracking-[0.2em] uppercase font-sans">
+                          CERTIFICATE
+                        </h3>
+                        <div className="w-40 h-[3px] bg-[#0056b3] mt-1 relative">
+                          <div className="absolute inset-x-0 -bottom-[3px] h-[1px] bg-[#0056b3]"></div>
+                        </div>
+                      </div>
+
+                      {/* Certificate Number & Date Bar */}
+                      <div className="flex justify-between items-center w-full px-6 mb-4 text-xs font-bold text-slate-800">
+                        <div className="border border-indigo-200 bg-indigo-50/50 rounded-xl px-4 py-1.5 text-center shadow-sm">
+                          प्रमाण पत्र संख्या : <span className="font-extrabold font-mono text-indigo-900 select-all">{selectedCertData.certificateNo}</span>
+                        </div>
+                        <div className="pr-4">
+                          दिनांक : <span className="font-extrabold text-slate-900">{formatToIndianDate(selectedCertData.certificateDate)}</span>
+                        </div>
+                      </div>
+
+                      {/* Hindi Certificate Details Paragraph */}
+                      <div className="w-full px-8 text-center text-sm font-semibold text-slate-700 leading-relaxed space-y-2">
+                        <p className="m-0 text-base">
+                          प्रमाणित किया जाता हैं कि सुश्री/श्रीमती &nbsp;
+                          <strong className="text-slate-950 text-lg font-black border-b border-dashed border-slate-650 px-2 py-0.5 select-all">
+                            {selectedCertData.name}
+                          </strong>
+                          &nbsp;&nbsp; पति/पिता - &nbsp;
+                          <strong className="text-slate-900 font-extrabold select-all">
+                            {selectedCertData.guardianName || 'N/A'}
+                          </strong>
+                        </p>
+                        
+                        <p className="m-0">
+                          इस संस्था द्वारा निर्धारित अवधि दिनांक
+                        </p>
+
+                        {/* Date duration badge */}
+                        <div className="inline-block border border-indigo-200 bg-[#f4f7fc] text-[#000080] font-black rounded-xl px-6 py-1.5 shadow-sm text-sm my-1">
+                          {formatToIndianDate(selectedCertData.trainingStartDate)} &nbsp; से &nbsp; {formatToIndianDate(selectedCertData.trainingEndDate)} &nbsp; ({selectedCertData.trainingDuration || '2 माह'}) माह / वर्ष के
+                        </div>
+
+                        <p className="m-0 text-slate-800">
+                          महिला सिलाई प्रशिक्षण पाठ्यक्रम में संस्था के नियमानुसार सिलाई प्रशिक्षण प्राप्त किया हैं |
+                        </p>
+                        <p className="m-0 text-slate-800">
+                          इनके द्वारा पाठ्यक्रम प्रशिक्षण के दौरान &nbsp;
+                          <strong className="text-emerald-700 font-black text-base border-b border-dashed border-emerald-500 px-2">
+                            {selectedCertData.trainingGrade || 'उत्कृष्ट'}
+                          </strong>
+                          &nbsp; प्रशिक्षण किया गया |
+                        </p>
+                      </div>
+
+                    </div>
+
+                    {/* Bottom Footer Section */}
+                    <div className="flex justify-between items-end w-full pt-2 border-t border-slate-100">
+                      
+                      {/* Left Signature Block */}
+                      <div className="text-center w-36 text-[10px] leading-tight font-semibold text-slate-500">
+                        <div className="h-10"></div>
+                        <div className="border-t border-slate-300 pt-1 uppercase">
+                          <p className="font-bold text-slate-700 m-0 text-[9px]">Settler Cum Secretary</p>
+                          <span className="text-[8px] text-slate-400">AAGAJ FOUNDATION</span>
+                        </div>
+                      </div>
+
+                      {/* Middle-Left Signature Block */}
+                      <div className="text-center w-36 text-[10px] leading-tight font-semibold text-slate-500">
+                        <div className="h-10"></div>
+                        <div className="border-t border-slate-300 pt-1 uppercase">
+                          <p className="font-bold text-slate-700 m-0 text-[9px]">Settler Cum President</p>
+                          <span className="text-[8px] text-slate-400">AAGAJ FOUNDATION</span>
+                        </div>
+                      </div>
+
+                      {/* Coordinator Name & Stamp Overlay */}
+                      <div className="text-center w-28 text-[10px] leading-tight font-semibold text-slate-600 relative">
+                        {/* Aagaj Round Seal overlay */}
+                        <div className="absolute -top-14 left-1/2 -translate-x-1/2 rotate-[-12deg] w-[70px] h-[70px] rounded-full border-2 border-indigo-600/60 flex flex-col items-center justify-center text-center opacity-85 select-none pointer-events-none bg-white/20">
+                          <div className="absolute inset-0.5 rounded-full border border-dashed border-indigo-500/60"></div>
+                          <span className="text-[5px] text-indigo-750 font-black uppercase leading-none tracking-tight">AAGAJ FOUNDATION</span>
+                          <span className="text-[4px] text-indigo-600 leading-none mt-0.5">Reg. No.</span>
+                          <span className="text-[5px] text-indigo-700 font-extrabold leading-none">759445/2020</span>
+                          <span className="absolute text-[8px] text-indigo-500/35 font-bold italic rotate-[15deg]">Aagaj</span>
+                        </div>
+
+                        <div className="h-10"></div>
+                        <div className="border-t border-slate-300 pt-1 uppercase">
+                          <span className="font-black text-slate-800 text-[10px]">समन्वयक</span>
+                        </div>
+                      </div>
+
+                      {/* Right: QR Code and ISO stamp */}
+                      <div className="flex items-center gap-3 pr-2 select-none">
+                        
+                        {/* Dynamic QR Code */}
+                        <div className="flex flex-col items-center p-1 bg-white border border-slate-100 rounded-lg shadow-sm">
+                          <img
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=55x55&data=AAGAJ-CERT:${selectedCertData.certificateNo}%0ANAME:${encodeURIComponent(selectedCertData.name)}`}
+                            alt="Verification QR"
+                            className="h-12 w-12 object-contain"
+                            crossOrigin="anonymous"
+                          />
+                          <span className="text-[5px] font-black text-slate-400 mt-0.5">SCAN VERIFY</span>
+                        </div>
+
+                        {/* Gold ISO 9001 Seal */}
+                        <div className="w-14 h-14 rounded-full border-[3px] border-yellow-500 bg-[#0056b3] text-white flex flex-col items-center justify-center text-center shadow relative shrink-0">
+                          <div className="absolute inset-[0.5px] rounded-full border border-yellow-400 border-dashed"></div>
+                          <span className="text-[5px] font-black text-yellow-300 uppercase leading-none tracking-widest">ISO</span>
+                          <span className="text-[8px] font-black text-white leading-none my-0.5">9001:2015</span>
+                          <span className="text-[4px] font-semibold text-yellow-300 leading-none">CERTIFIED</span>
+                        </div>
+
+                      </div>
+
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+            <div className="flex gap-2 p-4 border-t border-slate-100 bg-slate-50 w-full">
+              <button onClick={() => setShowCertPreviewModal(false)} className="flex-1 rounded-xl bg-white border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer">
+                Close View
+              </button>
+              <button
+                onClick={() => {
+                  if (!certRef.current) return;
+                  html2canvas(certRef.current, { scale: 3, useCORS: true, allowTaint: true })
+                    .then((canvas) => {
+                      const link = document.createElement('a');
+                      link.download = `Certificate_${selectedCertData.certificateNo.replace(/\//g, '_')}.png`;
+                      link.href = canvas.toDataURL('image/png');
+                      link.click();
+                    })
+                    .catch((err) => {
+                      console.error("Error generating certificate canvas:", err);
+                      alert("Failed to save image. Please try again.");
+                    });
+                }}
+                className="flex-1 flex items-center justify-center gap-1 rounded-xl bg-slate-900 hover:bg-slate-800 text-white px-4 py-2.5 text-xs font-bold shadow-md cursor-pointer"
+              >
+                <Download className="h-4 w-4" /> Download Certificate
+              </button>
+              <button 
+                onClick={() => {
+                  const printable = certRef.current.outerHTML;
+                  const win = window.open('', '_blank');
+                  win.document.write(`
+                    <html>
+                      <head>
+                        <title>Print Certificate</title>
+                        <style>
+                          body {
+                            margin: 0;
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            height: 100vh;
+                            background-color: #fff;
+                            -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
+                          }
+                          @page {
+                            size: A4 landscape;
+                            margin: 0;
+                          }
+                          .cert-container {
+                            width: 842px;
+                            height: 595px;
+                            box-sizing: border-box;
+                          }
+                        </style>
+                        <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+                      </head>
+                      <body>
+                        <div class="cert-container">${printable}</div>
+                        <script>
+                          window.onload = function() {
+                            setTimeout(function() {
+                              window.print();
+                              window.close();
+                            }, 500);
+                          };
+                        </script>
+                      </body>
+                    </html>
+                  `);
+                  win.document.close();
+                }}
+                className="flex-1 flex items-center justify-center gap-1 rounded-xl bg-[#ED1C24] hover:bg-[#b0151b] text-white px-4 py-2.5 text-xs font-bold shadow-md cursor-pointer animate-pulse"
+              >
+                <Printer className="h-4 w-4" /> Print Certificate
               </button>
             </div>
 

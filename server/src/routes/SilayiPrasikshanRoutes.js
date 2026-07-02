@@ -1,7 +1,8 @@
 // d:\Agaz foundation\Silai_Swarojgaar_Swasthya_RegisterRoutes.js
-
+ 
 const express = require('express');
 const router = express.Router();
+const jwt = require('jsonwebtoken');
 const Beneficiary = require('../models/SilayiPrasikshanSchema');
 const { validateRequest } = require('../middleware/requestValidation');
 const { silayiCreateOrderSchema, silayiRegisterSchema, paymentVerifySchema } = require('../utils/routeSchemas');
@@ -13,6 +14,7 @@ const Razorpay = require('razorpay');
 
 const PaymentLog = require('../models/PaymentLog');
 const crypto = require('crypto');
+const { sendSilayiRegistrationConfirmation } = require('../services/emailService');
 
 const razorpay = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID,
@@ -243,6 +245,12 @@ router.post('/register', upload.single('photo'), validateRequest({ body: silayiR
 
         await newBeneficiary.save();
 
+        try {
+            await sendSilayiRegistrationConfirmation(newBeneficiary);
+        } catch (mailError) {
+            console.warn('Silayi registration email failed:', mailError.message);
+        }
+
         res.json({
             success: true,
             message: "Registration & Payment Successful!",
@@ -320,6 +328,13 @@ router.post('/verify-payment', validateRequest({ body: paymentVerifySchema }), a
 
         const newBen = new Beneficiary(pendingData);
         await newBen.save();
+
+        try {
+            await sendSilayiRegistrationConfirmation(newBen);
+        } catch (mailError) {
+            console.warn('Silayi registration email failed:', mailError.message);
+        }
+
         await PendingPayment.deleteOne({ orderId: pendingOrderId });
 
         return res.json({ success: true, orderId: pendingOrderId, paymentId: razorpay_payment_id });
@@ -373,7 +388,8 @@ router.get('/verify', async (req, res) => {
             $or: [
                 { aadharNumber: cleanQuery },
                 { mobileNumber: cleanQuery },
-                { serialNumber: cleanQuery }
+                { serialNumber: cleanQuery },
+                { certificateNo: cleanQuery }
             ]
         });
         if (b) {
@@ -383,6 +399,176 @@ router.get('/verify', async (req, res) => {
         }
     } catch (error) {
         console.error("Verify Error:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// Middleware to verify admin session
+const verifyAdmin = (req, res, next) => {
+    const token = req.header('Authorization');
+    if (!token) return res.status(401).json({ success: false, message: "Access Denied. No Token Provided." });
+
+    const tokenVal = token.replace("Bearer ", "");
+    if (tokenVal === 'employee-session') {
+        req.user = { role: 'employee' };
+        return res.status(403).json({ success: false, message: "Access Denied. Admins Only." });
+    }
+
+    try {
+        const verified = jwt.verify(tokenVal, process.env.JWT_SECRET);
+        req.user = verified;
+        if (verified.role !== 'admin') {
+            return res.status(403).json({ success: false, message: "Access Denied. Admins Only." });
+        }
+        next();
+    } catch (err) {
+        res.status(400).json({ success: false, message: "Invalid Token" });
+    }
+};
+
+// ✅ API for Admin to directly register Silayi Yojana candidate (Custom Price & Photo)
+router.post('/admin/create', verifyAdmin, upload.single('photo'), async (req, res) => {
+    try {
+        const {
+            name, guardianName, address, mobileNumber,
+            gender, email, aadharNumber, age, caste, trainingName,
+            existingSkills, trainingDuration, trainingDate, registeredBy, amount
+        } = req.body;
+
+        // 1. Basic Validation
+        if (!name || !mobileNumber || !aadharNumber) {
+            return res.status(400).json({ success: false, message: "Required fields (Name, Mobile, Aadhar) are missing." });
+        }
+
+        if (amount !== undefined && parseInt(amount, 10) < 0) {
+            return res.status(400).json({ success: false, message: "Custom fee cannot be negative." });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: "Candidate photo is required to register." });
+        }
+
+        // 2. Check Duplicate Aadhar
+        const existingUser = await Beneficiary.findOne({ aadharNumber });
+        if (existingUser) {
+            return res.status(400).json({ success: false, message: "This Aadhar Number is already registered!" });
+        }
+
+        // 3. Generate Year-Wise Auto-Increment Serial Number
+        const currentYear = new Date().getFullYear().toString().slice(-2);
+        const lastBeneficiary = await Beneficiary.findOne({ 
+            serialNumber: new RegExp(`^${currentYear}`) 
+        }).sort({ _id: -1 });
+
+        let nextSerial = `${currentYear}00001`;
+
+        if (lastBeneficiary && lastBeneficiary.serialNumber) { 
+            const lastNumStr = lastBeneficiary.serialNumber.substring(2);
+            const lastNum = parseInt(lastNumStr, 10);
+            if (!isNaN(lastNum)) {
+                nextSerial = `${currentYear}${(lastNum + 1).toString().padStart(5, '0')}`; 
+            }
+        }
+
+        const mockPaymentId = "OFFLINE_AD_" + Date.now();
+        const mockOrderId = "ADMIN_" + Date.now();
+        const finalAmount = amount ? parseInt(amount, 10) : 799;
+
+        // 4. Save to Database
+        const newBeneficiary = new Beneficiary({
+            yojanaName: 'Mahila Silai Prasikshan Yojana',
+            serialNumber: nextSerial,
+            name,
+            guardianName,
+            address,
+            mobileNumber,
+            gender: gender || 'Female',
+            email,
+            aadharNumber,
+            age: age ? parseInt(age, 10) : undefined,
+            caste,
+            trainingName,
+            existingSkills: existingSkills || 'None',
+            trainingDuration: trainingDuration || 'N/A',
+            trainingDate: trainingDate || new Date().toLocaleDateString('en-IN'),
+            photoUrl: req.file ? req.file.path : '',
+            paymentStatus: 'Paid',
+            registrationFee: finalAmount,
+            paymentId: mockPaymentId,
+            orderId: mockOrderId,
+            registeredBy: registeredBy || req.user?.email || 'Admin'
+        });
+
+        await newBeneficiary.save();
+
+        try {
+            await sendSilayiRegistrationConfirmation(newBeneficiary);
+        } catch (mailError) {
+            console.warn('Silayi registration email failed:', mailError.message);
+        }
+
+        // 5. Log Transaction
+        try {
+            await PaymentLog.create({
+                orderId: mockOrderId,
+                amount: finalAmount,
+                status: 'success',
+                paymentId: mockPaymentId,
+                transactionId: mockOrderId,
+                schemeType: 'silayi',
+                ipAddress: req.ip || req.connection.remoteAddress,
+                userAgent: req.get('User-Agent'),
+                rawResponse: { type: 'admin_direct_creation', admin: req.user?.email },
+                verificationStatus: 'verified',
+                amountVerified: true,
+                signatureVerified: true
+            });
+        } catch (logError) {
+            console.error("⚠️ Payment logging failed:", logError.message);
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Mahila Silayi Yojana custom registration successful!",
+            data: newBeneficiary
+        });
+
+    } catch (error) {
+        console.error("Admin Direct Silayi Register Error:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// ✅ API to issue certificate for Silayi Yojana beneficiary
+router.put('/admin/issue-certificate/:id', verifyAdmin, async (req, res) => {
+    try {
+        const { certificateNo, certificateDate, trainingStartDate, trainingEndDate, trainingGrade } = req.body;
+        
+        if (!certificateNo || !certificateDate || !trainingStartDate || !trainingEndDate || !trainingGrade) {
+            return res.status(400).json({ success: false, message: "Missing required certificate details." });
+        }
+
+        const beneficiary = await Beneficiary.findById(req.params.id);
+        if (!beneficiary) {
+            return res.status(404).json({ success: false, message: "Beneficiary not found." });
+        }
+
+        beneficiary.certificateIssued = true;
+        beneficiary.certificateNo = certificateNo;
+        beneficiary.certificateDate = certificateDate;
+        beneficiary.trainingStartDate = trainingStartDate;
+        beneficiary.trainingEndDate = trainingEndDate;
+        beneficiary.trainingGrade = trainingGrade;
+
+        await beneficiary.save();
+
+        res.status(200).json({
+            success: true,
+            message: "Certificate issued successfully!",
+            data: beneficiary
+        });
+    } catch (error) {
+        console.error("Issue Certificate Error:", error);
         res.status(500).json({ success: false, message: error.message });
     }
 });

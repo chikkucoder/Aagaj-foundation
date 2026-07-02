@@ -11,6 +11,7 @@ const Razorpay = require('razorpay');
 
 const PaymentLog = require('../models/PaymentLog');
 const crypto = require('crypto');
+const { sendSwarojgaarRegistrationConfirmation } = require('../services/emailService');
 
 const razorpay = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID,
@@ -206,6 +207,15 @@ router.post('/verify-payment', validateRequest({ body: paymentVerifySchema }), a
 
         const newGroup = new SwarojgaarGroup(groupData);
         await newGroup.save();
+
+        if (groupData.email || req.body.email) {
+            try {
+                await sendSwarojgaarRegistrationConfirmation(newGroup, groupData.email || req.body.email);
+            } catch (mailErr) {
+                console.warn('Swarojgaar confirmation email failed:', mailErr.message);
+            }
+        }
+
         await PendingPayment.deleteOne({ orderId: pendingOrderId });
 
         return res.json({ success: true, orderId: pendingOrderId, paymentId: razorpay_payment_id });
@@ -221,7 +231,7 @@ router.post('/register', upload.any(), validateRequest({ body: swarojgaarRegiste
         // 1. Extract flat fields from req.body (Frontend sends them separately)
         const { 
             village, panchayat, anumandal, district, groupName, registeredBy,
-            paymentId, paymentStatus, registrationFee // ✅ Receive Payment Details
+            paymentId, paymentStatus, registrationFee, email // ✅ Receive Payment Details
         } = req.body;
 
         // 2. Construct Location Object manually
@@ -278,6 +288,14 @@ router.post('/register', upload.any(), validateRequest({ body: swarojgaarRegiste
         });
 
         await newGroup.save();
+
+        if (email) {
+            try {
+                await sendSwarojgaarRegistrationConfirmation(newGroup, email);
+            } catch (mailErr) {
+                console.warn('Swarojgaar confirmation email failed:', mailErr.message);
+            }
+        }
 
         res.json({
             success: true,

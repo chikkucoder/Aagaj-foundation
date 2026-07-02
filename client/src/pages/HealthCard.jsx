@@ -163,6 +163,9 @@ const HealthCard = () => {
       const formData = new FormData();
       formData.append('fullName', data.fullName);
       formData.append('mobile', data.mobile);
+      if (data.email) {
+        formData.append('email', data.email);
+      }
       formData.append('aadhar', data.aadhar);
       formData.append('age', data.age);
       formData.append('gender', data.gender);
@@ -560,6 +563,22 @@ const HealthCard = () => {
                     />
                     {errors.mobile && <p className="text-xs text-rose-500 font-semibold mt-1">{errors.mobile.message}</p>}
                     {mobileExists && <p className="text-xs text-rose-600 font-bold mt-1">This contact number is already registered in DB</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Email Address (Optional)</label>
+                    <input
+                      type="email"
+                      {...register('email', { 
+                        pattern: { 
+                          value: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, 
+                          message: 'Invalid email address' 
+                        } 
+                      })}
+                      placeholder="E.g. user@gmail.com"
+                      className="block mt-1 w-full rounded-xl border border-slate-250 py-2.5 px-3 text-slate-800 text-sm focus:border-[#2e3192] outline-none"
+                    />
+                    {errors.email && <p className="text-xs text-rose-500 font-semibold mt-1">{errors.email.message}</p>}
                   </div>
 
                   <div>
