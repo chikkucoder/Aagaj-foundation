@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Menu, X, ChevronDown, LogOut, User, Heart, Shield, Search, Scissors, ShieldCheck, Printer, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Menu, X, ChevronDown, LogOut, User, Heart, Shield, Search, Scissors, ShieldCheck, Printer, RefreshCw, AlertTriangle, Award, Download } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import html2canvas from 'html2canvas-pro';
 
 const Navbar = () => {
   const { user, role, logout } = useAuth();
@@ -29,6 +30,25 @@ const Navbar = () => {
 
   const closeSilayiModal = () => {
     setIsSilayiModalOpen(false);
+  };
+
+  // Silayi Certificate Verification Modal States
+  const [isSilayiCertModalOpen, setIsSilayiCertModalOpen] = useState(false);
+  const [silayiCertSearchQuery, setSilayiCertSearchQuery] = useState('');
+  const [silayiCertVerifyResult, setSilayiCertVerifyResult] = useState(null);
+  const [silayiCertVerifyError, setSilayiCertVerifyError] = useState('');
+  const [silayiCertLoading, setSilayiCertLoading] = useState(false);
+  const publicCertRef = useRef(null);
+
+  const openSilayiCertModal = () => {
+    setIsSilayiCertModalOpen(true);
+    setSilayiCertSearchQuery('');
+    setSilayiCertVerifyResult(null);
+    setSilayiCertVerifyError('');
+  };
+
+  const closeSilayiCertModal = () => {
+    setIsSilayiCertModalOpen(false);
   };
 
   // Clean print mode class from body after printing finishes
@@ -73,6 +93,277 @@ const Navbar = () => {
   const handlePrintSilayi = () => {
     document.body.classList.add('printing-receipt');
     window.print();
+  };
+
+  const formatToIndianDate = (dateStr) => {
+    if (!dateStr) return '';
+    if (dateStr.includes('/')) return dateStr;
+    const dateObj = new Date(dateStr);
+    if (isNaN(dateObj.getTime())) return dateStr;
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const year = dateObj.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  const handleSilayiCertVerify = async (e) => {
+    e.preventDefault();
+    if (!silayiCertSearchQuery.trim()) {
+      setSilayiCertVerifyError('कृपया प्रमाणपत्र संख्या, आधार या मोबाइल दर्ज करें।');
+      return;
+    }
+
+    setSilayiCertLoading(true);
+    setSilayiCertVerifyResult(null);
+    setSilayiCertVerifyError('');
+
+    try {
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${baseUrl}/api/schemes/verify?query=${encodeURIComponent(silayiCertSearchQuery.trim())}`);
+      const result = await response.json();
+      if (result.success && result.data) {
+        if (result.data.certificateIssued) {
+          setSilayiCertVerifyResult(result.data);
+        } else {
+          setSilayiCertVerifyError('पंजीकरण रिकॉर्ड मिल गया है, लेकिन प्रमाणपत्र अभी तक प्रशासनिक प्राधिकारी द्वारा जारी नहीं किया गया है।');
+        }
+      } else {
+        setSilayiCertVerifyError(result.message || 'सत्यापन रिकॉर्ड नहीं मिला। कृपया इनपुट की जांच करें।');
+      }
+    } catch (err) {
+      console.error(err);
+      setSilayiCertVerifyError('प्रमाणपत्र सत्यापन विफलता।');
+    } finally {
+      setSilayiCertLoading(false);
+    }
+  };
+
+  const handleDownloadSilayiCert = () => {
+    if (!publicCertRef.current) return;
+    html2canvas(publicCertRef.current, { scale: 3, useCORS: true, allowTaint: true })
+      .then((canvas) => {
+        const link = document.createElement('a');
+        link.download = `Certificate_${silayiCertVerifyResult.certificateNo.replace(/\//g, '_')}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      })
+      .catch((err) => {
+        console.error("Error generating certificate canvas:", err);
+        alert("Failed to save image. Please try again.");
+      });
+  };
+
+  const handlePrintSilayiCert = () => {
+    if (!publicCertRef.current) return;
+    const printable = publicCertRef.current.outerHTML;
+    const win = window.open('', '_blank');
+    win.document.write(`
+      <html>
+        <head>
+          <title>Print Certificate</title>
+          <style>
+            body {
+              margin: 0;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              height: 100vh;
+              background-color: #fff;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            @page {
+              size: A4 landscape;
+              margin: 0;
+            }
+            .cert-container {
+              width: 842px;
+              height: 595px;
+              box-sizing: border-box;
+            }
+          </style>
+          <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+        </head>
+        <body>
+          <div class="cert-container">${printable}</div>
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+                window.close();
+              }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    win.document.close();
+  };
+
+  const renderSilayiCertificate = (data) => {
+    return (
+      <div 
+        ref={publicCertRef}
+        className="w-[842px] h-[595px] bg-white p-3 select-none relative font-sans text-slate-800 shrink-0 border-[3px] border-[#ff6600]"
+        style={{ 
+          backgroundImage: 'radial-gradient(circle, #fdfcf9 0%, #ffffff 100%)',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+        }}
+      >
+        <div className="w-full h-full border-[3px] border-[#000080] p-1 relative">
+          <div className="w-full h-full border-2 border-[#ff6600] p-4 flex flex-col justify-between relative bg-white/95">
+            
+            <div className="flex justify-between items-start w-full">
+              <div className="flex flex-col items-start gap-1">
+                <span className="text-[10px] font-black text-[#ff6600] tracking-wide uppercase">
+                  REG NO : 759445
+                </span>
+                <div className="flex items-center gap-2 mt-1">
+                  <img src="/logo.jpg" alt="Aagaj Logo" className="h-10 w-10 object-contain rounded-full" />
+                  <div className="flex flex-col text-left">
+                    <span className="text-[10px] font-black text-[#000080] leading-none tracking-wide">AAGAJ</span>
+                    <span className="text-[8px] font-bold text-slate-500 leading-none">FOUNDATION</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col items-end gap-1">
+                <span className="text-[10px] font-black text-[#ff6600] tracking-wide uppercase">
+                  NGO DARPAN NO – BR/2020/0260968
+                </span>
+                <div className="flex items-center gap-2 mt-1">
+                  <img 
+                    src="https://upload.wikimedia.org/wikipedia/commons/e/ea/Skill_India_Logo.jpg" 
+                    alt="Skill India Logo" 
+                    className="h-10 object-contain" 
+                    crossOrigin="anonymous"
+                    onError={(e) => { e.target.src = '/logo.jpg'; }}
+                  />
+                  <div className="flex flex-col text-right">
+                    <span className="text-[10px] font-black text-[#000080] leading-none">Skill India</span>
+                    <span className="text-[7px] font-bold text-[#ff6600] leading-none mt-0.5">कौशल भारत - कुशल भारत</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center justify-center flex-grow py-2 text-center">
+              <h1 className="text-4xl font-extrabold text-[#0056b3] tracking-wide font-serif mb-1.5" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.1)' }}>
+                आगाज फाउंडेशन
+              </h1>
+
+              <div className="border-[3px] border-[#ffb900] bg-white rounded-xl px-8 py-1.5 shadow-sm mb-2 max-w-md">
+                <h2 className="text-xl font-extrabold text-[#800000] tracking-wider uppercase font-serif">
+                  महिला सिलाई प्रशिक्षण केंद्र
+                </h2>
+              </div>
+
+              <div className="relative mb-3 flex flex-col items-center">
+                <h3 className="text-2xl font-black text-[#0056b3] tracking-[0.2em] uppercase font-sans">
+                  CERTIFICATE
+                </h3>
+                <div className="w-40 h-[3px] bg-[#0056b3] mt-1 relative">
+                  <div className="absolute inset-x-0 -bottom-[3px] h-[1px] bg-[#0056b3]"></div>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center w-full px-6 mb-4 text-xs font-bold text-slate-800">
+                <div className="border border-indigo-200 bg-indigo-50/50 rounded-xl px-4 py-1.5 text-center shadow-sm">
+                  प्रमाण पत्र संख्या : <span className="font-extrabold font-mono text-indigo-900 select-all">{data.certificateNo}</span>
+                </div>
+                <div className="pr-4">
+                  दिनांक : <span className="font-extrabold text-slate-900">{formatToIndianDate(data.certificateDate)}</span>
+                </div>
+              </div>
+
+              <div className="w-full px-8 text-center text-sm font-semibold text-slate-700 leading-relaxed space-y-2">
+                <p className="m-0 text-base">
+                  प्रमाणित किया जाता हैं कि सुश्री/श्रीमती &nbsp;
+                  <strong className="text-slate-950 text-lg font-black border-b border-dashed border-slate-650 px-2 py-0.5 select-all">
+                    {data.name}
+                  </strong>
+                  &nbsp;&nbsp; पति/पिता - &nbsp;
+                  <strong className="text-slate-900 font-extrabold select-all">
+                    {data.guardianName || 'N/A'}
+                  </strong>
+                </p>
+                
+                <p className="m-0">
+                  इस संस्था द्वारा निर्धारित अवधि दिनांक
+                </p>
+
+                <div className="inline-block border border-indigo-200 bg-[#f4f7fc] text-[#000080] font-black rounded-xl px-6 py-1.5 shadow-sm text-sm my-1">
+                  {formatToIndianDate(data.trainingStartDate)} &nbsp; से &nbsp; {formatToIndianDate(data.trainingEndDate)} &nbsp; ({data.trainingDuration || '2 माह'}) माह / वर्ष के
+                </div>
+
+                <p className="m-0 text-slate-800">
+                  महिला सिलाई प्रशिक्षण पाठ्यक्रम में संस्था के नियमानुसार सिलाई प्रशिक्षण प्राप्त किया हैं |
+                </p>
+                <p className="m-0 text-slate-800">
+                  इनके द्वारा पाठ्यक्रम प्रशिक्षण के दौरान &nbsp;
+                  <strong className="text-emerald-700 font-black text-base border-b border-dashed border-emerald-500 px-2">
+                    {data.trainingGrade || 'उत्कृष्ट'}
+                  </strong>
+                  &nbsp; प्रशिक्षण किया गया |
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-end w-full pt-2 border-t border-slate-100">
+              <div className="text-center w-36 text-[10px] leading-tight font-semibold text-slate-500">
+                <div className="h-10"></div>
+                <div className="border-t border-slate-300 pt-1 uppercase">
+                  <p className="font-bold text-slate-700 m-0 text-[9px]">Settler Cum Secretary</p>
+                  <span className="text-[8px] text-slate-400">AAGAJ FOUNDATION</span>
+                </div>
+              </div>
+
+              <div className="text-center w-36 text-[10px] leading-tight font-semibold text-slate-500">
+                <div className="h-10"></div>
+                <div className="border-t border-slate-300 pt-1 uppercase">
+                  <p className="font-bold text-slate-700 m-0 text-[9px]">Settler Cum President</p>
+                  <span className="text-[8px] text-slate-400">AAGAJ FOUNDATION</span>
+                </div>
+              </div>
+
+              <div className="text-center w-28 text-[10px] leading-tight font-semibold text-slate-600 relative">
+                <div className="absolute -top-14 left-1/2 -translate-x-1/2 rotate-[-12deg] w-[70px] h-[70px] rounded-full border-2 border-indigo-600/60 flex flex-col items-center justify-center text-center opacity-85 select-none pointer-events-none bg-white/20">
+                  <div className="absolute inset-0.5 rounded-full border border-dashed border-indigo-500/60"></div>
+                  <span className="text-[5px] text-indigo-750 font-black uppercase leading-none tracking-tight">AAGAJ FOUNDATION</span>
+                  <span className="text-[4px] text-indigo-600 leading-none mt-0.5">Reg. No.</span>
+                  <span className="text-[5px] text-indigo-700 font-extrabold leading-none">759445/2020</span>
+                  <span className="absolute text-[8px] text-indigo-500/35 font-bold italic rotate-[15deg]">Aagaj</span>
+                </div>
+                <div className="h-10"></div>
+                <div className="border-t border-slate-300 pt-1 uppercase text-center">
+                  <span className="font-black text-slate-800 text-[10px]">समन्वयक</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 pr-2 select-none">
+                <div className="flex flex-col items-center p-1 bg-white border border-slate-100 rounded-lg shadow-sm">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=55x55&data=AAGAJ-CERT:${data.certificateNo}%0ANAME:${encodeURIComponent(data.name)}`}
+                    alt="Verification QR"
+                    className="h-12 w-12 object-contain"
+                    crossOrigin="anonymous"
+                  />
+                  <span className="text-[5px] font-black text-slate-400 mt-0.5">SCAN VERIFY</span>
+                </div>
+
+                <div className="w-14 h-14 rounded-full border-[3px] border-yellow-500 bg-[#0056b3] text-white flex flex-col items-center justify-center text-center shadow relative shrink-0">
+                  <div className="absolute inset-[0.5px] rounded-full border border-yellow-400 border-dashed"></div>
+                  <span className="text-[5px] font-black text-yellow-300 uppercase leading-none tracking-widest">ISO</span>
+                  <span className="text-[8px] font-black text-white leading-none my-0.5">9001:2015</span>
+                  <span className="text-[4px] font-semibold text-yellow-300 leading-none">CERTIFIED</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const handleSilayiImageError = (e) => {
@@ -288,6 +579,15 @@ const Navbar = () => {
                       className="w-full text-left block px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-rose-50 hover:text-[#ED1C24] cursor-pointer"
                     >
                       Verify Silayi Registration
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setServicesOpen(false);
+                        openSilayiCertModal();
+                      }}
+                      className="w-full text-left block px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-rose-50 hover:text-[#ED1C24] cursor-pointer"
+                    >
+                      Verify Silayi Certificate
                     </button>
                     {user ? (
                       <>
@@ -514,6 +814,15 @@ const Navbar = () => {
                 className="w-full text-left block rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-rose-50 hover:text-[#ED1C24]"
               >
                 Verify Silayi Registration
+              </button>
+              <button 
+                onClick={() => {
+                  setIsOpen(false);
+                  openSilayiCertModal();
+                }}
+                className="w-full text-left block rounded-md px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-rose-50 hover:text-[#ED1C24]"
+              >
+                Verify Silayi Certificate
               </button>
               {user ? (
                 <>
@@ -759,6 +1068,133 @@ const Navbar = () => {
                 {/* Inline preview for display inside the modal (hidden during print) */}
                 <div className="border border-slate-200 rounded-3xl p-2 bg-slate-50/50 print:hidden">
                   {renderSilayiVirtualForm(silayiVerifyResult)}
+                </div>
+
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
+
+      {/* Silayi Certificate Verification Popup Modal */}
+      {isSilayiCertModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 print:hidden">
+          <div className="bg-white rounded-3xl max-w-5xl w-full p-6 sm:p-8 relative shadow-2xl flex flex-col max-h-[90vh] border border-slate-100 overflow-y-auto">
+            
+            {/* Close Button */}
+            <button
+              onClick={closeSilayiCertModal}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-full hover:bg-slate-100 cursor-pointer"
+              title="Close modal"
+            >
+              <X className="h-6 w-6" />
+            </button>
+
+            {/* Header */}
+            <div className="text-center space-y-2 border-b border-slate-100 pb-4 mb-6">
+              <div className="inline-flex items-center justify-center p-2.5 bg-red-50 text-[#ED1C24] rounded-2xl">
+                <Award className="h-6 w-6" />
+              </div>
+              <h2 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight Hindi-font">
+                सिलाई प्रशिक्षण प्रमाणपत्र सत्यापन (Verify Silayi Certificate)
+              </h2>
+              <p className="text-xs text-slate-500 font-bold uppercase tracking-wide">
+                Verify Issued Training Certificates & Download/Print
+              </p>
+            </div>
+
+            {/* Search Box */}
+            <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 shadow-inner mb-6 text-left">
+              <form onSubmit={handleSilayiCertVerify} className="space-y-4">
+                <div className="space-y-2">
+                  <label htmlFor="modal_silayi_cert_query" className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider">
+                    प्रमाणपत्र संख्या, आधार संख्या या मोबाइल संख्या दर्ज करें (Enter Certificate No, Aadhar, or Mobile)
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="modal_silayi_cert_query"
+                      type="text"
+                      value={silayiCertSearchQuery}
+                      onChange={(e) => setSilayiCertSearchQuery(e.target.value)}
+                      placeholder="e.g. MUZ/25-26/KUD/001, 12-digit Aadhar, 10-digit Mobile"
+                      className="w-full bg-white border border-slate-300 rounded-2xl pl-12 pr-4 py-3.5 text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#ED1C24] focus:ring-1 focus:ring-[#ED1C24] transition-all font-bold text-sm"
+                      disabled={silayiCertLoading}
+                      required
+                    />
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                      <Search className="h-5 w-5" />
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3.5 px-6 rounded-2xl bg-[#000080] hover:bg-slate-900 text-white font-black uppercase tracking-wider shadow active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-xs sm:text-sm"
+                  disabled={silayiCertLoading}
+                >
+                  {silayiCertLoading ? (
+                    <>
+                      <RefreshCw className="animate-spin h-5 w-5" />
+                      सत्यापन हो रहा है (Verifying...)
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="h-5 w-5" />
+                      प्रमाणपत्र खोजें (Search & Verify Certificate)
+                    </>
+                  )}
+                </button>
+              </form>
+
+              {/* Error Message */}
+              {silayiCertVerifyError && (
+                <div className="mt-4 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 text-xs sm:text-sm font-bold flex items-center gap-3">
+                  <AlertTriangle className="h-5 w-5 text-rose-500 shrink-0" />
+                  <div>
+                    {silayiCertVerifyError}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Results Display inside Modal */}
+            {silayiCertVerifyResult && (
+              <div className="space-y-6">
+                
+                {/* Actions Toolbar */}
+                <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-slate-50 border border-slate-200 rounded-2xl p-5 shadow-sm text-left">
+                  <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                      <ShieldCheck className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-black text-slate-800 text-xs sm:text-sm">प्रमाणपत्र सत्यापित (Certificate Verified!)</h4>
+                      <p className="text-slate-400 text-[10px] sm:text-xs font-semibold">Cert No: {silayiCertVerifyResult.certificateNo}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    <button
+                      onClick={handleDownloadSilayiCert}
+                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold px-4 py-2.5 shadow transition-all active:scale-95 text-xs cursor-pointer"
+                    >
+                      <Download className="h-4 w-4" /> डाउनलोड करें (Download PNG)
+                    </button>
+                    <button
+                      onClick={handlePrintSilayiCert}
+                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 rounded-xl bg-[#ED1C24] hover:bg-[#b0151b] text-white font-extrabold px-4 py-2.5 shadow transition-all active:scale-95 text-xs cursor-pointer"
+                    >
+                      <Printer className="h-4 w-4" /> प्रिंट करें (Print Certificate)
+                    </button>
+                  </div>
+                </div>
+
+                {/* Inline preview for display inside the modal (hidden during print) */}
+                <div className="w-full flex justify-center items-center overflow-hidden h-[240px] sm:h-[380px] md:h-[480px] lg:h-[610px] bg-slate-50 border border-slate-200 rounded-3xl print:hidden">
+                  <div className="origin-center scale-[0.38] sm:scale-[0.58] md:scale-[0.8] lg:scale-100 shrink-0">
+                    {renderSilayiCertificate(silayiCertVerifyResult)}
+                  </div>
                 </div>
 
               </div>

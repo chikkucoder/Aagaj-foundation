@@ -4,6 +4,7 @@ const HealthCardSchema = new mongoose.Schema({
     healthId: { type: String, required: true, unique: true }, // MC-XXXXXX
     fullName: { type: String, required: true },
     mobile: { type: String, required: true, unique: true},
+    email: { type: String, lowercase: true, trim: true },
     aadhar: { type: String, required: true, unique: true},
     age: { type: Number, required: true },
     gender: { type: String, required: true },
