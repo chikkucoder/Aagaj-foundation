@@ -96,7 +96,9 @@ app.use(helmet({
 const allowedOrigins = [
     "http://localhost:5000",
     "http://localhost:5173", // Vite default port
-    "http://localhost:3000"
+    "http://localhost:3000",
+    "https://aagajfoundation.com",
+    "https://www.aagajfoundation.com"
 ];
 
 if (process.env.FRONTEND_URL) {
@@ -104,7 +106,9 @@ if (process.env.FRONTEND_URL) {
     allowedOrigins.push(cleanFrontendUrl);
     if (cleanFrontendUrl.startsWith('https://') && !cleanFrontendUrl.includes('localhost')) {
         const domain = cleanFrontendUrl.replace('https://', '');
-        allowedOrigins.push(`https://www.${domain}`);
+        const cleanDomain = domain.replace(/^www\./, '');
+        allowedOrigins.push(`https://${cleanDomain}`);
+        allowedOrigins.push(`https://www.${cleanDomain}`);
     }
 }
 if (process.env.API_URL) {
