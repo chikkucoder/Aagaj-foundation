@@ -397,7 +397,7 @@ const HealthCard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f1f5f9] py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#f1f5f9] py-12 px-4 sm:px-6 lg:px-8 print:min-h-0 print:py-0 print:bg-transparent">
       {/* Hide on print */}
       <div className="print:hidden max-w-3xl mx-auto mb-6">
         <Link

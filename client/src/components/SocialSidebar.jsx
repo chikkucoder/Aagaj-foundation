@@ -60,7 +60,7 @@ const socialLinks = [
 
 const SocialSidebar = () => {
   return (
-    <div className="fixed left-0 top-1/2 -translate-y-1/2 z-40 hidden md:flex flex-col shadow-xl rounded-r-xl overflow-hidden">
+    <div className="fixed left-0 top-1/2 -translate-y-1/2 z-40 hidden md:flex flex-col shadow-xl rounded-r-xl overflow-hidden print:hidden">
       {socialLinks.map((social) => (
         <a
           key={social.name}

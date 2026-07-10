@@ -506,7 +506,7 @@ const Navbar = () => {
   const toggleMenu = () => setIsOpen(!isOpen);
 
   return (
-    <nav className="sticky top-0 z-50 bg-gradient-to-r from-white via-rose-50 to-pink-50 shadow-md border-b border-rose-200">
+    <nav className="sticky top-0 z-50 bg-gradient-to-r from-white via-rose-50 to-pink-50 shadow-md border-b border-rose-200 print:hidden">
       {/* Top accent strip */}
       <div className="h-1 bg-gradient-to-r from-[#ED1C24] via-[#fdd831] to-[#ED1C24]"></div>
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
