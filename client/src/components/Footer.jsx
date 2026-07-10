@@ -52,7 +52,7 @@ const socialLinks = [
 
 const Footer = () => {
   return (
-    <footer className="bg-slate-900 text-slate-300">
+    <footer className="bg-slate-900 text-slate-300 print:hidden">
       {/* Top gradient accent */}
       <div className="h-1.5 bg-gradient-to-r from-[#ED1C24] via-[#fdd831] to-[#ED1C24]"></div>
 
