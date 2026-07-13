@@ -15,6 +15,7 @@ import {
   toggleHospitalStatus,
   deleteHospital,
   generateHospitalCredentials,
+  resetHospitalPassword,
   getHospitalGlobalReports,
   getHospitalAuditLogs,
   getAdminTransactions
@@ -174,6 +175,12 @@ const AdminDashboard = () => {
   const [editHospError, setEditHospError] = useState('');
   const { register: regCredHosp, handleSubmit: handleCredHospSubmit, formState: { errors: credHospErrors }, reset: resetCredHospForm } = useForm();
   const [credHospError, setCredHospError] = useState('');
+
+  // Hospital Password Reset State & Form Hook
+  const [showResetPassModal, setShowResetPassModal] = useState(false);
+  const [resetPassError, setResetPassError] = useState('');
+  const { register: regResetPass, handleSubmit: handleResetPassSubmit, formState: { errors: resetPassErrors }, reset: resetResetPassForm } = useForm();
+
 
   const { register: regCustomCard, handleSubmit: handleCustomCardSubmit, formState: { errors: customCardErrors }, reset: resetCustomCardForm, setValue: setCustomCardValue, watch: watchCustomCard } = useForm({
     defaultValues: {
@@ -776,6 +783,32 @@ const AdminDashboard = () => {
       }
     } catch (err) {
       setCredHospError(err.response?.data?.message || 'Server connection error');
+    }
+  };
+
+  // Hospital Password Reset submit
+  const onResetPassSubmit = async (data) => {
+    setResetPassError('');
+    if (data.password !== data.confirmPassword) {
+      setResetPassError('Passwords do not match');
+      return;
+    }
+    try {
+      const res = await resetHospitalPassword({
+        uniqueId: selectedHospital.uniqueId,
+        password: data.password
+      });
+      if (res.success) {
+        setShowResetPassModal(false);
+        setSelectedHospital(null);
+        resetResetPassForm();
+        syncData();
+        alert('Hospital password reset successfully');
+      } else {
+        setResetPassError(res.message || 'Password reset failed');
+      }
+    } catch (err) {
+      setResetPassError(err.response?.data?.message || 'Server connection error');
     }
   };
 
@@ -1605,12 +1638,21 @@ const AdminDashboard = () => {
                               <td className="py-3 px-4 font-bold text-slate-500">{hosp.licenseNumber}</td>
                               <td className="py-3 px-4">
                                 {hosp.hasCredentials ? (
-                                  <button
-                                    onClick={() => setViewCreds({ username: hosp.loginId || hosp.email, password: 'Protected (Bcrypt Hashed)' })}
-                                    className="flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 hover:bg-emerald-200 transition-all cursor-pointer"
-                                  >
-                                    <Lock className="h-3 w-3" /> Provisioned
-                                  </button>
+                                  <div className="flex flex-col gap-1.5 items-start">
+                                    <button
+                                      onClick={() => setViewCreds({ username: hosp.loginId || hosp.email, password: 'Protected (Bcrypt Hashed)' })}
+                                      className="flex items-center gap-1 rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800 hover:bg-emerald-200 transition-all cursor-pointer"
+                                    >
+                                      <Lock className="h-3 w-3" /> Provisioned
+                                    </button>
+                                    <button
+                                      onClick={() => { setSelectedHospital(hosp); resetResetPassForm(); setShowResetPassModal(true); }}
+                                      className="flex items-center gap-1 rounded bg-[#fdd831] px-2 py-0.5 text-[10px] font-bold text-[#051630] hover:bg-[#ebd04c] transition-all cursor-pointer"
+                                      title="Reset Hospital Password"
+                                    >
+                                      <RotateCw className="h-2.5 w-2.5" /> Reset Pass
+                                    </button>
+                                  </div>
                                 ) : (
                                   <button
                                     onClick={() => { setSelectedHospital(hosp); resetCredHospForm(); setShowCredsHospModal(true); }}
@@ -3800,6 +3842,85 @@ const AdminDashboard = () => {
 
                 <button type="submit" className="w-full rounded-xl bg-slate-900 hover:bg-slate-800 text-white mt-4 py-3 text-xs font-bold cursor-pointer transition-all">
                   Provision Hospital Credentials
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL 6.5. RESET HOSPITAL PASSWORD --- */}
+      {showResetPassModal && selectedHospital && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4">
+          <div className="w-full max-w-sm overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 animate-fade-in">
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 p-4">
+              <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-tight flex items-center gap-1.5">
+                <RotateCw className="h-4.5 w-4.5 text-[#fdd831]" /> Reset Password - {selectedHospital.businessName}
+              </h3>
+              <button onClick={() => setShowResetPassModal(false)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 cursor-pointer">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              {resetPassError && (
+                <div className="mb-4 rounded-xl bg-rose-50 p-3 text-xs font-semibold text-rose-600 border border-rose-100">
+                  {resetPassError}
+                </div>
+              )}
+              
+              <form onSubmit={handleResetPassSubmit(onResetPassSubmit)} className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-slate-500">Official Access Email</label>
+                  <input
+                    type="email"
+                    value={selectedHospital.email || ''}
+                    disabled
+                    className="block mt-1 w-full rounded-xl border border-slate-200 py-2 px-3 text-slate-400 bg-slate-50 text-xs outline-none cursor-not-allowed"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-slate-500">Hospital Login ID</label>
+                  <input
+                    type="text"
+                    value={selectedHospital.loginId || `HOSP-${selectedHospital.uniqueId}`}
+                    disabled
+                    className="block mt-1 w-full rounded-xl border border-slate-200 py-2 px-3 text-slate-400 bg-slate-50 text-xs outline-none cursor-not-allowed font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-slate-500 text-rose-600">New Password</label>
+                  <input
+                    type="password"
+                    {...regResetPass('password', { 
+                      required: 'New Password is required', 
+                      minLength: { value: 6, message: 'Minimum 6 characters' } 
+                    })}
+                    className="block mt-1 w-full rounded-xl border border-rose-200 py-2 px-3 text-slate-800 text-xs outline-none focus:border-[#ED1C24]"
+                    placeholder="Enter new password (min 6 chars)"
+                  />
+                  {resetPassErrors?.password && (
+                    <span className="text-[10px] font-bold text-rose-500 mt-1 block">{resetPassErrors.password.message}</span>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-slate-500 text-rose-600">Confirm Password</label>
+                  <input
+                    type="password"
+                    {...regResetPass('confirmPassword', { 
+                      required: 'Confirm Password is required', 
+                      minLength: { value: 6, message: 'Minimum 6 characters' } 
+                    })}
+                    className="block mt-1 w-full rounded-xl border border-rose-200 py-2 px-3 text-slate-800 text-xs outline-none focus:border-[#ED1C24]"
+                    placeholder="Re-enter new password"
+                  />
+                  {resetPassErrors?.confirmPassword && (
+                    <span className="text-[10px] font-bold text-rose-500 mt-1 block">{resetPassErrors.confirmPassword.message}</span>
+                  )}
+                </div>
+
+                <button type="submit" className="w-full rounded-xl bg-slate-900 hover:bg-slate-800 text-white mt-4 py-3 text-xs font-bold cursor-pointer transition-all">
+                  Reset Password & Update Securely
                 </button>
               </form>
             </div>

@@ -13,6 +13,12 @@ const generateCredentialsSchema = Joi.object({
     loginId: Joi.string().trim().optional()
 });
 
+const resetHospitalPasswordSchema = Joi.object({
+    uniqueId: Joi.string().trim().required(),
+    password: Joi.string().min(6).required()
+});
+
+
 const registerHospitalSchema = Joi.object({
     biz: Joi.string().trim().min(2).max(150).required(),
     hashPass: Joi.string().min(6).required(),
@@ -241,6 +247,7 @@ const verifyDonationSchema = Joi.object({
 module.exports = {
     hospitalLoginSchema,
     generateCredentialsSchema,
+    resetHospitalPasswordSchema,
     registerHospitalSchema,
     editHospitalSchema,
     hospitalIdQuerySchema,

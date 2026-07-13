@@ -12,6 +12,7 @@ const { validateRequest } = require('../middleware/requestValidation');
 const {
     hospitalLoginSchema,
     generateCredentialsSchema,
+    resetHospitalPasswordSchema,
     registerHospitalSchema,
     editHospitalSchema,
     hospitalIdQuerySchema,
@@ -228,6 +229,32 @@ router.post('/admin/generate-credentials', verifyAdmin, validateRequest({ body: 
         if (!updated) return res.status(404).json({ success: false, message: "Hospital not found" });
         res.json({ success: true, message: "Credentials generated successfully" });
     } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+});
+
+// 5.5. Admin Reset Hospital Password (Admin Control)
+router.post('/admin/reset-hospital-password', verifyAdmin, validateRequest({ body: resetHospitalPasswordSchema }), async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: "Access Denied. Only Admin can reset hospital password." });
+        }
+
+        const { uniqueId, password } = req.body;
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        const updated = await HealthPartner.findOneAndUpdate(
+            { uniqueId },
+            { password: hashedPassword },
+            { new: true }
+        );
+
+        if (!updated) {
+            return res.status(404).json({ success: false, message: "Hospital not found" });
+        }
+
+        res.json({ success: true, message: "Hospital password reset successfully" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
 });
 
 // 6. Admin Register New Hospital (Full Control)
