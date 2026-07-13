@@ -623,6 +623,7 @@ const HealthCard = () => {
                         {...register('bloodGroup')}
                         className="block mt-1 w-full rounded-xl border border-slate-250 py-2.5 px-2 text-slate-800 text-sm focus:border-[#2e3192] bg-white outline-none"
                       >
+                        <option value="NOT KNOWN">NOT KNOWN</option>
                         <option value="A+">A+</option>
                         <option value="A-">A-</option>
                         <option value="B+">B+</option>

@@ -551,4 +551,81 @@ router.post('/admin/create', verifyAdmin, upload.single('photo'), async (req, re
     }
 });
 
+// ✅ Admin: Edit Health Card Details
+router.put('/admin/edit/:id', verifyAdmin, async (req, res) => {
+    try {
+        const cardId = req.params.id;
+        const {
+            fullName,
+            mobile,
+            email,
+            aadhar,
+            age,
+            gender,
+            bloodGroup,
+            address,
+            cardType,
+            familyMembers,
+            expiryDate
+        } = req.body;
+
+        // Validation
+        if (!fullName || !mobile || !aadhar || !age || !gender || !bloodGroup) {
+            return res.status(400).json({ success: false, message: "Required fields cannot be empty" });
+        }
+
+        // Check if card exists
+        const existingCard = await HealthCard.findById(cardId);
+        if (!existingCard) {
+            return res.status(404).json({ success: false, message: "Health card not found" });
+        }
+
+        // Check unique fields duplicate except this card
+        const duplicateCheck = await HealthCard.findOne({
+            _id: { $ne: cardId },
+            $or: [
+                { mobile },
+                { aadhar }
+            ]
+        });
+
+        if (duplicateCheck) {
+            if (duplicateCheck.mobile === mobile) {
+                return res.status(400).json({ success: false, message: "Mobile number is already registered on another health card!" });
+            }
+            if (duplicateCheck.aadhar === aadhar) {
+                return res.status(400).json({ success: false, message: "Aadhar card number is already registered on another health card!" });
+            }
+        }
+
+        // Update fields
+        existingCard.fullName = fullName;
+        existingCard.mobile = mobile;
+        existingCard.email = email;
+        existingCard.aadhar = aadhar;
+        existingCard.age = age;
+        existingCard.gender = gender;
+        existingCard.bloodGroup = bloodGroup;
+        existingCard.address = address;
+        existingCard.cardType = cardType || existingCard.cardType;
+        if (familyMembers) {
+            existingCard.familyMembers = Array.isArray(familyMembers) ? familyMembers : JSON.parse(familyMembers);
+        }
+        if (expiryDate) {
+            existingCard.expiryDate = new Date(expiryDate);
+        }
+
+        await existingCard.save();
+
+        res.json({
+            success: true,
+            message: "Health card updated successfully!",
+            data: existingCard
+        });
+    } catch (error) {
+        console.error("Edit Health Card Error:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 module.exports = router;
