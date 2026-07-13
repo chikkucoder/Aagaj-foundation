@@ -40,7 +40,7 @@ if (trustProxySetting === 'true') {
 // ============================================
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // 100 requests per 15 minutes
+    max: parseInt(process.env.API_RATE_LIMIT, 10) || 1000, // Increased fallback to 1000 to prevent throttling active admin actions
     message: {
         success: false,
         message: 'Too many requests from this IP, please try again after 15 minutes.'
