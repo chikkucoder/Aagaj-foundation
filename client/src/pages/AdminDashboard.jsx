@@ -1067,7 +1067,6 @@ const AdminDashboard = () => {
           }
           if (specializationFilter === 'Patholab 🔬') {
             return matchesSearch && h.category === 'Lab';
-          }
           if (specializationFilter === 'Blood Bank 🩸') {
             return matchesSearch && h.category === 'BloodBank';
           }
