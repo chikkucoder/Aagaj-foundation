@@ -29,13 +29,20 @@ const categoryConfig = {
     licenseLabel: "चिकित्सा पंजीकरण संख्या (Medical Reg No.)",
     services: ["OPD", "General Consultation", "Minor Surgery", "Wound Dressing", "Vaccination", "Home Visit", "Online Consultation", "Diagnostic Tests"],
     displayLabel: "Individual Clinic / Doctor"
+  },
+  BloodBank: {
+    label: "ब्लड स्टोरेज क्षमता / लाइसेंस वैधता (Storage Capacity / Expiry)",
+    placeholder: "उदा. 200 Units, DD/MM/YYYY",
+    licenseLabel: "ड्रग कंट्रोलर लाइसेंस संख्या (Drug Controller License No.)",
+    services: ["Whole Blood", "Packed Red Blood Cells (PRBC)", "Fresh Frozen Plasma (FFP)", "Platelets (RDP/SDP)", "Cryoprecipitate", "Crossmatching", "Blood Grouping", "Donor Camp Organizer"],
+    displayLabel: "Blood Bank"
   }
 };
 
 const SwasthyaSurakshaRegister = () => {
   const navigate = useNavigate();
   const [successPartner, setSuccessPartner] = useState(null);
-  const [customServices, setCustomServices] = useState({ Hospital: [], Lab: [], Pharmacy: [], IndividualClinic: [] });
+  const [customServices, setCustomServices] = useState({ Hospital: [], Lab: [], Pharmacy: [], IndividualClinic: [], BloodBank: [] });
   const [customInput, setCustomInput] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -272,6 +279,7 @@ const SwasthyaSurakshaRegister = () => {
                     <option value="Lab">Diagnostics Lab</option>
                     <option value="Pharmacy">Pharmacy / Medical Store</option>
                     <option value="IndividualClinic">Individual Clinic / Doctor</option>
+                    <option value="BloodBank">Blood Bank / रक्त कोष</option>
                   </select>
                 </div>
 

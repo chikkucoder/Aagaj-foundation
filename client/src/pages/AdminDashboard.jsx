@@ -1068,6 +1068,9 @@ const AdminDashboard = () => {
           if (specializationFilter === 'Patholab 🔬') {
             return matchesSearch && h.category === 'Lab';
           }
+          if (specializationFilter === 'Blood Bank 🩸') {
+            return matchesSearch && h.category === 'BloodBank';
+          }
 
           // Strip emoji characters from specialization name
           const cleanFilter = specializationFilter.replace(/[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]/g, '').trim().toLowerCase();
@@ -1619,6 +1622,7 @@ const AdminDashboard = () => {
                     <option value="Gynecology 🤰">Gynecology 🤰</option>
                     <option value="Patholab 🔬">Patholab 🔬</option>
                     <option value="Chemist Shop 💊">Chemist Shop 💊</option>
+                    <option value="Blood Bank 🩸">Blood Bank 🩸</option>
                   </select>
                 )}
                 

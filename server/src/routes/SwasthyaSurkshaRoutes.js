@@ -82,6 +82,8 @@ router.post('/register', async (req, res) => {
             specificData.drugLicenseExpiry = extraInfo;
         } else if (type === 'Hospital') {
             specificData.numberOfBeds = extraInfo;
+        } else if (type === 'BloodBank') {
+            specificData.bloodStorageCapacity = extraInfo;
         }
 
         const newPartner = new HealthPartner({
