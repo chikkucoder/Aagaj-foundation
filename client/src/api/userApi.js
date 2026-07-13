@@ -131,6 +131,16 @@ export const getHospitalAppointments = async (hospitalId) => {
   return response.data;
 };
 
+export const updateHospitalAppointmentStatus = async (data) => {
+  const response = await apiClient.patch('/api/hospital-admin-system/hospital/update-appointment-status', data);
+  return response.data;
+};
+
+export const getHospitalActivity = async (hospitalId) => {
+  const response = await apiClient.get(`/api/hospital-admin-system/admin/hospital-activity/${hospitalId}`);
+  return response.data;
+};
+
 // --- SWASTHYA SURAKSHA PARTNERS ---
 export const registerSwasthyaPartner = async (data) => {
   const response = await apiClient.post('/api/swasthya/register', data);
