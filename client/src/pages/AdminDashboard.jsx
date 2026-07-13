@@ -19,6 +19,7 @@ import {
   getHospitalGlobalReports,
   getHospitalAuditLogs,
   getHospitalActivity,
+  getEmployeeActivity,
   getAdminTransactions
 } from '../api/userApi';
 import apiClient from '../api/apiClient';
@@ -187,6 +188,12 @@ const AdminDashboard = () => {
   const [hospActivityData, setHospActivityData] = useState(null);
   const [hospActivityLoading, setHospActivityLoading] = useState(false);
   const [hospActivityError, setHospActivityError] = useState('');
+
+  // Employee Activity Report Modal States
+  const [showEmpActivityModal, setShowEmpActivityModal] = useState(false);
+  const [empActivityData, setEmpActivityData] = useState(null);
+  const [empActivityLoading, setEmpActivityLoading] = useState(false);
+  const [empActivityError, setEmpActivityError] = useState('');
 
 
   const { register: regCustomCard, handleSubmit: handleCustomCardSubmit, formState: { errors: customCardErrors }, reset: resetCustomCardForm, setValue: setCustomCardValue, watch: watchCustomCard } = useForm({
@@ -836,6 +843,26 @@ const AdminDashboard = () => {
       setHospActivityError(err.response?.data?.message || 'Server connection error.');
     } finally {
       setHospActivityLoading(false);
+    }
+  };
+
+  // View Employee Activity logs and stats
+  const handleViewEmployeeActivity = async (email) => {
+    setEmpActivityError('');
+    setEmpActivityLoading(true);
+    setEmpActivityData(null);
+    setShowEmpActivityModal(true);
+    try {
+      const res = await getEmployeeActivity(email);
+      if (res.success) {
+        setEmpActivityData(res.data);
+      } else {
+        setEmpActivityError(res.message || 'Failed to load employee activity details.');
+      }
+    } catch (err) {
+      setEmpActivityError(err.response?.data?.message || 'Server connection error.');
+    } finally {
+      setEmpActivityLoading(false);
     }
   };
 
@@ -1603,6 +1630,13 @@ const AdminDashboard = () => {
                                 </td>
                                 <td className="py-3 px-4 text-right">
                                   <div className="flex justify-end gap-1">
+                                    <button
+                                      onClick={() => handleViewEmployeeActivity(user.email || user.emp_username)}
+                                      className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 transition-all cursor-pointer"
+                                      title="View Employee Activity Report"
+                                    >
+                                      <Activity className="h-3.5 w-3.5" />
+                                    </button>
                                     <button
                                       onClick={() => { setSelectedCardUser(user); setShowCardModal(true); }}
                                       className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-all cursor-pointer"
@@ -4139,6 +4173,285 @@ const AdminDashboard = () => {
                               </tr>
                             ) : (
                               hospActivityData.logs.map(log => (
+                                <tr key={log._id} className="hover:bg-slate-50/20 transition-all">
+                                  <td className="py-2 px-3 font-bold text-slate-400">{new Date(log.createdAt).toLocaleString()}</td>
+                                  <td className="py-2 px-3 font-bold text-[#ED1C24]">{log.action}</td>
+                                  <td className="py-2 px-3">
+                                    <span className={`inline-flex rounded px-1.5 py-0.5 font-bold uppercase ${
+                                      log.statusCode >= 200 && log.statusCode < 300 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                                    }`}>
+                                      {log.statusCode}
+                                    </span>
+                                  </td>
+                                  <td className="py-2 px-3 font-mono">{log.ipAddress || '127.0.0.1'}</td>
+                                  <td className="py-2 px-3 text-slate-400 max-w-xs truncate">{log.userAgent}</td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL 6.7. INDIVIDUAL EMPLOYEE ACTIVITY REPORT & LOGS --- */}
+      {showEmpActivityModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
+          <div className="w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 animate-fade-in flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 p-4">
+              <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-tight flex items-center gap-1.5">
+                <Activity className="h-4.5 w-4.5 text-emerald-500" /> Employee Performance & Activity Tracker
+              </h3>
+              <button onClick={() => setShowEmpActivityModal(false)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 cursor-pointer">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto flex-1 space-y-6">
+              {empActivityLoading && (
+                <div className="flex flex-col items-center justify-center py-20 gap-3">
+                  <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-[#ED1C24]"></div>
+                  <span className="text-xs font-bold text-slate-500">Retrieving employee records...</span>
+                </div>
+              )}
+
+              {empActivityError && (
+                <div className="rounded-xl bg-rose-50 p-4 text-xs font-semibold text-rose-600 border border-rose-100">
+                  {empActivityError}
+                </div>
+              )}
+
+              {!empActivityLoading && !empActivityError && empActivityData && (
+                <>
+                  {/* Profile Summary */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="md:col-span-2 bg-slate-50 rounded-2xl p-5 border border-slate-100 flex flex-col justify-between">
+                      <div>
+                        <h4 className="text-xs font-black uppercase text-slate-400 mb-2">Employee Details</h4>
+                        <h2 className="text-lg font-black text-slate-900">{empActivityData.profile?.fullName}</h2>
+                        <p className="text-xs text-indigo-600 font-extrabold mb-4">{empActivityData.profile?.role}</p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-xs text-slate-600">
+                        <div><strong className="text-slate-400 font-medium">Email ID:</strong> {empActivityData.profile?.email}</div>
+                        <div><strong className="text-slate-400 font-medium">Contact:</strong> {empActivityData.profile?.mobile}</div>
+                        <div><strong className="text-slate-400 font-medium">Location:</strong> {empActivityData.profile?.blockOrPlace}, {empActivityData.profile?.district}, {empActivityData.profile?.state}</div>
+                        <div><strong className="text-slate-400 font-medium">Panchayat:</strong> {empActivityData.profile?.panchayat || 'N/A'}</div>
+                      </div>
+                    </div>
+
+                    {/* Stats Metrics Cards */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-emerald-50/50 rounded-2xl p-3 border border-emerald-100 flex flex-col justify-between">
+                        <span className="text-[9px] font-black uppercase text-emerald-600">Health Cards</span>
+                        <span className="text-base font-black text-emerald-800">{empActivityData.stats?.healthCardsCount}</span>
+                      </div>
+                      <div className="bg-rose-50/50 rounded-2xl p-3 border border-rose-100 flex flex-col justify-between">
+                        <span className="text-[9px] font-black uppercase text-rose-600">Sewing Enrols</span>
+                        <span className="text-base font-black text-rose-800">{empActivityData.stats?.silayiCount}</span>
+                      </div>
+                      <div className="bg-blue-50/50 rounded-2xl p-3 border border-blue-100 flex flex-col justify-between">
+                        <span className="text-[9px] font-black uppercase text-blue-600">Swarojgaar</span>
+                        <span className="text-base font-black text-blue-800">{empActivityData.stats?.swarojgaarCount}</span>
+                      </div>
+                      <div className="bg-purple-50/50 rounded-2xl p-3 border border-purple-100 flex flex-col justify-between">
+                        <span className="text-[9px] font-black uppercase text-purple-600">Partners Logged</span>
+                        <span className="text-base font-black text-purple-800">{empActivityData.stats?.swasthyaCount}</span>
+                      </div>
+                      <div className="bg-amber-50/50 rounded-2xl p-3 border border-amber-100 flex flex-col justify-between col-span-2">
+                        <span className="text-[9px] font-black uppercase text-amber-600 font-black">NGO Candidates Registered</span>
+                        <span className="text-base font-black text-amber-800">{empActivityData.stats?.ngoCount}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* detailed activity lists */}
+                  <div className="space-y-8 mt-6">
+                    {/* NGO Candidates */}
+                    <div>
+                      <h3 className="text-xs font-black uppercase text-slate-800 border-b border-slate-100 pb-2 mb-3 tracking-wide">
+                        Registered Candidates & Applications ({empActivityData.activities?.ngoApplications?.length || 0})
+                      </h3>
+                      <div className="overflow-x-auto rounded-xl border border-slate-100 max-h-60 overflow-y-auto">
+                        <table className="w-full text-left border-collapse whitespace-nowrap">
+                          <thead>
+                            <tr className="bg-slate-50 text-slate-500 text-[10px] font-bold uppercase tracking-wider border-b border-slate-100 sticky top-0">
+                              <th className="py-2 px-3">Pravesh ID</th>
+                              <th className="py-2 px-3">Candidate Name</th>
+                              <th className="py-2 px-3">Role Applied</th>
+                              <th className="py-2 px-3">Email ID</th>
+                              <th className="py-2 px-3">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 text-slate-700 text-[11px]">
+                            {empActivityData.activities?.ngoApplications?.length === 0 ? (
+                              <tr>
+                                <td colSpan="5" className="text-center py-6 text-slate-400 font-semibold">No candidates registered by this employee.</td>
+                              </tr>
+                            ) : (
+                              empActivityData.activities.ngoApplications.map(a => (
+                                <tr key={a._id} className="hover:bg-slate-50/20">
+                                  <td className="py-2 px-3 font-bold text-slate-400">AF-{a.uniqueId}</td>
+                                  <td className="py-2 px-3 font-bold text-slate-900">{a.fullName}</td>
+                                  <td className="py-2 px-3 font-semibold text-indigo-500">{a.roleApplied}</td>
+                                  <td className="py-2 px-3 text-slate-500">{a.email}</td>
+                                  <td className="py-2 px-3">
+                                    <span className="bg-emerald-100 text-emerald-800 rounded px-1.5 py-0.5 text-[9px] font-black uppercase">
+                                      {a.status || 'Success'}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Health Cards */}
+                    <div>
+                      <h3 className="text-xs font-black uppercase text-slate-800 border-b border-slate-100 pb-2 mb-3 tracking-wide">
+                        Health Cards Issued ({empActivityData.activities?.healthCards?.length || 0})
+                      </h3>
+                      <div className="overflow-x-auto rounded-xl border border-slate-100 max-h-60 overflow-y-auto">
+                        <table className="w-full text-left border-collapse whitespace-nowrap">
+                          <thead>
+                            <tr className="bg-slate-50 text-slate-500 text-[10px] font-bold uppercase tracking-wider border-b border-slate-100 sticky top-0">
+                              <th className="py-2 px-3">Health ID</th>
+                              <th className="py-2 px-3">Cardholder Name</th>
+                              <th className="py-2 px-3">Mobile</th>
+                              <th className="py-2 px-3">Location (City)</th>
+                              <th className="py-2 px-3">Date</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 text-slate-700 text-[11px]">
+                            {empActivityData.activities?.healthCards?.length === 0 ? (
+                              <tr>
+                                <td colSpan="5" className="text-center py-6 text-slate-400 font-semibold">No health cards registered by this employee.</td>
+                              </tr>
+                            ) : (
+                              empActivityData.activities.healthCards.map(c => (
+                                <tr key={c._id} className="hover:bg-slate-50/20">
+                                  <td className="py-2 px-3 font-black text-rose-600">{c.healthId}</td>
+                                  <td className="py-2 px-3 font-bold text-slate-900">{c.fullName}</td>
+                                  <td className="py-2 px-3 text-slate-500">{c.mobile}</td>
+                                  <td className="py-2 px-3 font-semibold text-slate-500">{c.address?.city || 'N/A'}</td>
+                                  <td className="py-2 px-3 text-slate-400 font-medium">{new Date(c.createdAt || c.date).toLocaleDateString()}</td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Sewing Yojana Beneficiaries */}
+                    <div>
+                      <h3 className="text-xs font-black uppercase text-slate-800 border-b border-slate-100 pb-2 mb-3 tracking-wide">
+                        Silayi Yojana Beneficiaries ({empActivityData.activities?.silayiBeneficiaries?.length || 0})
+                      </h3>
+                      <div className="overflow-x-auto rounded-xl border border-slate-100 max-h-60 overflow-y-auto">
+                        <table className="w-full text-left border-collapse whitespace-nowrap">
+                          <thead>
+                            <tr className="bg-slate-50 text-slate-500 text-[10px] font-bold uppercase tracking-wider border-b border-slate-100 sticky top-0">
+                              <th className="py-2 px-3">Reg ID</th>
+                              <th className="py-2 px-3">Full Name</th>
+                              <th className="py-2 px-3">Mobile</th>
+                              <th className="py-2 px-3">Center Location</th>
+                              <th className="py-2 px-3">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 text-slate-700 text-[11px]">
+                            {empActivityData.activities?.silayiBeneficiaries?.length === 0 ? (
+                              <tr>
+                                <td colSpan="5" className="text-center py-6 text-slate-400 font-semibold">No Silayi beneficiaries registered by this employee.</td>
+                              </tr>
+                            ) : (
+                              empActivityData.activities.silayiBeneficiaries.map(b => (
+                                <tr key={b._id} className="hover:bg-slate-50/20">
+                                  <td className="py-2 px-3 font-bold text-slate-400">SIL-{b._id?.slice(-6).toUpperCase()}</td>
+                                  <td className="py-2 px-3 font-bold text-slate-900">{b.fullName}</td>
+                                  <td className="py-2 px-3 text-slate-500">{b.mobile}</td>
+                                  <td className="py-2 px-3 font-semibold text-indigo-500">{b.trainingCenterLocation || 'General'}</td>
+                                  <td className="py-2 px-3">
+                                    <span className="bg-emerald-100 text-emerald-800 rounded px-1.5 py-0.5 text-[9px] font-black uppercase">
+                                      {b.paymentStatus || 'Paid'}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Swarojgaar Groups */}
+                    <div>
+                      <h3 className="text-xs font-black uppercase text-slate-800 border-b border-slate-100 pb-2 mb-3 tracking-wide">
+                        Mahila Swarojgaar Groups ({empActivityData.activities?.swarojgaarGroups?.length || 0})
+                      </h3>
+                      <div className="overflow-x-auto rounded-xl border border-slate-100 max-h-60 overflow-y-auto">
+                        <table className="w-full text-left border-collapse whitespace-nowrap">
+                          <thead>
+                            <tr className="bg-slate-50 text-slate-500 text-[10px] font-bold uppercase tracking-wider border-b border-slate-100 sticky top-0">
+                              <th className="py-2 px-3">Group Name</th>
+                              <th className="py-2 px-3">Leader Name</th>
+                              <th className="py-2 px-3">Contact</th>
+                              <th className="py-2 px-3">Total Members</th>
+                              <th className="py-2 px-3">District</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 text-slate-700 text-[11px]">
+                            {empActivityData.activities?.swarojgaarGroups?.length === 0 ? (
+                              <tr>
+                                <td colSpan="5" className="text-center py-6 text-slate-400 font-semibold">No Swarojgaar groups managed by this employee.</td>
+                              </tr>
+                            ) : (
+                              empActivityData.activities.swarojgaarGroups.map(g => (
+                                <tr key={g._id} className="hover:bg-slate-50/20">
+                                  <td className="py-2 px-3 font-bold text-slate-900">{g.groupName}</td>
+                                  <td className="py-2 px-3 font-semibold text-indigo-500">{g.groupLeaderName}</td>
+                                  <td className="py-2 px-3 text-slate-500">{g.groupLeaderPhone}</td>
+                                  <td className="py-2 px-3 font-bold text-slate-800">{g.membersCount || g.members?.length || 5} Members</td>
+                                  <td className="py-2 px-3 text-slate-400 font-medium">{g.location?.district || 'N/A'}</td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Security logs & Audit Trails */}
+                    <div>
+                      <h3 className="text-xs font-black uppercase text-slate-800 border-b border-slate-100 pb-2 mb-3 tracking-wide">
+                        Employee Activity Logs & Audit Trails ({empActivityData.activities?.logs?.length || 0})
+                      </h3>
+                      <div className="overflow-x-auto rounded-xl border border-slate-100 max-h-60 overflow-y-auto">
+                        <table className="w-full text-left border-collapse whitespace-nowrap">
+                          <thead>
+                            <tr className="bg-slate-50 text-slate-500 text-[10px] font-bold uppercase tracking-wider border-b border-slate-100 sticky top-0">
+                              <th className="py-2 px-3">Timestamp</th>
+                              <th className="py-2 px-3">Action</th>
+                              <th className="py-2 px-3">Status</th>
+                              <th className="py-2 px-3">IP Address</th>
+                              <th className="py-2 px-3">Browser / Agent</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 text-slate-700 text-[10px]">
+                            {empActivityData.activities?.logs?.length === 0 ? (
+                              <tr>
+                                <td colSpan="5" className="text-center py-6 text-slate-400 font-semibold">No logs registered for this employee.</td>
+                              </tr>
+                            ) : (
+                              empActivityData.activities.logs.map(log => (
                                 <tr key={log._id} className="hover:bg-slate-50/20 transition-all">
                                   <td className="py-2 px-3 font-bold text-slate-400">{new Date(log.createdAt).toLocaleString()}</td>
                                   <td className="py-2 px-3 font-bold text-[#ED1C24]">{log.action}</td>
