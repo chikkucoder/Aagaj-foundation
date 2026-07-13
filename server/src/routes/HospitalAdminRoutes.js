@@ -8,6 +8,10 @@ const jwt = require('jsonwebtoken');
 const HealthCard = require('../models/HealthCardSchema');
 const rateLimit = require('express-rate-limit');
 const AuditLog = require('../models/AuditLog');
+const Employee = require('../models/AddNewEmployeeSchema');
+const { Applicant, NormalApplicant } = require('../models/ApplicationSchema');
+const Beneficiary = require('../models/SilayiPrasikshanSchema');
+const SwarojgaarGroup = require('../models/SwarojgaarRegisterSchema');
 const { validateRequest } = require('../middleware/requestValidation');
 const {
     hospitalLoginSchema,
@@ -621,6 +625,141 @@ router.get('/admin/hospital-activity/:hospitalId', verifyAdmin, async (req, res)
                 logs
             }
         });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// 7. Admin Get Employee Activity Report (Admin Control)
+router.get('/admin/employee-activity', verifyAdmin, async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: "Access Denied. Only Admin can access employee activity." });
+        }
+
+        const rawEmail = (req.query.email || '').toString().trim();
+        if (!rawEmail) {
+            return res.status(400).json({ success: false, message: "Email parameter is required" });
+        }
+
+        // Try to find the user in Employee, Applicant, or NormalApplicant collections
+        const safeEmail = rawEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const emailRegex = new RegExp(`^${safeEmail}$`, 'i');
+
+        let user = await Employee.findOne({ email: emailRegex }).lean();
+        let userSource = 'employees';
+
+        if (!user) {
+            user = await Applicant.findOne({
+                $or: [{ email: emailRegex }, { emp_username: emailRegex }]
+            }).lean();
+            userSource = 'applicants';
+        }
+
+        if (!user) {
+            user = await NormalApplicant.findOne({
+                $or: [{ email: emailRegex }, { emp_username: emailRegex }]
+            }).lean();
+            userSource = 'normalApplicants';
+        }
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: "Employee/Candidate record not found" });
+        }
+
+        // Resolve all identifier values to match in registeredBy field
+        const identifiers = [
+            user.email,
+            user.emp_username,
+            user.fullName,
+            user.empId,
+            rawEmail
+        ].map((v) => (v || '').toString().trim()).filter((v) => v !== '');
+
+        const uniqueIdentifiers = Array.from(new Set(identifiers));
+
+        // Build registeredBy filter matching any identifier
+        const buildRegisteredByFilter = (values) => {
+            if (!values.length) return { registeredBy: 'Self' };
+            const regexFilters = values.map((val) => {
+                const safeVal = val.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                return { registeredBy: new RegExp(`^${safeVal}$`, 'i') };
+            });
+            return { $or: regexFilters };
+        };
+
+        const registeredByFilter = buildRegisteredByFilter(uniqueIdentifiers);
+        const role = user.designation || user.roleApplied || user.applyForPost || 'Employee';
+        const isDistrictCoordinator = role.toString().toLowerCase() === 'district coordinator';
+        const districtValue = (user.district || '').toString().trim();
+        const districtRegex = districtValue
+            ? new RegExp(`^${districtValue.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i')
+            : null;
+
+        // Apply filters depending on District Coordinator role or registeredBy
+        const healthCardFilter = (isDistrictCoordinator && districtRegex)
+            ? { 'address.district': districtRegex }
+            : registeredByFilter;
+
+        const swarojgaarFilter = (isDistrictCoordinator && districtRegex)
+            ? { 'location.district': districtRegex }
+            : registeredByFilter;
+
+        const ngoApplicationFilter = (isDistrictCoordinator && districtRegex)
+            ? { job_category: 'NGO', district: districtRegex }
+            : { job_category: 'NGO', ...registeredByFilter };
+
+        // Fetch documents
+        const [healthCards, silayiBeneficiaries, swarojgaarGroups, swasthyaPartners, ngoApplications] = await Promise.all([
+            HealthCard.find(healthCardFilter).sort({ createdAt: -1 }).limit(100).lean(),
+            Beneficiary.find(registeredByFilter).sort({ createdAt: -1 }).limit(100).lean(),
+            SwarojgaarGroup.find(swarojgaarFilter).sort({ createdAt: -1 }).limit(100).lean(),
+            HealthPartner.find(registeredByFilter).sort({ createdAt: -1 }).limit(100).lean(),
+            Applicant.find(ngoApplicationFilter).sort({ date: -1 }).limit(100).lean()
+        ]);
+
+        // Security Audit Logs
+        const logs = await AuditLog.find({
+            $or: [
+                { 'actor.id': String(user._id) },
+                { 'actor.uniqueId': user.empId || user.uniqueId || '' },
+                { 'actor.uniqueId': rawEmail }
+            ]
+        }).sort({ createdAt: -1 }).limit(100).lean();
+
+        res.json({
+            success: true,
+            data: {
+                profile: {
+                    fullName: user.fullName || 'N/A',
+                    email: user.email || user.emp_username || rawEmail,
+                    mobile: user.mobile || 'N/A',
+                    role,
+                    district: user.district || 'N/A',
+                    state: user.state || 'N/A',
+                    blockOrPlace: user.block || user.place || user.district || 'N/A',
+                    panchayat: user.panchayat || 'N/A',
+                    empId: user.empId || user.uniqueId || 'N/A',
+                    source: userSource
+                },
+                stats: {
+                    healthCardsCount: healthCards.length,
+                    silayiCount: silayiBeneficiaries.length,
+                    swarojgaarCount: swarojgaarGroups.length,
+                    swasthyaCount: swasthyaPartners.length,
+                    ngoCount: ngoApplications.length
+                },
+                activities: {
+                    healthCards,
+                    silayiBeneficiaries,
+                    swarojgaarGroups,
+                    swasthyaPartners,
+                    ngoApplications,
+                    logs
+                }
+            }
+        });
+
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }

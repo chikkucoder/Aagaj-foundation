@@ -141,6 +141,13 @@ export const getHospitalActivity = async (hospitalId) => {
   return response.data;
 };
 
+export const getEmployeeActivity = async (email) => {
+  const response = await apiClient.get('/api/hospital-admin-system/admin/employee-activity', {
+    params: { email }
+  });
+  return response.data;
+};
+
 // --- SWASTHYA SURAKSHA PARTNERS ---
 export const registerSwasthyaPartner = async (data) => {
   const response = await apiClient.post('/api/swasthya/register', data);
