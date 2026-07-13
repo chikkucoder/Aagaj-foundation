@@ -101,7 +101,7 @@ router.get('/admin/stats', verifyAdmin, async (req, res) => {
 router.get('/admin/hospitals', verifyAdmin, async (req, res) => {
     try {
         const hospitals = await HealthPartner.find({ category: 'Hospital' }).lean();
-        
+
         // Fetch billing and appointment stats for each hospital
         const hospitalData = await Promise.all(hospitals.map(async (h) => {
             const billStats = await PatientBill.aggregate([
@@ -160,7 +160,7 @@ router.get('/admin/global-reports', verifyAdmin, async (req, res) => {
         }
 
         const bills = await PatientBill.find(filter).sort({ date: -1 }).lean();
-        
+
         // Link hospital names to bills for better reporting
         const detailedReports = await Promise.all(bills.map(async (b) => {
             const hospital = await HealthPartner.findOne({ uniqueId: b.hospitalId }).select('businessName');
@@ -240,7 +240,7 @@ router.post('/admin/reset-hospital-password', verifyAdmin, validateRequest({ bod
 
         const { uniqueId, password } = req.body;
         const hashedPassword = await bcrypt.hash(password, 10);
-        
+
         const updated = await HealthPartner.findOneAndUpdate(
             { uniqueId },
             { password: hashedPassword },
@@ -261,7 +261,7 @@ router.post('/admin/reset-hospital-password', verifyAdmin, validateRequest({ bod
 router.post('/admin/register-hospital', verifyAdmin, validateRequest({ body: registerHospitalSchema }), async (req, res) => {
     try {
         const { biz, hashPass, license, city, state, pin, owner, phone, email, specialization } = req.body;
-        
+
         // --- 🩺 Robust Validation ---
         if (!biz || !license || !owner || !phone || !city || !state || !pin || !email || !hashPass) {
             return res.status(400).json({ success: false, message: "All fields are required!" });
@@ -305,9 +305,9 @@ router.post('/admin/register-hospital', verifyAdmin, validateRequest({ body: reg
         // 1. Generate Unique ID (Format: 100026 -> Counter + YearSuffix)
         const date = new Date();
         const yearSuffix = date.getFullYear().toString().slice(-2);
-        
-        const lastPartner = await HealthPartner.findOne({ 
-            uniqueId: { $regex: `${yearSuffix}$` } 
+
+        const lastPartner = await HealthPartner.findOne({
+            uniqueId: { $regex: `${yearSuffix}$` }
         }).sort({ _id: -1 });
 
         let counter = 1000;
@@ -356,10 +356,10 @@ router.patch('/admin/toggle-status/:uniqueId', verifyAdmin, async (req, res) => 
     try {
         const hospital = await HealthPartner.findOne({ uniqueId: req.params.uniqueId });
         if (!hospital) return res.status(404).json({ success: false, message: "Hospital not found" });
-        
+
         hospital.isActive = !hospital.isActive;
         await hospital.save();
-        res.json({ success: true, message: `Hospital is now ${hospital.isActive?'Active':'Disabled'}`, isActive: hospital.isActive });
+        res.json({ success: true, message: `Hospital is now ${hospital.isActive ? 'Active' : 'Disabled'}`, isActive: hospital.isActive });
     } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
@@ -367,7 +367,7 @@ router.patch('/admin/toggle-status/:uniqueId', verifyAdmin, async (req, res) => 
 router.put('/admin/edit-hospital/:uniqueId', verifyAdmin, validateRequest({ body: editHospitalSchema }), async (req, res) => {
     try {
         const { biz, license, city, state, pin, owner, phone, email, specialization } = req.body;
-        
+
         // Basic validation
         if (!biz || !license || !owner || !phone || !city || !state || !pin || !email) {
             return res.status(400).json({ success: false, message: "All fields are required!" });
@@ -477,16 +477,16 @@ router.post('/hospital/login', hospitalAuthLimiter, validateRequest({ body: hosp
         if (!isMatch) return res.status(401).json({ success: false, message: "Invalid Credentials" });
 
         const token = jwt.sign({ id: hospital._id, uniqueId: hospital.uniqueId, role: 'hospital' }, process.env.JWT_SECRET, { expiresIn: '1d' });
-        
-        res.json({ 
-            success: true, 
-            token, 
-            hospital: { 
-                name: hospital.businessName, 
+
+        res.json({
+            success: true,
+            token,
+            hospital: {
+                name: hospital.businessName,
                 uniqueId: hospital.uniqueId,
                 loginId: hospital.loginId || hospital.uniqueId,
                 email: hospital.email
-            } 
+            }
         });
     } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
@@ -508,7 +508,7 @@ router.post('/hospital/add-bill', verifyHospital, validateRequest({ body: addBil
         if (!patientName || !patientMobile || !treatmentDetails || !billAmount) {
             return res.status(400).json({ success: false, message: 'Missing required billing fields' });
         }
-        
+
         const billId = 'BILL-' + Date.now();
         const newBill = new PatientBill({
             billId, hospitalId, healthId, patientName, patientMobile, treatmentDetails, billAmount, status, billPhoto
@@ -524,13 +524,13 @@ router.get('/hospital/verify-patient/:healthId', verifyHospital, async (req, res
     try {
         const patient = await HealthCard.findOne({ healthId: req.params.healthId });
         if (!patient) return res.status(404).json({ success: false, message: "Patient not found. Re-check Health ID." });
-        
-        res.json({ 
-            success: true, 
-            data: { 
-                name: patient.fullName, 
-                mobile: patient.mobile 
-            } 
+
+        res.json({
+            success: true,
+            data: {
+                name: patient.fullName,
+                mobile: patient.mobile
+            }
         });
     } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
@@ -542,6 +542,88 @@ router.get('/hospital/appointments', verifyHospital, validateRequest({ query: ho
         const appointments = await Appointment.find({ hospitalId }).sort({ date: -1 });
         res.json({ success: true, data: appointments });
     } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+});
+
+// 5. Update Appointment Status (Approve/Reject)
+router.patch('/hospital/update-appointment-status', verifyHospital, async (req, res) => {
+    try {
+        const { appointmentId, status, hospitalId } = req.body;
+        if (!appointmentId || !status || !hospitalId) {
+            return res.status(400).json({ success: false, message: "Missing required fields" });
+        }
+
+        // Enforce scope
+        if (hospitalId !== req.hospitalUser.uniqueId) {
+            return res.status(403).json({ success: false, message: "Forbidden: hospital scope mismatch" });
+        }
+
+        // Validate status
+        const validStatuses = ['Approved', 'Rejected', 'Pending'];
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({ success: false, message: "Invalid status value" });
+        }
+
+        const appointment = await Appointment.findOneAndUpdate(
+            { _id: appointmentId, hospitalId },
+            { status },
+            { new: true }
+        );
+
+        if (!appointment) {
+            return res.status(404).json({ success: false, message: "Appointment not found" });
+        }
+
+        res.json({ success: true, message: `Appointment status updated to ${status} successfully`, data: appointment });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// 6. Admin Get Hospital Activity (Admin Control)
+router.get('/admin/hospital-activity/:hospitalId', verifyAdmin, async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: "Access Denied. Only Admin can access hospital activity." });
+        }
+
+        const { hospitalId } = req.params;
+
+        const hospital = await HealthPartner.findOne({ uniqueId: hospitalId, category: 'Hospital' }).select('-password').lean();
+        if (!hospital) {
+            return res.status(404).json({ success: false, message: "Hospital not found" });
+        }
+
+        // Fetch bills
+        const bills = await PatientBill.find({ hospitalId }).sort({ date: -1 }).lean();
+
+        // Fetch appointments
+        const appointments = await Appointment.find({ hospitalId }).sort({ date: -1 }).lean();
+
+        // Fetch audit logs of the hospital actor
+        const logs = await AuditLog.find({ 'actor.uniqueId': hospitalId }).sort({ createdAt: -1 }).limit(100).lean();
+
+        // Calculate stats
+        const totalBills = bills.length;
+        const totalBilling = bills.reduce((sum, b) => sum + (b.billAmount || 0), 0);
+        const totalAppointments = appointments.length;
+
+        res.json({
+            success: true,
+            data: {
+                hospital,
+                stats: {
+                    totalBills,
+                    totalBilling,
+                    totalAppointments
+                },
+                bills,
+                appointments,
+                logs
+            }
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
 });
 
 module.exports = router;

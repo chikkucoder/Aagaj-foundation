@@ -14,7 +14,8 @@ import {
   getHospitalBills,
   addHospitalBill,
   verifyHospitalPatient,
-  getHospitalAppointments
+  getHospitalAppointments,
+  updateHospitalAppointmentStatus
 } from '../api/userApi';
 import {
   Building,
@@ -58,12 +59,12 @@ const HospitalDashboard = () => {
   const [hospitalsList, setHospitalsList] = useState([]);
   const [globalReports, setGlobalReports] = useState([]);
   const [adminActiveTab, setAdminActiveTab] = useState('partners'); // 'partners', 'reports'
-  
+
   // Modals inside Admin
   const [showRegModal, setShowRegModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCredsModal, setShowCredsModal] = useState(false);
-  
+
   const [selectedHospital, setSelectedHospital] = useState(null);
   const [specializations, setSpecializations] = useState([]);
   const [specInput, setSpecInput] = useState('');
@@ -145,6 +146,31 @@ const HospitalDashboard = () => {
     }
   };
 
+  const handleUpdateAppointmentStatus = async (appointmentId, status) => {
+    const hospId = sessionStorage.getItem('loggedInHospitalId') || user?.uniqueId;
+    if (!hospId) {
+      alert('Hospital partner ID not found.');
+      return;
+    }
+    
+    try {
+      const res = await updateHospitalAppointmentStatus({
+        appointmentId,
+        status,
+        hospitalId: hospId
+      });
+      if (res.success) {
+        alert(`Appointment status updated to ${status}`);
+        fetchPartnerData(); // Refresh list
+      } else {
+        alert(res.message || 'Failed to update status');
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || 'Server error. Failed to update status.');
+    }
+  };
+
   useEffect(() => {
     if (isAdmin) {
       fetchAdminData();
@@ -194,7 +220,7 @@ const HospitalDashboard = () => {
   const handleOpenEdit = (hosp) => {
     setSelectedHospital(hosp);
     setSpecializations(Array.isArray(hosp.specialization) ? hosp.specialization : [hosp.specialization].filter(Boolean));
-    
+
     setEditValue('businessName', hosp.businessName);
     setEditValue('licenseNumber', hosp.licenseNumber);
     setEditValue('ownerName', hosp.contact?.ownerName || '');
@@ -410,7 +436,7 @@ const HospitalDashboard = () => {
                 </span>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-4">
               <div className="hidden md:block text-right">
                 <p className="text-xs text-slate-400 font-medium">{isAdmin ? 'Logged in as Owner' : 'Logged in as Partner'}</p>
@@ -429,7 +455,7 @@ const HospitalDashboard = () => {
 
       {/* Main Panel Content */}
       <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 mt-8">
-        
+
         {/* Alerts */}
         {errorMsg && (
           <div className="mb-4 rounded-xl bg-rose-50 p-4 text-sm font-semibold text-rose-600 border border-rose-100 flex items-center gap-2">
@@ -452,7 +478,7 @@ const HospitalDashboard = () => {
                 <h2 className="text-2xl font-black text-slate-800">Master Hospital Controller</h2>
                 <p className="text-slate-500 text-sm font-medium">Register medical facilities, track treatments global ledger, and review patient billing.</p>
               </div>
-              
+
               <div className="flex flex-wrap gap-2 w-full md:w-auto">
                 <button
                   onClick={fetchAdminData}
@@ -523,28 +549,26 @@ const HospitalDashboard = () => {
 
             {/* Admin Subtabs Table Display Panel */}
             <div className="bg-white rounded-3xl border border-slate-100 shadow-xl p-6">
-              
+
               {/* Tab Selector + Search Toolbar */}
               <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 mb-6 pb-6 border-b border-slate-100">
                 <div className="flex space-x-2 bg-slate-100 p-1 rounded-xl">
                   <button
                     onClick={() => { setAdminActiveTab('partners'); setSearchTerm(''); }}
-                    className={`rounded-lg px-4 py-2 text-xs font-bold transition-all ${
-                      adminActiveTab === 'partners' ? 'bg-white text-slate-900 shadow' : 'text-slate-500 hover:text-slate-800'
-                    }`}
+                    className={`rounded-lg px-4 py-2 text-xs font-bold transition-all ${adminActiveTab === 'partners' ? 'bg-white text-slate-900 shadow' : 'text-slate-500 hover:text-slate-800'
+                      }`}
                   >
                     Medical Partners Management
                   </button>
                   <button
                     onClick={() => { setAdminActiveTab('reports'); setSearchTerm(''); }}
-                    className={`rounded-lg px-4 py-2 text-xs font-bold transition-all ${
-                      adminActiveTab === 'reports' ? 'bg-white text-slate-900 shadow' : 'text-slate-500 hover:text-slate-800'
-                    }`}
+                    className={`rounded-lg px-4 py-2 text-xs font-bold transition-all ${adminActiveTab === 'reports' ? 'bg-white text-slate-900 shadow' : 'text-slate-500 hover:text-slate-800'
+                      }`}
                   >
                     Global Patient Billing Ledgers
                   </button>
                 </div>
-                
+
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
                     <Search className="h-4 w-4" />
@@ -606,9 +630,8 @@ const HospitalDashboard = () => {
                               <td className="py-3 px-4">
                                 <button
                                   onClick={() => handleToggleStatus(h.uniqueId)}
-                                  className={`rounded-full px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide cursor-pointer transition-all ${
-                                    h.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                                  }`}
+                                  className={`rounded-full px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide cursor-pointer transition-all ${h.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                                    }`}
                                 >
                                   {h.isActive ? 'Active' : 'Disabled'}
                                 </button>
@@ -631,9 +654,8 @@ const HospitalDashboard = () => {
                                   </button>
                                   <button
                                     onClick={() => handleOpenCreds(h)}
-                                    className={`rounded px-2 py-1 text-[10px] font-bold border cursor-pointer flex items-center gap-0.5 ${
-                                      h.hasCredentials ? 'bg-slate-900 text-white hover:bg-slate-800' : 'border-rose-300 text-rose-600 hover:bg-rose-50'
-                                    }`}
+                                    className={`rounded px-2 py-1 text-[10px] font-bold border cursor-pointer flex items-center gap-0.5 ${h.hasCredentials ? 'bg-slate-900 text-white hover:bg-slate-800' : 'border-rose-300 text-rose-600 hover:bg-rose-50'
+                                      }`}
                                   >
                                     <Lock className="h-3 w-3" /> {h.hasCredentials ? 'Manage' : 'Assign'}
                                   </button>
@@ -676,9 +698,8 @@ const HospitalDashboard = () => {
                               <td className="py-3 px-4 max-w-xs truncate text-slate-400">{r.treatmentDetails}</td>
                               <td className="py-3 px-4 font-black text-slate-900">₹{r.billAmount}</td>
                               <td className="py-3 px-4">
-                                <span className={`inline-flex rounded px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide ${
-                                  r.status === 'Paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                                }`}>
+                                <span className={`inline-flex rounded px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide ${r.status === 'Paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                                  }`}>
                                   {r.status}
                                 </span>
                               </td>
@@ -745,23 +766,21 @@ const HospitalDashboard = () => {
 
             {/* Individual Partner Tabs Display */}
             <div className="bg-white rounded-3xl border border-slate-100 shadow-xl p-6">
-              
+
               {/* Toolbar */}
               <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 mb-6 pb-6 border-b border-slate-100">
                 <div className="flex space-x-2 bg-slate-100 p-1 rounded-xl">
                   <button
                     onClick={() => { setPartnerActiveTab('bills'); setSearchTerm(''); }}
-                    className={`rounded-lg px-4 py-2 text-xs font-bold transition-all ${
-                      partnerActiveTab === 'bills' ? 'bg-white text-slate-900 shadow' : 'text-slate-500 hover:text-slate-800'
-                    }`}
+                    className={`rounded-lg px-4 py-2 text-xs font-bold transition-all ${partnerActiveTab === 'bills' ? 'bg-white text-slate-900 shadow' : 'text-slate-500 hover:text-slate-800'
+                      }`}
                   >
                     Treatments & Patient Billing
                   </button>
                   <button
                     onClick={() => { setPartnerActiveTab('appointments'); setSearchTerm(''); }}
-                    className={`rounded-lg px-4 py-2 text-xs font-bold transition-all ${
-                      partnerActiveTab === 'appointments' ? 'bg-white text-slate-900 shadow' : 'text-slate-500 hover:text-slate-800'
-                    }`}
+                    className={`rounded-lg px-4 py-2 text-xs font-bold transition-all ${partnerActiveTab === 'appointments' ? 'bg-white text-slate-900 shadow' : 'text-slate-500 hover:text-slate-800'
+                      }`}
                   >
                     Clinic Appointments
                   </button>
@@ -822,9 +841,8 @@ const HospitalDashboard = () => {
                               <td className="py-3 px-4 max-w-xs truncate text-slate-400">{b.treatmentDetails}</td>
                               <td className="py-3 px-4 font-black text-slate-900">₹{b.billAmount}</td>
                               <td className="py-3 px-4">
-                                <span className={`inline-flex rounded px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide ${
-                                  b.status === 'Paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                                }`}>
+                                <span className={`inline-flex rounded px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wide ${b.status === 'Paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                                  }`}>
                                   {b.status}
                                 </span>
                               </td>
@@ -870,20 +888,47 @@ const HospitalDashboard = () => {
                               <td className="py-3 px-4 font-bold text-slate-900">{a.name}</td>
                               <td className="py-3 px-4 font-black text-rose-600">{a.healthId}</td>
                               <td className="py-3 px-4">
-                                <span className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-black uppercase ${
-                                  a.appointmentType === 'teleconsultation' 
-                                    ? 'bg-purple-100 text-purple-800' 
+                                <span className={`inline-flex rounded-full px-2 py-0.5 text-[9px] font-black uppercase ${a.appointmentType === 'teleconsultation'
+                                    ? 'bg-purple-100 text-purple-800'
                                     : 'bg-blue-100 text-blue-800'
-                                }`}>
+                                  }`}>
                                   {a.appointmentType === 'teleconsultation' ? 'Teleconsultation' : 'Physical Visit'}
                                 </span>
                               </td>
                               <td className="py-3 px-4 font-semibold text-indigo-600">{a.department}</td>
                               <td className="py-3 px-4 text-slate-400 truncate max-w-xs">{a.message}</td>
                               <td className="py-3 px-4">
-                                <span className="bg-slate-100 text-slate-600 rounded px-1.5 py-0.5 text-[9px] font-black uppercase">
-                                  {a.status || 'Pending'}
-                                </span>
+                                {(!a.status || a.status === 'Pending') ? (
+                                  <div className="flex flex-col gap-1 items-start">
+                                    <span className="bg-amber-100 text-amber-800 rounded px-1.5 py-0.5 text-[9px] font-black uppercase">
+                                      Pending
+                                    </span>
+                                    <div className="flex gap-1.5 mt-1">
+                                      <button
+                                        onClick={() => handleUpdateAppointmentStatus(a._id, 'Approved')}
+                                        className="rounded bg-emerald-100 px-2 py-0.5 text-[9px] font-bold text-emerald-800 hover:bg-emerald-200 transition-all cursor-pointer"
+                                        title="Approve Appointment"
+                                      >
+                                        Approve
+                                      </button>
+                                      <button
+                                        onClick={() => handleUpdateAppointmentStatus(a._id, 'Rejected')}
+                                        className="rounded bg-rose-100 px-2 py-0.5 text-[9px] font-bold text-rose-800 hover:bg-rose-200 transition-all cursor-pointer"
+                                        title="Reject Appointment"
+                                      >
+                                        Reject
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : a.status === 'Approved' ? (
+                                  <span className="bg-emerald-100 text-emerald-800 rounded px-1.5 py-0.5 text-[9px] font-black uppercase">
+                                    Approved
+                                  </span>
+                                ) : (
+                                  <span className="bg-rose-100 text-rose-800 rounded px-1.5 py-0.5 text-[9px] font-black uppercase">
+                                    Rejected
+                                  </span>
+                                )}
                               </td>
                             </tr>
                           ))
@@ -914,7 +959,7 @@ const HospitalDashboard = () => {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            
+
             <form onSubmit={handleRegHospSubmit(onRegisterHospital)} className="p-6 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -925,7 +970,7 @@ const HospitalDashboard = () => {
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">License Number</label>
                   <input type="text" {...regHosp('licenseNumber', { required: true })} className="block mt-1 w-full rounded-xl border border-slate-200 py-2 px-3 text-slate-800 text-sm focus:border-rose-500 outline-none" placeholder="LIC/2026/01" />
                 </div>
-                
+
                 {/* Specializations Category Dynamic Tag Input */}
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Specialization Departments</label>
@@ -943,7 +988,7 @@ const HospitalDashboard = () => {
                         onChange={(e) => setSpecInput(e.target.value)}
                         placeholder="Add categories (e.g. ICU, Dental)..."
                         className="flex-grow bg-transparent outline-none border-none py-1 text-sm text-slate-800"
-                        onKeyDown={(e) => { if(e.key === 'Enter') { e.preventDefault(); addSpecializationTag(); } }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addSpecializationTag(); } }}
                       />
                       <button type="button" onClick={addSpecializationTag} className="bg-slate-900 text-white rounded-lg px-2 py-1 text-xs font-bold">Add</button>
                     </div>
@@ -975,7 +1020,7 @@ const HospitalDashboard = () => {
                 </div>
 
                 <div className="sm:col-span-2 h-px bg-slate-100 my-2"></div>
-                
+
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider text-rose-600">Secure Login ID (Email)</label>
                   <input type="email" {...regHosp('email', { required: true })} className="block mt-1 w-full rounded-xl border border-rose-200 py-2 px-3 text-slate-800 text-sm focus:border-rose-500 outline-none" placeholder="hospital@foundation.com" />
@@ -1004,7 +1049,7 @@ const HospitalDashboard = () => {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            
+
             <form onSubmit={handleEditHospSubmit(onUpdateHospital)} className="p-6 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
@@ -1015,7 +1060,7 @@ const HospitalDashboard = () => {
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">License Number</label>
                   <input type="text" {...regEditHosp('licenseNumber', { required: true })} className="block mt-1 w-full rounded-xl border border-slate-200 py-2 px-3 text-slate-800 text-sm focus:border-rose-500 outline-none" />
                 </div>
-                
+
                 {/* Edit Specializations */}
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Specialization Departments</label>
@@ -1033,7 +1078,7 @@ const HospitalDashboard = () => {
                         onChange={(e) => setSpecInput(e.target.value)}
                         placeholder="Add categories..."
                         className="flex-grow bg-transparent outline-none border-none py-1 text-sm text-slate-800"
-                        onKeyDown={(e) => { if(e.key === 'Enter') { e.preventDefault(); addSpecializationTag(); } }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addSpecializationTag(); } }}
                       />
                       <button type="button" onClick={addSpecializationTag} className="bg-slate-900 text-white rounded-lg px-2 py-1 text-xs font-bold">Add</button>
                     </div>
@@ -1088,13 +1133,13 @@ const HospitalDashboard = () => {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            
+
             <form onSubmit={handleCredsSubmit(onGenerateCreds)} className="p-6 space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Facility Business Name</label>
                 <input type="text" value={selectedHospital.businessName} readOnly className="block mt-1 w-full rounded-xl border-none bg-slate-50 py-2.5 px-3 text-slate-600 text-sm font-semibold outline-none cursor-not-allowed" />
               </div>
-              
+
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider text-rose-600">Assign Login Username (Email)</label>
                 <input type="email" defaultValue={selectedHospital.email} {...regCreds('email', { required: true })} className="block mt-1 w-full rounded-xl border border-rose-200 py-2.5 px-3 text-slate-800 text-sm focus:border-rose-500 outline-none" placeholder="facility@foundation.com" />
@@ -1123,9 +1168,9 @@ const HospitalDashboard = () => {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            
+
             <form onSubmit={handleBillSubmit(onAddBillSubmit)} className="p-6 space-y-4">
-              
+
               {/* Health ID Checkbox Input group */}
               <div>
                 <label className="block text-xs font-bold text-rose-600 uppercase tracking-wider">Patient Health Card ID (Unique)</label>

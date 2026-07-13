@@ -18,6 +18,7 @@ import {
   resetHospitalPassword,
   getHospitalGlobalReports,
   getHospitalAuditLogs,
+  getHospitalActivity,
   getAdminTransactions
 } from '../api/userApi';
 import apiClient from '../api/apiClient';
@@ -180,6 +181,12 @@ const AdminDashboard = () => {
   const [showResetPassModal, setShowResetPassModal] = useState(false);
   const [resetPassError, setResetPassError] = useState('');
   const { register: regResetPass, handleSubmit: handleResetPassSubmit, formState: { errors: resetPassErrors }, reset: resetResetPassForm } = useForm();
+
+  // Hospital Activity Report Modal States
+  const [showHospActivityModal, setShowHospActivityModal] = useState(false);
+  const [hospActivityData, setHospActivityData] = useState(null);
+  const [hospActivityLoading, setHospActivityLoading] = useState(false);
+  const [hospActivityError, setHospActivityError] = useState('');
 
 
   const { register: regCustomCard, handleSubmit: handleCustomCardSubmit, formState: { errors: customCardErrors }, reset: resetCustomCardForm, setValue: setCustomCardValue, watch: watchCustomCard } = useForm({
@@ -809,6 +816,26 @@ const AdminDashboard = () => {
       }
     } catch (err) {
       setResetPassError(err.response?.data?.message || 'Server connection error');
+    }
+  };
+
+  // View Hospital Activity logs and stats
+  const handleViewHospitalActivity = async (hospitalId) => {
+    setHospActivityError('');
+    setHospActivityLoading(true);
+    setHospActivityData(null);
+    setShowHospActivityModal(true);
+    try {
+      const res = await getHospitalActivity(hospitalId);
+      if (res.success) {
+        setHospActivityData(res.data);
+      } else {
+        setHospActivityError(res.message || 'Failed to load activity details.');
+      }
+    } catch (err) {
+      setHospActivityError(err.response?.data?.message || 'Server connection error.');
+    } finally {
+      setHospActivityLoading(false);
     }
   };
 
@@ -1672,6 +1699,13 @@ const AdminDashboard = () => {
                               </td>
                               <td className="py-3 px-4 text-right">
                                 <div className="flex justify-end gap-1">
+                                  <button
+                                    onClick={() => handleViewHospitalActivity(hosp.uniqueId)}
+                                    className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 transition-all cursor-pointer"
+                                    title="View Hospital Activity Logs & Stats"
+                                  >
+                                    <Activity className="h-3.5 w-3.5" />
+                                  </button>
                                   <button
                                     onClick={() => { setSelectedHospital(hosp); resetEditHospForm(); setShowEditHospModal(true); }}
                                     className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-all cursor-pointer"
@@ -3923,6 +3957,210 @@ const AdminDashboard = () => {
                   Reset Password & Update Securely
                 </button>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL 6.6. INDIVIDUAL HOSPITAL ACTIVITY REPORT & LOGS --- */}
+      {showHospActivityModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
+          <div className="w-full max-w-4xl overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 animate-fade-in flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 p-4">
+              <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-tight flex items-center gap-1.5">
+                <Activity className="h-4.5 w-4.5 text-emerald-500" /> Hospital Activity & Tracking
+              </h3>
+              <button onClick={() => setShowHospActivityModal(false)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 cursor-pointer">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto flex-1 space-y-6">
+              {hospActivityLoading && (
+                <div className="flex flex-col items-center justify-center py-20 gap-3">
+                  <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-[#ED1C24]"></div>
+                  <span className="text-xs font-bold text-slate-500">Loading activity data...</span>
+                </div>
+              )}
+
+              {hospActivityError && (
+                <div className="rounded-xl bg-rose-50 p-4 text-xs font-semibold text-rose-600 border border-rose-100">
+                  {hospActivityError}
+                </div>
+              )}
+
+              {!hospActivityLoading && !hospActivityError && hospActivityData && (
+                <>
+                  {/* Hospital Details Card */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="md:col-span-2 bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                      <h4 className="text-xs font-black uppercase text-slate-400 mb-2">Partner Details</h4>
+                      <h2 className="text-base font-extrabold text-slate-900">{hospActivityData.hospital?.businessName}</h2>
+                      <p className="text-[11px] text-indigo-500 font-bold mb-3">{hospActivityData.hospital?.specialization?.join(', ') || 'General Medicine'}</p>
+                      
+                      <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-xs text-slate-600">
+                        <div><strong className="text-slate-400 font-medium">Owner:</strong> {hospActivityData.hospital?.contact?.ownerName}</div>
+                        <div><strong className="text-slate-400 font-medium">WhatsApp:</strong> {hospActivityData.hospital?.contact?.whatsappNumber}</div>
+                        <div><strong className="text-slate-400 font-medium">Location:</strong> {hospActivityData.hospital?.address?.city}, {hospActivityData.hospital?.address?.state}</div>
+                        <div><strong className="text-slate-400 font-medium">License No:</strong> {hospActivityData.hospital?.licenseNumber}</div>
+                      </div>
+                    </div>
+
+                    {/* Stats Metrics */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-emerald-50/50 rounded-2xl p-3 border border-emerald-100 flex flex-col justify-between">
+                        <span className="text-[9px] font-black uppercase text-emerald-600">Total Collection</span>
+                        <span className="text-base font-black text-emerald-800">₹{hospActivityData.stats?.totalBilling}</span>
+                      </div>
+                      <div className="bg-blue-50/50 rounded-2xl p-3 border border-blue-100 flex flex-col justify-between">
+                        <span className="text-[9px] font-black uppercase text-blue-600">Bills Generated</span>
+                        <span className="text-base font-black text-blue-800">{hospActivityData.stats?.totalBills}</span>
+                      </div>
+                      <div className="bg-purple-50/50 rounded-2xl p-3 border border-purple-100 flex flex-col justify-between col-span-2">
+                        <span className="text-[9px] font-black uppercase text-purple-600">Booked Appointments</span>
+                        <span className="text-base font-black text-purple-800">{hospActivityData.stats?.totalAppointments}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Activity Tab Section */}
+                  <div className="space-y-6">
+                    {/* Clinic Appointments */}
+                    <div>
+                      <h3 className="text-xs font-black uppercase text-slate-800 border-b border-slate-100 pb-2 mb-3 tracking-wide">
+                        Clinic Appointments ({hospActivityData.appointments?.length || 0})
+                      </h3>
+                      <div className="overflow-x-auto rounded-xl border border-slate-100">
+                        <table className="w-full text-left border-collapse whitespace-nowrap">
+                          <thead>
+                            <tr className="bg-slate-50 text-slate-500 text-[10px] font-bold uppercase tracking-wider border-b border-slate-100">
+                              <th className="py-2 px-3">Date</th>
+                              <th className="py-2 px-3">Patient Name</th>
+                              <th className="py-2 px-3">Health Card ID</th>
+                              <th className="py-2 px-3">Type</th>
+                              <th className="py-2 px-3">Department</th>
+                              <th className="py-2 px-3">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 text-slate-700 text-[11px]">
+                            {hospActivityData.appointments?.length === 0 ? (
+                              <tr>
+                                <td colSpan="6" className="text-center py-6 text-slate-400 font-semibold">No appointments found.</td>
+                              </tr>
+                            ) : (
+                              hospActivityData.appointments.map(a => (
+                                <tr key={a._id} className="hover:bg-slate-50/20 transition-all">
+                                  <td className="py-2.5 px-3 font-bold text-slate-400">{a.date}</td>
+                                  <td className="py-2.5 px-3 font-bold text-slate-900">{a.name}</td>
+                                  <td className="py-2.5 px-3 font-black text-rose-600">{a.healthId}</td>
+                                  <td className="py-2.5 px-3 uppercase text-[9px] font-bold text-slate-500">{a.appointmentType?.replace('_', ' ')}</td>
+                                  <td className="py-2.5 px-3 font-semibold text-indigo-500">{a.department}</td>
+                                  <td className="py-2.5 px-3">
+                                    <span className={`inline-flex rounded px-1.5 py-0.5 text-[9px] font-black uppercase ${
+                                      a.status === 'Approved' ? 'bg-emerald-100 text-emerald-800' :
+                                      a.status === 'Rejected' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'
+                                    }`}>
+                                      {a.status || 'Pending'}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Patient Bills */}
+                    <div>
+                      <h3 className="text-xs font-black uppercase text-slate-800 border-b border-slate-100 pb-2 mb-3 tracking-wide">
+                        Billing & Treatment History ({hospActivityData.bills?.length || 0})
+                      </h3>
+                      <div className="overflow-x-auto rounded-xl border border-slate-100">
+                        <table className="w-full text-left border-collapse whitespace-nowrap">
+                          <thead>
+                            <tr className="bg-slate-50 text-slate-500 text-[10px] font-bold uppercase tracking-wider border-b border-slate-100">
+                              <th className="py-2 px-3">Bill ID</th>
+                              <th className="py-2 px-3">Patient Name</th>
+                              <th className="py-2 px-3">Health Card</th>
+                              <th className="py-2 px-3">Details</th>
+                              <th className="py-2 px-3 text-right">Amount</th>
+                              <th className="py-2 px-3">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 text-slate-700 text-[11px]">
+                            {hospActivityData.bills?.length === 0 ? (
+                              <tr>
+                                <td colSpan="6" className="text-center py-6 text-slate-400 font-semibold">No bills generated.</td>
+                              </tr>
+                            ) : (
+                              hospActivityData.bills.map(b => (
+                                <tr key={b._id} className="hover:bg-slate-50/20 transition-all">
+                                  <td className="py-2.5 px-3 font-bold text-slate-400">{b.billId}</td>
+                                  <td className="py-2.5 px-3 font-bold text-slate-900">{b.patientName}</td>
+                                  <td className="py-2.5 px-3 font-bold text-slate-500">{b.healthId || 'General'}</td>
+                                  <td className="py-2.5 px-3 truncate max-w-[150px] text-slate-400">{b.treatmentDetails}</td>
+                                  <td className="py-2.5 px-3 text-right font-black text-slate-900">₹{b.billAmount}</td>
+                                  <td className="py-2.5 px-3">
+                                    <span className={`inline-flex rounded px-1.5 py-0.5 text-[9px] font-black uppercase ${
+                                      b.status === 'Paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                                    }`}>
+                                      {b.status}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Audit Logs */}
+                    <div>
+                      <h3 className="text-xs font-black uppercase text-slate-800 border-b border-slate-100 pb-2 mb-3 tracking-wide">
+                        Hospital Activity Logs & Audit Trails ({hospActivityData.logs?.length || 0})
+                      </h3>
+                      <div className="overflow-x-auto rounded-xl border border-slate-100">
+                        <table className="w-full text-left border-collapse whitespace-nowrap">
+                          <thead>
+                            <tr className="bg-slate-50 text-slate-500 text-[10px] font-bold uppercase tracking-wider border-b border-slate-100">
+                              <th className="py-2 px-3">Timestamp</th>
+                              <th className="py-2 px-3">Action</th>
+                              <th className="py-2 px-3">Status Code</th>
+                              <th className="py-2 px-3">IP Address</th>
+                              <th className="py-2 px-3">Agent</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 text-slate-700 text-[10px]">
+                            {hospActivityData.logs?.length === 0 ? (
+                              <tr>
+                                <td colSpan="5" className="text-center py-6 text-slate-400 font-semibold">No logs registered for this hospital.</td>
+                              </tr>
+                            ) : (
+                              hospActivityData.logs.map(log => (
+                                <tr key={log._id} className="hover:bg-slate-50/20 transition-all">
+                                  <td className="py-2 px-3 font-bold text-slate-400">{new Date(log.createdAt).toLocaleString()}</td>
+                                  <td className="py-2 px-3 font-bold text-[#ED1C24]">{log.action}</td>
+                                  <td className="py-2 px-3">
+                                    <span className={`inline-flex rounded px-1.5 py-0.5 font-bold uppercase ${
+                                      log.statusCode >= 200 && log.statusCode < 300 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                                    }`}>
+                                      {log.statusCode}
+                                    </span>
+                                  </td>
+                                  <td className="py-2 px-3 font-mono">{log.ipAddress || '127.0.0.1'}</td>
+                                  <td className="py-2 px-3 text-slate-400 max-w-xs truncate">{log.userAgent}</td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
