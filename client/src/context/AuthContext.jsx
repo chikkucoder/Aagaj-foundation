@@ -19,9 +19,27 @@ export const AuthProvider = ({ children }) => {
     if (storedRole) {
       setRole(storedRole.toLowerCase());
       setToken(storedToken);
+      
+      let uniqueId = localStorage.getItem('loggedInHospitalId') || sessionStorage.getItem('loggedInHospitalId') || null;
+      if (!uniqueId && storedToken) {
+        try {
+          // Decode payload of JWT token to retrieve uniqueId
+          const base64Url = storedToken.split('.')[1];
+          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+          const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+              return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+          }).join(''));
+          const decoded = JSON.parse(jsonPayload);
+          uniqueId = decoded.uniqueId || null;
+        } catch (e) {
+          console.error("Token decode error during hydration:", e);
+        }
+      }
+
       setUser({
         fullName: storedUserName,
         email: storedUserEmail,
+        uniqueId: uniqueId
       });
     }
     setLoading(false);
@@ -56,6 +74,7 @@ export const AuthProvider = ({ children }) => {
           setRole('admin');
         } else if (selectedRole === 'hospital') {
           localStorage.setItem('token', data.token);
+          localStorage.setItem('loggedInHospitalId', data.hospital.uniqueId);
           setToken(data.token);
           sessionStorage.setItem('loggedInUser', data.hospital.name);
           sessionStorage.setItem('loggedInRole', 'Hospital');
