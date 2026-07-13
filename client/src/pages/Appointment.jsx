@@ -668,6 +668,7 @@ const Appointment = () => {
                           <option value="Pharmacy">Chemist Shop</option>
                           <option value="Lab">Diagnostics Lab / Patholab</option>
                           <option value="IndividualClinic">Individual Clinic / Doctor</option>
+                          <option value="BloodBank">Blood Bank</option>
                         </select>
                       </div>
 

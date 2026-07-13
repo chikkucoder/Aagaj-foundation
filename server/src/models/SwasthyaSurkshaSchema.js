@@ -8,7 +8,7 @@ const healthPartnerSchema = new mongoose.Schema({
     category: {
         type: String,
         required: true,
-        enum: ['Hospital', 'Lab', 'Pharmacy', 'IndividualClinic'] // केवल यही 4 वैल्यू आ सकती हैं
+        enum: ['Hospital', 'Lab', 'Pharmacy', 'IndividualClinic', 'BloodBank'] // केवल यही 5 वैल्यू आ सकती हैं
     },
     businessName: {
         type: String,
@@ -23,6 +23,7 @@ const healthPartnerSchema = new mongoose.Schema({
     nablStatus: { type: String, trim: true },        // For Lab
     drugLicenseExpiry: { type: String, trim: true }, // For Pharmacy
     numberOfBeds: { type: String, trim: true },      // For Hospital
+    bloodStorageCapacity: { type: String, trim: true }, // For BloodBank
     specialization: { type: [String], default: ['General Medicine'] }, // Hospital specialization type
 
     licenseNumber: {
