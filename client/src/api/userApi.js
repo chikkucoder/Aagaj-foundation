@@ -14,6 +14,11 @@ export const verifyHealthCardId = async (healthId) => {
   return response.data;
 };
 
+export const editHealthCardDetails = async (id, data) => {
+  const response = await apiClient.put(`/api/healthcard/admin/edit/${id}`, data);
+  return response.data;
+};
+
 export const bookAppointment = async (formData) => {
   // Uses multipart/form-data for optionally uploading the health card file
   const response = await apiClient.post('/api/appointment/book', formData, {
