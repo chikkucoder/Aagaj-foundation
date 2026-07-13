@@ -91,6 +91,11 @@ export const generateHospitalCredentials = async (data) => {
   return response.data;
 };
 
+export const resetHospitalPassword = async (data) => {
+  const response = await apiClient.post('/api/hospital-admin-system/admin/reset-hospital-password', data);
+  return response.data;
+};
+
 export const getHospitalGlobalReports = async (params) => {
   const response = await apiClient.get('/api/hospital-admin-system/admin/global-reports', { params });
   return response.data;
