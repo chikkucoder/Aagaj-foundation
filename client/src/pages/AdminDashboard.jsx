@@ -958,7 +958,22 @@ const AdminDashboard = () => {
         return hospitals.filter(h => {
           const matchesSearch = h.businessName?.toLowerCase().includes(term) || h.uniqueId?.toLowerCase().includes(term) || h.licenseNumber?.toLowerCase().includes(term) || h.contact?.ownerName?.toLowerCase().includes(term);
           if (specializationFilter === 'All') return matchesSearch;
-          return matchesSearch && Array.isArray(h.specialization) && h.specialization.some(s => s.toLowerCase() === specializationFilter.toLowerCase());
+          
+          if (specializationFilter === 'Chemist Shop 💊') {
+            return matchesSearch && h.category === 'Pharmacy';
+          }
+          if (specializationFilter === 'Patholab 🔬') {
+            return matchesSearch && h.category === 'Lab';
+          }
+
+          // Strip emoji characters from specialization name
+          const cleanFilter = specializationFilter.replace(/[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]/g, '').trim().toLowerCase();
+          const hasMatchingSpec = Array.isArray(h.specialization) && h.specialization.some(s => {
+            const cleanSpec = s.replace(/[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]/g, '').trim().toLowerCase();
+            return cleanSpec === cleanFilter;
+          });
+
+          return matchesSearch && hasMatchingSpec;
         });
 
       case 'healthcards':

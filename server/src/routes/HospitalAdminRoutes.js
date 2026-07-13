@@ -78,8 +78,8 @@ const enforceHospitalScope = (req, res, next) => {
 // 1. Get Summary Stats for Super Admin
 router.get('/admin/stats', verifyAdmin, async (req, res) => {
     try {
-        const totalHospitals = await HealthPartner.countDocuments({ category: 'Hospital' });
-        const activeHospitals = await HealthPartner.countDocuments({ category: 'Hospital', isActive: true });
+        const totalHospitals = await HealthPartner.countDocuments();
+        const activeHospitals = await HealthPartner.countDocuments({ isActive: true });
         const totalBills = await PatientBill.aggregate([{ $group: { _id: null, total: { $sum: "$billAmount" } } }]);
         const totalTreatments = await PatientBill.countDocuments();
         const totalAppointments = await Appointment.countDocuments();
@@ -100,7 +100,7 @@ router.get('/admin/stats', verifyAdmin, async (req, res) => {
 // 2. Get All Hospitals with their stats
 router.get('/admin/hospitals', verifyAdmin, async (req, res) => {
     try {
-        const hospitals = await HealthPartner.find({ category: 'Hospital' }).lean();
+        const hospitals = await HealthPartner.find().lean();
 
         // Fetch billing and appointment stats for each hospital
         const hospitalData = await Promise.all(hospitals.map(async (h) => {
