@@ -94,7 +94,7 @@ const Login = () => {
       {/* Back Button */}
       <Link
         to="/"
-        className="absolute top-6 left-6 flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm border border-slate-100 hover:text-[#ED1C24] transition-all hover:-translate-y-0.5 duration-200"
+        className="absolute top-6 left-6 flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm border border-slate-100 md:hover:text-[#ED1C24] active:text-[#ED1C24] active:scale-95 transition-all duration-200"
       >
         <ArrowLeft className="h-4 w-4" /> Home
       </Link>
@@ -271,7 +271,7 @@ const Login = () => {
 
               <button
                 type="submit"
-                className="flex w-full justify-center rounded-xl bg-[#fdd831] px-4 py-3 text-sm font-bold text-slate-900 shadow-md hover:bg-[#eec600] focus:outline-none focus:ring-2 focus:ring-[#fdd831] focus:ring-offset-2 transition-all hover:-translate-y-0.5 duration-200 cursor-pointer"
+                className="flex w-full justify-center rounded-xl bg-[#fdd831] px-4 py-3 text-sm font-bold text-slate-900 shadow-md md:hover:bg-[#eec600] active:bg-[#eec600] focus:outline-none focus:ring-2 focus:ring-[#fdd831] focus:ring-offset-2 active:scale-95 transition-all duration-200 cursor-pointer"
               >
                 CREATE ADMIN ACCOUNT
               </button>
@@ -366,7 +366,7 @@ const Login = () => {
               {/* Login Button */}
               <button
                 type="submit"
-                className="flex w-full justify-center rounded-xl bg-[#ED1C24] px-4 py-3 text-sm font-bold text-white shadow-md hover:bg-[#b0151b] focus:outline-none focus:ring-2 focus:ring-[#ED1C24] focus:ring-offset-2 transition-all hover:-translate-y-0.5 duration-200 cursor-pointer"
+                className="flex w-full justify-center rounded-xl bg-[#ED1C24] px-4 py-3 text-sm font-bold text-white shadow-md md:hover:bg-[#b0151b] active:bg-[#b0151b] focus:outline-none focus:ring-2 focus:ring-[#ED1C24] focus:ring-offset-2 active:scale-95 transition-all duration-200 cursor-pointer"
               >
                 SECURE LOG IN
               </button>
