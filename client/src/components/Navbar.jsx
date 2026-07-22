@@ -654,8 +654,15 @@ const Navbar = () => {
                 Careers <ChevronDown className="h-4 w-4" />
               </button>
               {careersOpen && (
-                <div className="absolute right-0 top-full pt-2 w-48 origin-top-right z-50">
+                <div className="absolute right-0 top-full pt-2 w-56 origin-top-right z-50">
                   <div className="rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                    <Link 
+                      to="/membership/register" 
+                      onClick={() => setCareersOpen(false)}
+                      className="block px-4 py-3 text-sm font-bold text-rose-700 bg-rose-50/80 hover:bg-rose-100 border-l-4 border-rose-600"
+                    >
+                      ★ Membership Form
+                    </Link>
                     <Link 
                       to="/careers/ngo-jobs" 
                       onClick={() => setCareersOpen(false)}
@@ -869,6 +876,13 @@ const Navbar = () => {
           <div>
             <p className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400">Careers</p>
             <div className="pl-4 space-y-1">
+              <Link 
+                to="/membership/register" 
+                onClick={() => setIsOpen(false)}
+                className="block rounded-md px-3 py-2 text-sm font-bold text-rose-700 bg-rose-50 border-l-4 border-rose-600"
+              >
+                ★ Membership Form
+              </Link>
               <Link 
                 to="/careers/ngo-jobs" 
                 onClick={() => setIsOpen(false)}
