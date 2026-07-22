@@ -24,10 +24,24 @@ const RegistrationSchema = new mongoose.Schema({
     trim: true
   },
 
+  // 2b. नाम (हिंदी में)
+  nameInHindi: {
+    type: String,
+    default: "",
+    trim: true
+  },
+
   // 3. पिता / पति का नाम
   guardianName: {
     type: String,
     required: true,
+    trim: true
+  },
+
+  // 3b. पिता / पति का नाम (हिंदी में)
+  guardianNameInHindi: {
+    type: String,
+    default: "",
     trim: true
   },
 

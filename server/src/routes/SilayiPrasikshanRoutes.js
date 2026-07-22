@@ -449,7 +449,7 @@ const verifyAdmin = (req, res, next) => {
 router.post('/admin/create', verifyAdmin, upload.single('photo'), async (req, res) => {
     try {
         const {
-            name, guardianName, address, mobileNumber,
+            name, guardianName, nameInHindi, guardianNameInHindi, address, mobileNumber,
             gender, email, aadharNumber, age, caste, trainingName,
             existingSkills, trainingDuration, trainingDate, registeredBy, amount
         } = req.body;
@@ -499,6 +499,8 @@ router.post('/admin/create', verifyAdmin, upload.single('photo'), async (req, re
             serialNumber: nextSerial,
             name,
             guardianName,
+            nameInHindi: nameInHindi || '',
+            guardianNameInHindi: guardianNameInHindi || '',
             address,
             mobileNumber,
             gender: gender || 'Female',
@@ -561,7 +563,7 @@ router.post('/admin/create', verifyAdmin, upload.single('photo'), async (req, re
 // ✅ API to issue certificate for Silayi Yojana beneficiary
 router.put('/admin/issue-certificate/:id', verifyAdmin, async (req, res) => {
     try {
-        const { certificateNo, certificateDate, trainingStartDate, trainingEndDate, trainingGrade } = req.body;
+        const { certificateNo, certificateDate, trainingStartDate, trainingEndDate, trainingGrade, nameInHindi, guardianNameInHindi } = req.body;
         
         if (!certificateNo || !certificateDate || !trainingStartDate || !trainingEndDate || !trainingGrade) {
             return res.status(400).json({ success: false, message: "Missing required certificate details." });
@@ -578,6 +580,8 @@ router.put('/admin/issue-certificate/:id', verifyAdmin, async (req, res) => {
         beneficiary.trainingStartDate = trainingStartDate;
         beneficiary.trainingEndDate = trainingEndDate;
         beneficiary.trainingGrade = trainingGrade;
+        if (nameInHindi !== undefined) beneficiary.nameInHindi = nameInHindi;
+        if (guardianNameInHindi !== undefined) beneficiary.guardianNameInHindi = guardianNameInHindi;
 
         await beneficiary.save();
 
@@ -588,6 +592,33 @@ router.put('/admin/issue-certificate/:id', verifyAdmin, async (req, res) => {
         });
     } catch (error) {
         console.error("Issue Certificate Error:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// ✅ API to update Hindi / English candidate name on certificate
+router.put('/admin/update-certificate-names/:id', verifyAdmin, async (req, res) => {
+    try {
+        const { name, guardianName, nameInHindi, guardianNameInHindi } = req.body;
+        const beneficiary = await Beneficiary.findById(req.params.id);
+        if (!beneficiary) {
+            return res.status(404).json({ success: false, message: "Beneficiary not found." });
+        }
+
+        if (name !== undefined) beneficiary.name = name;
+        if (guardianName !== undefined) beneficiary.guardianName = guardianName;
+        if (nameInHindi !== undefined) beneficiary.nameInHindi = nameInHindi;
+        if (guardianNameInHindi !== undefined) beneficiary.guardianNameInHindi = guardianNameInHindi;
+
+        await beneficiary.save();
+
+        res.status(200).json({
+            success: true,
+            message: "Candidate name updated successfully!",
+            data: beneficiary
+        });
+    } catch (error) {
+        console.error("Update Certificate Name Error:", error);
         res.status(500).json({ success: false, message: error.message });
     }
 });

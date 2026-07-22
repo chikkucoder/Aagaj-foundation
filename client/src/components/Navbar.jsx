@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { Menu, X, ChevronDown, LogOut, User, Heart, Shield, Search, Scissors, ShieldCheck, Printer, RefreshCw, AlertTriangle, Award, Download } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import html2canvas from 'html2canvas-pro';
+import { transliterateToHindi } from '../utils/transliterate';
 
 const Navbar = () => {
   const { user, role, logout } = useAuth();
@@ -289,11 +290,11 @@ const Navbar = () => {
                 <p className="m-0 text-base">
                   प्रमाणित किया जाता हैं कि सुश्री/श्रीमती &nbsp;
                   <strong className="text-slate-950 text-lg font-black border-b border-dashed border-slate-650 px-2 py-0.5 select-all">
-                    {data.name}
+                    {data.nameInHindi || transliterateToHindi(data.name)}
                   </strong>
                   &nbsp;&nbsp; पति/पिता - &nbsp;
                   <strong className="text-slate-900 font-extrabold select-all">
-                    {data.guardianName || 'N/A'}
+                    {data.guardianNameInHindi || transliterateToHindi(data.guardianName || 'N/A')}
                   </strong>
                 </p>
                 
