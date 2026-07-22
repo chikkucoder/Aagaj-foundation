@@ -450,6 +450,52 @@ router.delete('/admin/delete-hospital/:uniqueId', verifyAdmin, async (req, res) 
     }
 });
 
+// 10. Admin Issue/Update Partnership Certificate for Hospital/Partner
+router.put('/admin/issue-partnership-certificate/:uniqueId', verifyAdmin, async (req, res) => {
+    try {
+        const { certificateNo, partnershipDate, validUntil, certificateLocation } = req.body;
+        const uniqueId = String(req.params.uniqueId || '').trim();
+
+        const partner = await HealthPartner.findOne({ uniqueId });
+        if (!partner) {
+            return res.status(404).json({ success: false, message: 'Health Partner facility not found' });
+        }
+
+        partner.certificateIssued = true;
+        partner.certificateNo = certificateNo || partner.certificateNo || `AF/PARTNER/${new Date().getFullYear()}/${partner.uniqueId}`;
+        partner.partnershipDate = partnershipDate || partner.partnershipDate || new Date().toISOString().split('T')[0];
+        partner.validUntil = validUntil || partner.validUntil || 'Lifelong Partnership';
+        partner.certificateLocation = certificateLocation || `${partner.address?.city || 'Muzaffarpur'}, ${partner.address?.state || 'Bihar'}`;
+        partner.certificateIssuedAt = new Date();
+
+        await partner.save();
+        const safeData = partner.toObject();
+        delete safeData.password;
+
+        res.json({
+            success: true,
+            message: 'Partnership Certificate issued successfully!',
+            data: safeData
+        });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// 11. Get Single Partner Facility Profile Details (For Partner Dashboard Certificate View)
+router.get('/partner-profile/:uniqueId', async (req, res) => {
+    try {
+        const uniqueId = String(req.params.uniqueId || '').trim();
+        const partner = await HealthPartner.findOne({ uniqueId }).select('-password');
+        if (!partner) {
+            return res.status(404).json({ success: false, message: 'Partner facility profile not found' });
+        }
+        res.json({ success: true, data: partner });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 // ============================================
 // ✅ HOSPITAL PARTNER ROUTES
 // ============================================

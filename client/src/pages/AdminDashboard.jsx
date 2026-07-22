@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import html2canvas from 'html2canvas-pro';
 import { transliterateToHindi } from '../utils/transliterate';
+import PartnershipCertificate from '../components/PartnershipCertificate';
 import {
   getAllApplicants,
   getAllBeneficiaries,
@@ -134,6 +135,13 @@ const AdminDashboard = () => {
   const [certFormSubmitting, setCertFormSubmitting] = useState(false);
   const [certFormError, setCertFormError] = useState('');
   const certRef = useRef(null);
+
+  // Partnership Certificate States
+  const [selectedPartnershipCert, setSelectedPartnershipCert] = useState(null);
+  const [showIssuePartnershipCertModal, setShowIssuePartnershipCertModal] = useState(false);
+  const [showPartnershipCertModal, setShowPartnershipCertModal] = useState(false);
+  const [partnershipCertSubmitting, setPartnershipCertSubmitting] = useState(false);
+  const [partnershipCertError, setPartnershipCertError] = useState('');
 
   const [certStartDate, setCertStartDate] = useState('');
   const [certDuration, setCertDuration] = useState('2 माह');
@@ -1886,7 +1894,32 @@ const AdminDashboard = () => {
                                 </button>
                               </td>
                               <td className="py-3 px-4 text-right">
-                                <div className="flex justify-end gap-1">
+                                <div className="flex justify-end items-center gap-1.5">
+                                  {hosp.certificateIssued ? (
+                                    <button
+                                      onClick={() => {
+                                        setSelectedPartnershipCert(hosp);
+                                        setShowPartnershipCertModal(true);
+                                      }}
+                                      className="inline-flex items-center gap-1 rounded bg-[#0D5C53] text-white px-2 py-1 text-[10px] font-bold hover:bg-[#093e38] transition-all cursor-pointer shadow-sm"
+                                      title="View Official Partnership Certificate"
+                                    >
+                                      <Award className="h-3 w-3 text-[#D4AF37]" /> View Cert
+                                    </button>
+                                  ) : (
+                                    <button
+                                      onClick={() => {
+                                        setSelectedPartnershipCert(hosp);
+                                        setPartnershipCertError('');
+                                        setShowIssuePartnershipCertModal(true);
+                                      }}
+                                      className="inline-flex items-center gap-1 rounded bg-[#8B1E4B] text-white px-2 py-1 text-[10px] font-bold hover:bg-[#681436] transition-all cursor-pointer shadow-sm"
+                                      title="Issue Official Partnership Certificate"
+                                    >
+                                      <Award className="h-3 w-3 text-white" /> Issue Cert
+                                    </button>
+                                  )}
+
                                   <button
                                     onClick={() => handleViewHospitalActivity(hosp.uniqueId)}
                                     className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 transition-all cursor-pointer"
@@ -5777,6 +5810,144 @@ const AdminDashboard = () => {
                 </div>
               </form>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL 11. ISSUE PARTNERSHIP CERTIFICATE --- */}
+      {showIssuePartnershipCertModal && selectedPartnershipCert && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 overflow-y-auto font-sans">
+          <div className="w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 animate-fade-in text-left">
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 p-4">
+              <h3 className="text-xs font-black text-[#0D5C53] uppercase tracking-wider flex items-center gap-1.5">
+                <Award className="h-4.5 w-4.5 text-[#8B1E4B]" /> Issue Official Partnership Certificate
+              </h3>
+              <button onClick={() => setShowIssuePartnershipCertModal(false)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 cursor-pointer">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              setPartnershipCertSubmitting(true);
+              setPartnershipCertError('');
+              try {
+                const formData = new FormData(e.target);
+                const payload = {
+                  certificateNo: formData.get('certificateNo'),
+                  partnershipDate: formData.get('partnershipDate'),
+                  validUntil: formData.get('validUntil'),
+                  certificateLocation: formData.get('certificateLocation')
+                };
+
+                const res = await apiClient.put(`/api/hospital-admin-system/admin/issue-partnership-certificate/${selectedPartnershipCert.uniqueId}`, payload);
+                if (res.data && res.data.success) {
+                  alert("Official Partnership Certificate issued successfully!");
+                  setShowIssuePartnershipCertModal(false);
+                  setSelectedPartnershipCert(res.data.data);
+                  setShowPartnershipCertModal(true);
+                  syncData();
+                } else {
+                  setPartnershipCertError(res.data?.message || "Failed to issue certificate.");
+                }
+              } catch (err) {
+                console.error(err);
+                setPartnershipCertError(err.response?.data?.message || "Server error issuing partnership certificate.");
+              } finally {
+                setPartnershipCertSubmitting(false);
+              }
+            }} className="p-6 space-y-4">
+              {partnershipCertError && (
+                <div className="p-3 bg-red-50 border border-red-150 text-red-700 text-xs font-bold rounded-xl">
+                  {partnershipCertError}
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase block">Partner Organization / Facility Name</label>
+                <input
+                  type="text"
+                  value={selectedPartnershipCert.businessName}
+                  readOnly
+                  className="w-full border border-slate-200 bg-slate-50 text-slate-900 font-black rounded-xl px-3 py-2 text-xs focus:outline-none uppercase"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase block">Certificate Number</label>
+                <input
+                  type="text"
+                  name="certificateNo"
+                  required
+                  defaultValue={selectedPartnershipCert.certificateNo || `AF/PARTNER/${new Date().getFullYear()}/${selectedPartnershipCert.uniqueId}`}
+                  className="w-full border border-slate-200 font-bold rounded-xl px-3 py-2 text-xs focus:border-[#0D5C53] focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase block">Partnership Date</label>
+                  <input
+                    type="date"
+                    name="partnershipDate"
+                    required
+                    defaultValue={selectedPartnershipCert.partnershipDate || new Date().toISOString().split('T')[0]}
+                    className="w-full border border-slate-200 font-bold rounded-xl px-3 py-2 text-xs focus:border-[#0D5C53] focus:outline-none"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase block">Valid Until</label>
+                  <input
+                    type="text"
+                    name="validUntil"
+                    required
+                    defaultValue={selectedPartnershipCert.validUntil || 'Lifelong Partnership'}
+                    placeholder="e.g. Lifelong / 2027-07-23"
+                    className="w-full border border-slate-200 font-bold rounded-xl px-3 py-2 text-xs focus:border-[#0D5C53] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase block">Location (City, State)</label>
+                <input
+                  type="text"
+                  name="certificateLocation"
+                  required
+                  defaultValue={selectedPartnershipCert.certificateLocation || `${selectedPartnershipCert.address?.city || 'Muzaffarpur'}, ${selectedPartnershipCert.address?.state || 'Bihar'}`}
+                  className="w-full border border-slate-200 font-bold rounded-xl px-3 py-2 text-xs focus:border-[#0D5C53] focus:outline-none"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowIssuePartnershipCertModal(false)}
+                  className="flex-1 rounded-xl bg-white border border-slate-200 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={partnershipCertSubmitting}
+                  className="flex-1 rounded-xl bg-[#0D5C53] hover:bg-[#083e38] text-white py-2.5 text-xs font-bold cursor-pointer disabled:opacity-50 shadow-md"
+                >
+                  {partnershipCertSubmitting ? 'Issuing...' : 'Generate & Save Certificate'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL 12. PARTNERSHIP CERTIFICATE PREVIEW MODAL --- */}
+      {showPartnershipCertModal && selectedPartnershipCert && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/65 p-4 overflow-y-auto font-sans">
+          <div className="w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 p-4 text-left relative">
+            <PartnershipCertificate
+              partner={selectedPartnershipCert}
+              onClose={() => setShowPartnershipCertModal(false)}
+            />
           </div>
         </div>
       )}
