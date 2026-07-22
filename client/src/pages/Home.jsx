@@ -222,7 +222,7 @@ const Home = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             
             {/* Silayi Training */}
             <div className="flex flex-col bg-white rounded-2xl overflow-hidden shadow-md border-b-4 border-[#fdd831] hover:border-[#ED1C24] hover:-translate-y-2 transition-all duration-300">
@@ -271,6 +271,23 @@ const Home = () => {
                 </Link>
               </div>
             </div>
+
+            {/* Membership Registration */}
+            <div className="flex flex-col bg-white rounded-2xl overflow-hidden shadow-md border-b-4 border-rose-600 hover:border-pink-600 hover:-translate-y-2 transition-all duration-300">
+              <img src="/pic5.jpg" alt="Join as Member" className="h-56 w-full object-cover" />
+              <div className="p-6 flex flex-col flex-grow justify-between space-y-4">
+                <div className="space-y-2">
+                  <h3 className="text-xl font-bold text-slate-800">Become a Member</h3>
+                  <p className="text-slate-500 text-sm leading-relaxed font-semibold">
+                    Join Aagaj Foundation as an official member or volunteer. Fill the form, pay your custom amount, and get an instant official Membership Certificate!
+                  </p>
+                </div>
+                <Link to="/membership/register" className="inline-flex items-center gap-1 text-sm font-bold text-rose-600 uppercase tracking-wide hover:underline">
+                  Join Now & Get Certificate <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+            </div>
+
           </div>
         </div>
       </section>

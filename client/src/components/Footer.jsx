@@ -121,6 +121,11 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
+                <Link to="/membership/register" className="flex items-center gap-1.5 text-rose-400 font-semibold hover:text-[#fdd831] hover:translate-x-1 transition-all duration-200">
+                  <ArrowRight className="h-3 w-3 opacity-0 group-hover:opacity-100" /> Membership Form
+                </Link>
+              </li>
+              <li>
                 <Link to="/careers/ngo-jobs" className="flex items-center gap-1.5 text-slate-400 hover:text-[#fdd831] hover:translate-x-1 transition-all duration-200">
                   <ArrowRight className="h-3 w-3 opacity-0 group-hover:opacity-100" /> Careers
                 </Link>
