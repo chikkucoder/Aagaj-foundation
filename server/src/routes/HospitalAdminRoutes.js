@@ -453,7 +453,7 @@ router.delete('/admin/delete-hospital/:uniqueId', verifyAdmin, async (req, res) 
 // 10. Admin Issue/Update Partnership Certificate for Hospital/Partner
 router.put('/admin/issue-partnership-certificate/:uniqueId', verifyAdmin, async (req, res) => {
     try {
-        const { certificateNo, partnershipDate, validUntil, certificateLocation } = req.body;
+        const { businessName, certificateNo, partnershipDate, validUntil, certificateLocation } = req.body;
         const uniqueId = String(req.params.uniqueId || '').trim();
 
         const partner = await HealthPartner.findOne({ uniqueId });
@@ -461,6 +461,9 @@ router.put('/admin/issue-partnership-certificate/:uniqueId', verifyAdmin, async 
             return res.status(404).json({ success: false, message: 'Health Partner facility not found' });
         }
 
+        if (businessName) {
+            partner.businessName = businessName;
+        }
         partner.certificateIssued = true;
         partner.certificateNo = certificateNo || partner.certificateNo || `AF/PARTNER/${new Date().getFullYear()}/${partner.uniqueId}`;
         partner.partnershipDate = partnershipDate || partner.partnershipDate || new Date().toISOString().split('T')[0];

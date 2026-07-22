@@ -1896,16 +1896,29 @@ const AdminDashboard = () => {
                               <td className="py-3 px-4 text-right">
                                 <div className="flex justify-end items-center gap-1.5">
                                   {hosp.certificateIssued ? (
-                                    <button
-                                      onClick={() => {
-                                        setSelectedPartnershipCert(hosp);
-                                        setShowPartnershipCertModal(true);
-                                      }}
-                                      className="inline-flex items-center gap-1 rounded bg-[#0D5C53] text-white px-2 py-1 text-[10px] font-bold hover:bg-[#093e38] transition-all cursor-pointer shadow-sm"
-                                      title="View Official Partnership Certificate"
-                                    >
-                                      <Award className="h-3 w-3 text-[#D4AF37]" /> View Cert
-                                    </button>
+                                    <div className="flex items-center gap-1">
+                                      <button
+                                        onClick={() => {
+                                          setSelectedPartnershipCert(hosp);
+                                          setShowPartnershipCertModal(true);
+                                        }}
+                                        className="inline-flex items-center gap-1 rounded bg-[#0D5C53] text-white px-2 py-1 text-[10px] font-bold hover:bg-[#093e38] transition-all cursor-pointer shadow-sm"
+                                        title="View Official Partnership Certificate"
+                                      >
+                                        <Award className="h-3 w-3 text-[#D4AF37]" /> View
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setSelectedPartnershipCert(hosp);
+                                          setPartnershipCertError('');
+                                          setShowIssuePartnershipCertModal(true);
+                                        }}
+                                        className="inline-flex items-center gap-1 rounded bg-amber-600 text-white px-2 py-1 text-[10px] font-bold hover:bg-amber-700 transition-all cursor-pointer shadow-sm"
+                                        title="Edit Partnership Certificate Details"
+                                      >
+                                        <Edit className="h-3 w-3 text-white" /> Edit Cert
+                                      </button>
+                                    </div>
                                   ) : (
                                     <button
                                       onClick={() => {
@@ -5814,13 +5827,13 @@ const AdminDashboard = () => {
         </div>
       )}
 
-      {/* --- MODAL 11. ISSUE PARTNERSHIP CERTIFICATE --- */}
+      {/* --- MODAL 11. ISSUE / EDIT PARTNERSHIP CERTIFICATE --- */}
       {showIssuePartnershipCertModal && selectedPartnershipCert && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 overflow-y-auto font-sans">
           <div className="w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 animate-fade-in text-left">
             <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 p-4">
               <h3 className="text-xs font-black text-[#0D5C53] uppercase tracking-wider flex items-center gap-1.5">
-                <Award className="h-4.5 w-4.5 text-[#8B1E4B]" /> Issue Official Partnership Certificate
+                <Award className="h-4.5 w-4.5 text-[#8B1E4B]" /> {selectedPartnershipCert.certificateIssued ? 'Edit Partnership Certificate Details' : 'Issue Official Partnership Certificate'}
               </h3>
               <button onClick={() => setShowIssuePartnershipCertModal(false)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 cursor-pointer">
                 <X className="h-5 w-5" />
@@ -5834,6 +5847,7 @@ const AdminDashboard = () => {
               try {
                 const formData = new FormData(e.target);
                 const payload = {
+                  businessName: formData.get('businessName'),
                   certificateNo: formData.get('certificateNo'),
                   partnershipDate: formData.get('partnershipDate'),
                   validUntil: formData.get('validUntil'),
@@ -5842,7 +5856,7 @@ const AdminDashboard = () => {
 
                 const res = await apiClient.put(`/api/hospital-admin-system/admin/issue-partnership-certificate/${selectedPartnershipCert.uniqueId}`, payload);
                 if (res.data && res.data.success) {
-                  alert("Official Partnership Certificate issued successfully!");
+                  alert("Official Partnership Certificate details saved successfully!");
                   setShowIssuePartnershipCertModal(false);
                   setSelectedPartnershipCert(res.data.data);
                   setShowPartnershipCertModal(true);
@@ -5867,9 +5881,10 @@ const AdminDashboard = () => {
                 <label className="text-[10px] font-bold text-slate-500 uppercase block">Partner Organization / Facility Name</label>
                 <input
                   type="text"
-                  value={selectedPartnershipCert.businessName}
-                  readOnly
-                  className="w-full border border-slate-200 bg-slate-50 text-slate-900 font-black rounded-xl px-3 py-2 text-xs focus:outline-none uppercase"
+                  name="businessName"
+                  required
+                  defaultValue={selectedPartnershipCert.businessName}
+                  className="w-full border border-slate-200 bg-white text-slate-900 font-black rounded-xl px-3 py-2 text-xs focus:border-[#0D5C53] focus:outline-none uppercase"
                 />
               </div>
 
@@ -5932,7 +5947,7 @@ const AdminDashboard = () => {
                   disabled={partnershipCertSubmitting}
                   className="flex-1 rounded-xl bg-[#0D5C53] hover:bg-[#083e38] text-white py-2.5 text-xs font-bold cursor-pointer disabled:opacity-50 shadow-md"
                 >
-                  {partnershipCertSubmitting ? 'Issuing...' : 'Generate & Save Certificate'}
+                  {partnershipCertSubmitting ? 'Saving...' : 'Save & Update Certificate'}
                 </button>
               </div>
             </form>
@@ -5943,7 +5958,22 @@ const AdminDashboard = () => {
       {/* --- MODAL 12. PARTNERSHIP CERTIFICATE PREVIEW MODAL --- */}
       {showPartnershipCertModal && selectedPartnershipCert && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/65 p-4 overflow-y-auto font-sans">
-          <div className="w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 p-4 text-left relative">
+          <div className="w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 p-4 text-left relative space-y-3">
+            <div className="flex justify-between items-center bg-amber-50 border border-amber-200 p-3 rounded-2xl">
+              <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                ✏️ Want to change certificate details or extend validity?
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowPartnershipCertModal(false);
+                  setShowIssuePartnershipCertModal(true);
+                }}
+                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shadow transition-all cursor-pointer flex items-center gap-1"
+              >
+                <Edit className="h-3.5 w-3.5" /> Edit Certificate Details
+              </button>
+            </div>
             <PartnershipCertificate
               partner={selectedPartnershipCert}
               onClose={() => setShowPartnershipCertModal(false)}
