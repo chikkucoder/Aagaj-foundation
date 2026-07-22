@@ -655,6 +655,9 @@ app.use('/api/hospital-admin-system', HospitalAdminRoutes);
 const healthCardRoutes = require('./routes/HealthCardRoutes');
 app.use('/api/healthcard', healthCardRoutes);
 
+const membershipRoutes = require('./routes/MembershipRoutes');
+app.use('/api/membership', membershipRoutes);
+
 // ✅ Cloudinary Image Upload Route
 const uploadRoutes = require('./routes/uploadRoutes');
 app.use('/api/upload', uploadRoutes);
