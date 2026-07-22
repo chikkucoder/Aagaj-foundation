@@ -3531,11 +3531,11 @@ const AdminDashboard = () => {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Email Address</label>
+                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wide">Email Address (Optional)</label>
                     <input
                       type="email"
                       className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-slate-850 text-sm font-bold focus:outline-none bg-slate-50/30 focus:bg-white focus:border-[#ED1C24] focus:ring-4 focus:ring-[#ED1C24]/10 transition-all"
-                      placeholder="Email Address"
+                      placeholder="Email Address (Optional)"
                       {...regCustomSilayi('email')}
                     />
                   </div>
