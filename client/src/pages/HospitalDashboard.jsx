@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
+import apiClient from '../api/apiClient';
+import PartnershipCertificate from '../components/PartnershipCertificate';
 import {
   getHospitalAdminStats,
   getHospitalAdminHospitals,
@@ -41,7 +43,8 @@ import {
   Mail,
   User,
   Phone,
-  Tag
+  Tag,
+  Award
 } from 'lucide-react';
 
 const HospitalDashboard = () => {
@@ -78,6 +81,10 @@ const HospitalDashboard = () => {
   const [verifyCardStatus, setVerifyCardStatus] = useState('');
   const [verifyCardClass, setVerifyCardClass] = useState('text-slate-400');
   const [uploadedBillPhoto, setUploadedBillPhoto] = useState(null);
+
+  // Partnership Certificate States
+  const [partnerProfile, setPartnerProfile] = useState(null);
+  const [showPartnerCertModal, setShowPartnerCertModal] = useState(false);
 
   // Search Filter Terms
   const [searchTerm, setSearchTerm] = useState('');
@@ -121,9 +128,10 @@ const HospitalDashboard = () => {
     }
 
     try {
-      const [billsRes, apptsRes] = await Promise.all([
+      const [billsRes, apptsRes, profileRes] = await Promise.all([
         getHospitalBills(hospId).catch(() => ({ data: [] })),
-        getHospitalAppointments(hospId).catch(() => ({ data: [] }))
+        getHospitalAppointments(hospId).catch(() => ({ data: [] })),
+        apiClient.get(`/api/hospital-admin-system/partner-profile/${hospId}`).catch(() => ({ data: null }))
       ]);
 
       const bills = billsRes.success ? billsRes.data : [];
@@ -131,6 +139,10 @@ const HospitalDashboard = () => {
 
       setPartnerBills(bills);
       setPartnerAppts(appts);
+
+      if (profileRes.data && profileRes.data.success) {
+        setPartnerProfile(profileRes.data.data);
+      }
 
       const totalAmt = bills.reduce((sum, item) => sum + item.billAmount, 0);
       setPartnerStats({
@@ -735,17 +747,27 @@ const HospitalDashboard = () => {
                 <h2 className="text-2xl font-black text-slate-800">Partner Facility Dashboard</h2>
                 <p className="text-slate-500 text-sm font-medium mt-1">Generate treatment billing logs and verify beneficiary identities in real time.</p>
               </div>
-              <button
-                onClick={() => {
-                  resetBillForm();
-                  setVerifyCardStatus('');
-                  setUploadedBillPhoto(null);
-                  setShowAddBillModal(true);
-                }}
-                className="flex items-center gap-1.5 rounded-xl bg-[#ED1C24] hover:bg-[#b0151b] text-white px-5 py-3 text-sm font-bold shadow-md cursor-pointer transition-all hover:-translate-y-0.5"
-              >
-                <Plus className="h-4 w-4" /> Add Patient Bill
-              </button>
+              <div className="flex flex-wrap items-center gap-3">
+                {partnerProfile?.certificateIssued && (
+                  <button
+                    onClick={() => setShowPartnerCertModal(true)}
+                    className="flex items-center gap-1.5 rounded-xl bg-[#0D5C53] hover:bg-[#093e38] text-white px-5 py-3 text-sm font-bold shadow-md cursor-pointer transition-all hover:-translate-y-0.5"
+                  >
+                    <Award className="h-4 w-4 text-[#D4AF37]" /> Partnership Certificate
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    resetBillForm();
+                    setVerifyCardStatus('');
+                    setUploadedBillPhoto(null);
+                    setShowAddBillModal(true);
+                  }}
+                  className="flex items-center gap-1.5 rounded-xl bg-[#ED1C24] hover:bg-[#b0151b] text-white px-5 py-3 text-sm font-bold shadow-md cursor-pointer transition-all hover:-translate-y-0.5"
+                >
+                  <Plus className="h-4 w-4" /> Add Patient Bill
+                </button>
+              </div>
             </div>
 
             {/* Individual Stats Grid */}
@@ -1250,6 +1272,18 @@ const HospitalDashboard = () => {
                 GENERATE TREATMENT LOG
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- PARTNERSHIP CERTIFICATE VIEW MODAL --- */}
+      {showPartnerCertModal && partnerProfile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/65 p-4 overflow-y-auto font-sans">
+          <div className="w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 p-4 text-left relative">
+            <PartnershipCertificate
+              partner={partnerProfile}
+              onClose={() => setShowPartnerCertModal(false)}
+            />
           </div>
         </div>
       )}

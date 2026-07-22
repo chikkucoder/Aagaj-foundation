@@ -75,6 +75,30 @@ const healthPartnerSchema = new mongoose.Schema({
     isActive: { 
         type: Boolean, 
         default: true 
+    },
+    // ✅ Partnership Certificate Fields
+    certificateIssued: {
+        type: Boolean,
+        default: false
+    },
+    certificateNo: {
+        type: String,
+        default: ''
+    },
+    partnershipDate: {
+        type: String,
+        default: ''
+    },
+    validUntil: {
+        type: String,
+        default: ''
+    },
+    certificateLocation: {
+        type: String,
+        default: ''
+    },
+    certificateIssuedAt: {
+        type: Date
     }
 });
 
