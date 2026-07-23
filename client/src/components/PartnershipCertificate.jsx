@@ -1,9 +1,34 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import html2canvas from 'html2canvas-pro';
 import { Download, Printer, Award } from 'lucide-react';
 
 const PartnershipCertificate = ({ partner, onClose }) => {
   const certRef = useRef(null);
+  const containerRef = useRef(null);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const updateScale = () => {
+      if (containerRef.current) {
+        const width = containerRef.current.clientWidth;
+        if (width > 0) {
+          setScale(Math.min(1, width / 960));
+        }
+      }
+    };
+
+    updateScale();
+    const observer = new ResizeObserver(updateScale);
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
+    window.addEventListener('resize', updateScale);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateScale);
+    };
+  }, []);
 
   if (!partner) return null;
 
@@ -29,25 +54,25 @@ const PartnershipCertificate = ({ partner, onClose }) => {
   };
 
   return (
-    <div className="flex flex-col items-center gap-4 w-full">
+    <div className="flex flex-col items-center gap-3 sm:gap-4 w-full">
       {/* Action Toolbar */}
-      <div className="flex justify-between items-center w-full max-w-5xl bg-slate-50 border border-slate-200 rounded-2xl p-3 shadow-sm">
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-2.5 w-full max-w-5xl bg-slate-50 border border-slate-200 rounded-2xl p-2.5 sm:p-3 shadow-sm">
         <div className="flex items-center gap-2 text-slate-800 font-bold text-xs uppercase tracking-wide">
-          <Award className="h-4.5 w-4.5 text-[#0D5C53]" />
-          Official Partnership Certificate Preview
+          <Award className="h-4 w-4 sm:h-4.5 sm:w-4.5 text-[#0D5C53] shrink-0" />
+          <span>Official Partnership Certificate Preview</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-center gap-2 w-full sm:w-auto">
           <button
             type="button"
             onClick={handleDownloadImage}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0D5C53] hover:bg-[#093e38] text-white text-xs font-bold shadow-md cursor-pointer transition-all"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-[#0D5C53] hover:bg-[#093e38] text-white text-xs font-bold shadow-md cursor-pointer transition-all active:scale-95"
           >
             <Download className="h-3.5 w-3.5" /> Download Certificate PNG
           </button>
           <button
             type="button"
             onClick={() => window.print()}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#8B1E4B] hover:bg-[#681436] text-white text-xs font-bold shadow-md cursor-pointer transition-all"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-[#8B1E4B] hover:bg-[#681436] text-white text-xs font-bold shadow-md cursor-pointer transition-all active:scale-95"
           >
             <Printer className="h-3.5 w-3.5" /> Print Certificate
           </button>
@@ -55,7 +80,7 @@ const PartnershipCertificate = ({ partner, onClose }) => {
             <button
               type="button"
               onClick={onClose}
-              className="px-3 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold cursor-pointer"
+              className="px-3 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold cursor-pointer transition-all"
             >
               Close
             </button>
@@ -64,12 +89,24 @@ const PartnershipCertificate = ({ partner, onClose }) => {
       </div>
 
       {/* Certificate Main Canvas Wrapper */}
-      <div className="overflow-hidden flex justify-center items-center w-full py-2 bg-slate-100/70 rounded-3xl border border-slate-200 shadow-inner">
-        <div className="origin-center scale-[0.42] sm:scale-[0.62] md:scale-[0.82] lg:scale-100 shrink-0 my-2">
+      <div
+        ref={containerRef}
+        className="w-full flex justify-center items-center bg-slate-100/70 rounded-2xl sm:rounded-3xl border border-slate-200 p-1 sm:p-3 shadow-inner overflow-hidden"
+      >
+        <div
+          className="relative shrink-0 overflow-hidden"
+          style={{
+            width: `${960 * scale}px`,
+            height: `${670 * scale}px`,
+            transition: 'width 0.1s ease-out, height 0.1s ease-out'
+          }}
+        >
           <div
             ref={certRef}
             className="w-[960px] h-[670px] bg-[#FCFDF9] p-5 select-none relative font-serif text-slate-800 shrink-0 border-[8px] border-[#D4AF37] shadow-2xl rounded-sm"
             style={{
+              transform: `scale(${scale})`,
+              transformOrigin: 'top left',
               backgroundImage: 'radial-gradient(circle at center, #FFFFFF 0%, #FAF8F2 100%)',
               boxShadow: '0 10px 30px rgba(0,0,0,0.18)'
             }}
@@ -147,7 +184,7 @@ const PartnershipCertificate = ({ partner, onClose }) => {
                   <h1 className="text-4xl font-extrabold text-[#0C5A52] tracking-[0.12em] uppercase font-serif mb-0.5">
                     CERTIFICATE
                   </h1>
-                  
+
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-16 h-[1.5px] bg-[#D4AF37]"></div>
                     <h2 className="text-xl font-bold text-[#8B1E4B] tracking-[0.15em] uppercase font-serif">
