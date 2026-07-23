@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import html2canvas from 'html2canvas-pro';
-import { Download, Printer, Award } from 'lucide-react';
+import { Download, Award } from 'lucide-react';
 
 const PartnershipCertificate = ({ partner, onClose }) => {
   const certRef = useRef(null);
@@ -68,13 +68,6 @@ const PartnershipCertificate = ({ partner, onClose }) => {
             className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-[#0D5C53] hover:bg-[#093e38] text-white text-xs font-bold shadow-md cursor-pointer transition-all active:scale-95"
           >
             <Download className="h-3.5 w-3.5" /> Download Certificate PNG
-          </button>
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl bg-[#8B1E4B] hover:bg-[#681436] text-white text-xs font-bold shadow-md cursor-pointer transition-all active:scale-95"
-          >
-            <Printer className="h-3.5 w-3.5" /> Print Certificate
           </button>
           {onClose && (
             <button
