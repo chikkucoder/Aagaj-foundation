@@ -5957,10 +5957,10 @@ const AdminDashboard = () => {
 
       {/* --- MODAL 12. PARTNERSHIP CERTIFICATE PREVIEW MODAL --- */}
       {showPartnershipCertModal && selectedPartnershipCert && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/65 p-4 overflow-y-auto font-sans">
-          <div className="w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 p-4 text-left relative space-y-3">
-            <div className="flex justify-between items-center bg-amber-50 border border-amber-200 p-3 rounded-2xl">
-              <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/65 p-2 sm:p-4 overflow-y-auto font-sans">
+          <div className="w-full max-w-5xl max-h-[92vh] overflow-y-auto rounded-2xl sm:rounded-3xl bg-white shadow-2xl border border-slate-100 p-2.5 sm:p-4 text-left relative space-y-3">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 bg-amber-50 border border-amber-200 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl">
+              <span className="text-[11px] sm:text-xs font-bold text-amber-900 flex items-center gap-1.5">
                 ✏️ Want to change certificate details or extend validity?
               </span>
               <button
@@ -5969,9 +5969,9 @@ const AdminDashboard = () => {
                   setShowPartnershipCertModal(false);
                   setShowIssuePartnershipCertModal(true);
                 }}
-                className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shadow transition-all cursor-pointer flex items-center gap-1"
+                className="self-end sm:self-auto px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shadow transition-all cursor-pointer flex items-center gap-1 shrink-0"
               >
-                <Edit className="h-3.5 w-3.5" /> Edit Certificate Details
+                <Edit className="h-3.5 w-3.5" /> Certificate Details
               </button>
             </div>
             <PartnershipCertificate
