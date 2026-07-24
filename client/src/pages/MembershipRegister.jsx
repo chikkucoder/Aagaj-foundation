@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   User, Phone, Mail, MapPin, Shield, CreditCard, Award, Download, Printer, 
   Search, CheckCircle2, AlertCircle, FileText, Image as ImageIcon, Heart, 
@@ -60,8 +60,44 @@ const MembershipRegister = () => {
   const [verifyLoading, setVerifyLoading] = useState(false);
   const [verifyError, setVerifyError] = useState('');
 
-  // Ref for certificate html2canvas export
+  // Ref for certificate html2canvas export and responsive scaling
   const certRef = useRef(null);
+  const containerRef = useRef(null);
+  const [scale, setScale] = useState(1);
+
+  // Dynamically Load Razorpay SDK Script
+  useEffect(() => {
+    if (!window.Razorpay) {
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  }, []);
+
+  // Update scale for responsive certificate preview
+  useEffect(() => {
+    const updateScale = () => {
+      if (containerRef.current) {
+        const width = containerRef.current.clientWidth;
+        if (width > 0) {
+          setScale(Math.min(1, width / 880));
+        }
+      }
+    };
+
+    updateScale();
+    const observer = new ResizeObserver(updateScale);
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
+    window.addEventListener('resize', updateScale);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateScale);
+    };
+  }, [activeTab, generatedMember]);
 
   // Handle Photo File Upload
   const handlePhotoUpload = (e) => {
@@ -93,7 +129,7 @@ const MembershipRegister = () => {
     });
   };
 
-  // Form Submission
+  // Form Submission with Razorpay Payment Integration
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
@@ -122,32 +158,102 @@ const MembershipRegister = () => {
 
     try {
       const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-      const payload = {
-        ...formData,
-        paymentAmount: finalAmount,
-        paymentId: `TXN-MBR-${Date.now()}`
-      };
-
-      const response = await fetch(`${baseUrl}/api/membership/register`, {
+      
+      // Step 1: Create Razorpay Order on Server
+      const orderRes = await fetch(`${baseUrl}/api/membership/create-order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          paymentAmount: finalAmount,
+          fullName: formData.fullName.trim(),
+          mobileNumber: formData.mobileNumber.trim()
+        })
       });
 
-      const result = await response.json();
+      const orderResult = await orderRes.json();
 
-      if (result.success && result.data) {
-        setGeneratedMember(result.data);
-        setSuccessMsg('Membership registered successfully! Certificate generated.');
-        setActiveTab('certificate');
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      } else {
-        setErrorMsg(result.message || 'Failed to submit membership registration.');
+      if (!orderResult.success || !orderResult.orderId) {
+        throw new Error(orderResult.message || 'Failed to initiate payment gateway order.');
       }
+
+      // Step 2: Ensure Razorpay SDK is loaded
+      if (!window.Razorpay) {
+        alert('Razorpay SDK failed to load. Please check your internet connection and reload page.');
+        setLoading(false);
+        return;
+      }
+
+      // Step 3: Open Razorpay Payment Modal
+      const options = {
+        key: orderResult.key,
+        amount: orderResult.amount,
+        currency: orderResult.currency,
+        name: 'AAGAJ FOUNDATION',
+        description: 'Official Membership Registration Fee',
+        image: '/logo.jpeg',
+        order_id: orderResult.orderId,
+        handler: async function (rzpResponse) {
+          setLoading(true);
+          try {
+            // Step 4: Verify Payment HMAC Signature & Save Member Record ONLY on success
+            const verifyRes = await fetch(`${baseUrl}/api/membership/verify-payment`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                razorpay_order_id: rzpResponse.razorpay_order_id,
+                razorpay_payment_id: rzpResponse.razorpay_payment_id,
+                razorpay_signature: rzpResponse.razorpay_signature,
+                formData: {
+                  ...formData,
+                  paymentAmount: finalAmount
+                }
+              })
+            });
+
+            const verifyResult = await verifyRes.json();
+
+            if (verifyResult.success && verifyResult.data) {
+              setGeneratedMember(verifyResult.data);
+              setSuccessMsg('Payment verified! Membership registered and Certificate generated.');
+              setActiveTab('certificate');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+              setErrorMsg(verifyResult.message || 'Payment signature verification failed.');
+            }
+          } catch (err) {
+            console.error('Payment Verification Error:', err);
+            setErrorMsg('Server connection error during payment verification.');
+          } finally {
+            setLoading(false);
+          }
+        },
+        prefill: {
+          name: formData.fullName,
+          email: formData.email,
+          contact: formData.mobileNumber
+        },
+        theme: {
+          color: '#8B1E4B'
+        },
+        modal: {
+          ondismiss: function () {
+            setLoading(false);
+          }
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', function (response) {
+        console.error('Razorpay Payment Failed:', response.error);
+        setErrorMsg(response.error.description || 'Payment process failed. Please try again.');
+        setLoading(false);
+      });
+
+      rzp.open();
+
     } catch (err) {
-      console.error('Registration Error:', err);
-      setErrorMsg('Server connection error. Please try again.');
-    } finally {
+      console.error('Membership Order Error:', err);
+      setErrorMsg(err.message || 'Server connection error. Please try again.');
       setLoading(false);
     }
   };
@@ -832,168 +938,182 @@ const MembershipRegister = () => {
             </div>
 
             {/* THE OFFICIAL MEMBERSHIP CERTIFICATE DESIGN */}
-            <div className="flex justify-center">
+            <div
+              ref={containerRef}
+              className="w-full flex justify-center items-center bg-slate-100/80 rounded-3xl border border-slate-200 p-2 sm:p-4 shadow-inner overflow-hidden"
+            >
               <div
-                ref={certRef}
-                className="w-full max-w-4xl bg-gradient-to-b from-amber-50/40 via-white to-rose-50/30 p-8 sm:p-12 border-[12px] border-double border-rose-900 rounded-3xl shadow-2xl relative font-serif text-slate-800 overflow-hidden"
+                className="relative shrink-0 overflow-hidden"
+                style={{
+                  width: `${880 * scale}px`,
+                  height: `${620 * scale}px`,
+                  transition: 'width 0.1s ease-out, height 0.1s ease-out'
+                }}
               >
-                
-                {/* Decorative Certificate Corner Accents */}
-                <div className="absolute top-2 left-2 w-12 h-12 border-t-4 border-l-4 border-rose-600 rounded-tl-xl pointer-events-none"></div>
-                <div className="absolute top-2 right-2 w-12 h-12 border-t-4 border-r-4 border-rose-600 rounded-tr-xl pointer-events-none"></div>
-                <div className="absolute bottom-2 left-2 w-12 h-12 border-b-4 border-l-4 border-rose-600 rounded-bl-xl pointer-events-none"></div>
-                <div className="absolute bottom-2 right-2 w-12 h-12 border-b-4 border-r-4 border-rose-600 rounded-br-xl pointer-events-none"></div>
+                <div
+                  ref={certRef}
+                  className="w-[880px] h-[620px] bg-gradient-to-b from-amber-50/40 via-white to-rose-50/30 p-8 select-none border-[12px] border-double border-rose-900 rounded-2xl shadow-2xl relative font-serif text-slate-800 shrink-0 flex flex-col justify-between"
+                  style={{
+                    transform: `scale(${scale})`,
+                    transformOrigin: 'top left'
+                  }}
+                >
+                  {/* Decorative Certificate Corner Accents */}
+                  <div className="absolute top-2 left-2 w-12 h-12 border-t-4 border-l-4 border-rose-600 rounded-tl-xl pointer-events-none"></div>
+                  <div className="absolute top-2 right-2 w-12 h-12 border-t-4 border-r-4 border-rose-600 rounded-tr-xl pointer-events-none"></div>
+                  <div className="absolute bottom-2 left-2 w-12 h-12 border-b-4 border-l-4 border-rose-600 rounded-bl-xl pointer-events-none"></div>
+                  <div className="absolute bottom-2 right-2 w-12 h-12 border-b-4 border-r-4 border-rose-600 rounded-br-xl pointer-events-none"></div>
 
-                {/* Watermark Logo */}
-                <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none select-none">
-                  <img src="/logo.jpeg" alt="Watermark" className="w-[450px] h-auto object-contain" />
-                </div>
+                  {/* Watermark Logo */}
+                  <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none select-none">
+                    <img src="/logo.jpeg" alt="Watermark" className="w-[450px] h-auto object-contain" />
+                  </div>
 
-                {/* Header Info */}
-                <div className="flex justify-between items-center text-[11px] font-sans font-bold text-slate-600 mb-4 pb-2 border-b border-rose-200">
                   <div>
-                    Reg. No: <span className="text-slate-900 font-black">759445/2020</span> | NGO DARPAN: <span className="text-rose-900 font-black">BR/2020/0260968</span>
-                  </div>
-                  <div className="text-center font-mono">
-                    <span className="bg-rose-100 text-rose-800 px-3 py-1 rounded-full text-xs font-black">
-                      CERTIFICATE NO: {generatedMember?.certificateNo || 'AF/MBR/2026/00001'}
-                    </span>
-                  </div>
-                  <div>ISO 9001:2015 CERTIFIED</div>
-                </div>
+                    {/* Header Info */}
+                    <div className="flex justify-between items-center text-[11px] font-sans font-bold text-slate-600 mb-3 pb-2 border-b border-rose-200">
+                      <div>
+                        Reg. No: <span className="text-slate-900 font-black">759445/2020</span> | NGO DARPAN: <span className="text-rose-900 font-black">BR/2020/0260968</span>
+                      </div>
+                      <div className="text-center font-mono">
+                        <span className="bg-rose-100 text-rose-800 px-3 py-1 rounded-full text-xs font-black">
+                          CERTIFICATE NO: {generatedMember?.certificateNo || 'AF/MBR/2026/00001'}
+                        </span>
+                      </div>
+                      <div>ISO 9001:2015 CERTIFIED</div>
+                    </div>
 
-                {/* Logo & Foundation Header */}
-                <div className="text-center space-y-2 mb-6">
-                  <div className="flex justify-center items-center gap-4">
-                    <img src="/logo.jpeg" alt="Aagaj Foundation Logo" className="h-20 w-auto rounded-xl shadow-md border-2 border-rose-600" />
-                  </div>
-                  <h1 className="text-3xl sm:text-4xl font-black text-rose-900 tracking-wider uppercase font-sans">
-                    AAGAJ FOUNDATION
-                  </h1>
-                  <p className="text-xs font-sans font-bold text-slate-600 uppercase tracking-widest">
-                    (Registered Under Indian Trust Act 1882 | NGO DARPAN NO – BR/2020/0260968)
-                  </p>
-                  <p className="text-xs font-sans font-medium text-slate-500">
-                    Head Office: Main Road, Patna, Bihar | Web: www.aagajfoundation.com
-                  </p>
-                </div>
+                    {/* Logo & Foundation Header */}
+                    <div className="text-center space-y-1 mb-4">
+                      <div className="flex justify-center items-center gap-3">
+                        <img src="/logo.jpeg" alt="Aagaj Foundation Logo" className="h-16 w-auto rounded-xl shadow-md border-2 border-rose-600" />
+                      </div>
+                      <h1 className="text-3xl font-black text-rose-900 tracking-wider uppercase font-sans">
+                        AAGAJ FOUNDATION
+                      </h1>
+                      <p className="text-[11px] font-sans font-bold text-slate-600 uppercase tracking-widest">
+                        (Registered Under Indian Trust Act 1882 &nbsp;|&nbsp; NGO DARPAN NO – BR/2020/0260968)
+                      </p>
+                      <p className="text-[10px] font-sans font-medium text-slate-500">
+                        Head Office: Main Road, Patna, Bihar | Web: www.aagajfoundation.com
+                      </p>
+                    </div>
 
-                {/* Certificate Title Badge */}
-                <div className="text-center my-6">
-                  <div className="inline-block bg-gradient-to-r from-rose-800 via-rose-600 to-rose-800 text-white font-sans font-black text-lg sm:text-xl uppercase tracking-widest px-8 py-2 rounded-full shadow-lg border-2 border-amber-300">
-                    MEMBERSHIP CERTIFICATE / सदस्य प्रमाण पत्र
-                  </div>
-                </div>
+                    {/* Certificate Title Badge */}
+                    <div className="text-center my-3">
+                      <div className="inline-block bg-gradient-to-r from-rose-800 via-rose-600 to-rose-800 text-white font-sans font-black text-lg uppercase tracking-widest px-8 py-1.5 rounded-full shadow-md border-2 border-amber-300">
+                        MEMBERSHIP CERTIFICATE / सदस्य प्रमाण पत्र
+                      </div>
+                    </div>
 
-                {/* Main Certificate Content */}
-                <div className="my-8 text-center space-y-4 font-sans text-sm sm:text-base leading-relaxed text-slate-800">
-                  
-                  <p className="text-slate-600 italic">This is to officially certify that / एतद्द्वारा प्रमाणित किया जाता है कि</p>
-                  
-                  <div className="text-2xl sm:text-3xl font-black text-rose-950 font-serif border-b-2 border-dashed border-rose-400 inline-block px-6 py-1 my-1">
-                    {generatedMember?.fullName || 'Full Name'}
-                  </div>
+                    {/* Main Certificate Content */}
+                    <div className="my-4 text-center space-y-2 font-sans text-sm leading-relaxed text-slate-800">
+                      <p className="text-slate-600 italic text-xs">This is to officially certify that / एतद्द्वारा प्रमाणित किया जाता है कि</p>
+                      
+                      <div className="text-2xl font-black text-rose-950 font-serif border-b-2 border-dashed border-rose-400 inline-block px-6 py-0.5 my-0.5">
+                        {generatedMember?.fullName || 'Full Name'}
+                      </div>
 
-                  <p className="text-slate-700">
-                    {generatedMember?.fatherOrHusbandName ? `S/o / W/o Shri ${generatedMember.fatherOrHusbandName}, ` : ''}
-                    Resident of <strong className="text-slate-900">{generatedMember?.city || generatedMember?.district || 'Patna'}, {generatedMember?.state || 'Bihar'}</strong>
-                  </p>
+                      <p className="text-slate-700 text-xs">
+                        {generatedMember?.fatherOrHusbandName ? `S/o / W/o Shri ${generatedMember.fatherOrHusbandName}, ` : ''}
+                        Resident of <strong className="text-slate-900">{generatedMember?.city || generatedMember?.district || 'Patna'}, {generatedMember?.state || 'Bihar'}</strong>
+                      </p>
 
-                  <p className="text-slate-800 max-w-2xl mx-auto font-medium">
-                    is officially enrolled as an esteemed <span className="bg-rose-100 text-rose-900 font-extrabold px-3 py-1 rounded-lg border border-rose-300">{generatedMember?.membershipType || 'General Member'}</span> of <strong>AAGAJ FOUNDATION</strong> starting from <strong>{generatedMember?.joiningDate || new Date().toISOString().split('T')[0]}</strong>.
-                  </p>
+                      <p className="text-slate-800 max-w-2xl mx-auto font-medium text-xs">
+                        is officially enrolled as an esteemed <span className="bg-rose-100 text-rose-900 font-extrabold px-2.5 py-0.5 rounded border border-rose-300">{generatedMember?.membershipType || 'General Member'}</span> of <strong>AAGAJ FOUNDATION</strong> starting from <strong>{generatedMember?.joiningDate || new Date().toISOString().split('T')[0]}</strong>.
+                      </p>
 
-                  {generatedMember?.interestAreas && generatedMember.interestAreas.length > 0 && (
-                    <p className="text-xs text-slate-600 pt-1">
-                      Key Contribution Areas: <strong className="text-slate-800">{generatedMember.interestAreas.join(', ')}</strong>
-                    </p>
-                  )}
-
-                </div>
-
-                {/* Member Details Grid & Photo */}
-                <div className="my-6 p-4 rounded-2xl bg-rose-50/70 border border-rose-200 flex flex-col sm:flex-row items-center justify-between gap-6 font-sans text-xs">
-                  
-                  {/* Photo */}
-                  <div className="flex items-center gap-4">
-                    <div className="w-20 h-24 rounded-xl border-2 border-rose-600 overflow-hidden bg-slate-200 shadow-md shrink-0">
-                      {generatedMember?.photoUrl ? (
-                        <img src={generatedMember.photoUrl} alt="Member Photo" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-slate-400 text-[10px] text-center font-bold">
-                          NO PHOTO
-                        </div>
+                      {generatedMember?.interestAreas && generatedMember.interestAreas.length > 0 && (
+                        <p className="text-[11px] text-slate-600 pt-0.5">
+                          Key Contribution Areas: <strong className="text-slate-800">{generatedMember.interestAreas.join(', ')}</strong>
+                        </p>
                       )}
                     </div>
 
-                    <div className="space-y-1 text-left">
-                      <p><span className="text-slate-500 font-bold">Membership ID:</span> <strong className="text-slate-900 font-mono text-xs">{generatedMember?.membershipId || 'AF-MBR-2026-00001'}</strong></p>
-                      <p><span className="text-slate-500 font-bold">Mobile:</span> <strong className="text-slate-900">{generatedMember?.mobileNumber || 'N/A'}</strong></p>
-                      <p><span className="text-slate-500 font-bold">Joining Date:</span> <strong className="text-slate-900">{generatedMember?.joiningDate || 'N/A'}</strong></p>
-                      <p><span className="text-slate-500 font-bold">Aadhaar No:</span> <strong className="text-slate-900 font-mono">{generatedMember?.aadhaarNumber ? `XXXX-XXXX-${generatedMember.aadhaarNumber.slice(-4)}` : 'N/A'}</strong></p>
+                    {/* Member Details Grid & Photo */}
+                    <div className="my-3 p-3 rounded-2xl bg-rose-50/80 border border-rose-200 flex items-center justify-between gap-4 font-sans text-[11px]">
+                      {/* Photo */}
+                      <div className="flex items-center gap-3">
+                        <div className="w-16 h-20 rounded-xl border-2 border-rose-600 overflow-hidden bg-slate-200 shadow-md shrink-0">
+                          {generatedMember?.photoUrl ? (
+                            <img src={generatedMember.photoUrl} alt="Member Photo" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-slate-400 text-[9px] text-center font-bold">
+                              NO PHOTO
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="space-y-0.5 text-left">
+                          <p><span className="text-slate-500 font-bold">Membership ID:</span> <strong className="text-slate-900 font-mono text-xs">{generatedMember?.membershipId || 'AF-MBR-2026-00001'}</strong></p>
+                          <p><span className="text-slate-500 font-bold">Mobile:</span> <strong className="text-slate-900">{generatedMember?.mobileNumber || 'N/A'}</strong></p>
+                          <p><span className="text-slate-500 font-bold">Joining Date:</span> <strong className="text-slate-900">{generatedMember?.joiningDate || 'N/A'}</strong></p>
+                          <p><span className="text-slate-500 font-bold">Aadhaar No:</span> <strong className="text-slate-900 font-mono">{generatedMember?.aadhaarNumber ? `XXXX-XXXX-${generatedMember.aadhaarNumber.slice(-4)}` : 'N/A'}</strong></p>
+                        </div>
+                      </div>
+
+                      {/* Payment Details */}
+                      <div className="bg-white p-2.5 rounded-xl border border-rose-200 shadow-sm text-left space-y-0.5 shrink-0">
+                        <p className="font-bold text-rose-800 text-[10px] uppercase border-b border-slate-100 pb-0.5">Payment Status: PAID ✅</p>
+                        <p><span className="text-slate-500 font-semibold">Amount Paid:</span> <strong className="text-rose-700 font-black">₹{generatedMember?.paymentAmount || 250}</strong></p>
+                        <p><span className="text-slate-500 font-semibold">Txn Reference:</span> <strong className="text-slate-800 font-mono text-[9px]">{generatedMember?.paymentId || 'TXN-MBR-12345'}</strong></p>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Payment Details */}
-                  <div className="bg-white p-3 rounded-xl border border-rose-200 shadow-sm text-left space-y-1 w-full sm:w-auto">
-                    <p className="font-bold text-rose-800 text-[11px] uppercase border-b border-slate-100 pb-1">Payment Status: PAID ✅</p>
-                    <p><span className="text-slate-500 font-semibold">Amount Paid:</span> <strong className="text-rose-700 font-black">₹{generatedMember?.paymentAmount || 250}</strong></p>
-                    <p><span className="text-slate-500 font-semibold">Txn Reference:</span> <strong className="text-slate-800 font-mono text-[10px]">{generatedMember?.paymentId || 'TXN-MBR-12345'}</strong></p>
+                  <div>
+                    {/* Signatures & Seal Section */}
+                    <div className="mt-2 pt-2 border-t border-rose-200 flex justify-between items-end font-sans text-center">
+                      <div className="w-32">
+                        <div className="h-6"></div>
+                        <div className="border-t border-slate-400 pt-0.5 text-[9px] font-bold text-slate-700 uppercase">
+                          Settler Cum Secretary
+                          <span className="block text-[7px] text-slate-400 font-normal">AAGAJ FOUNDATION</span>
+                        </div>
+                      </div>
+
+                      {/* Official Stamp Overlay */}
+                      <div className="relative flex flex-col items-center">
+                        <div className="w-16 h-16 rounded-full border-2 border-rose-700 border-dashed flex flex-col items-center justify-center p-0.5 opacity-85 rotate-[-12deg] bg-rose-50/50">
+                          <span className="text-[6px] font-black text-rose-900 uppercase">AAGAJ FOUNDATION</span>
+                          <span className="text-[4.5px] text-rose-700 font-bold">REG. 759445/2020</span>
+                          <span className="text-[4.5px] text-rose-700 font-bold">DARPAN: BR/2020/0260968</span>
+                          <span className="text-[5px] font-black text-rose-800 mt-0.5">OFFICIAL SEAL</span>
+                        </div>
+                      </div>
+
+                      <div className="w-32">
+                        <div className="h-6"></div>
+                        <div className="border-t border-slate-400 pt-0.5 text-[9px] font-bold text-slate-700 uppercase">
+                          Settler Cum President
+                          <span className="block text-[7px] text-slate-400 font-normal">AAGAJ FOUNDATION</span>
+                        </div>
+                      </div>
+
+                      <div className="w-32">
+                        <div className="h-6"></div>
+                        <div className="border-t border-slate-400 pt-0.5 text-[9px] font-bold text-slate-700 uppercase">
+                          Coordinator / समन्वयक
+                          <span className="block text-[7px] text-slate-400 font-normal">AAGAJ FOUNDATION</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Footer QR Verification Code */}
+                    <div className="mt-2 pt-1.5 border-t border-slate-200 flex justify-between items-center font-sans text-[9px] text-slate-500">
+                      <span>Verify online at: www.aagajfoundation.com/membership</span>
+                      <div className="flex items-center gap-1.5">
+                        <span>Scan to verify certificate</span>
+                        <img
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=45x45&data=AAGAJ-MBR:${generatedMember?.membershipId}%0ANAME:${encodeURIComponent(generatedMember?.fullName || '')}`}
+                          alt="QR"
+                          className="w-8 h-8 object-contain rounded border border-slate-300"
+                        />
+                      </div>
+                    </div>
                   </div>
+
                 </div>
-
-                {/* Signatures & Seal Section */}
-                <div className="mt-10 pt-4 border-t border-rose-200 flex justify-between items-end font-sans text-center">
-                  
-                  <div className="w-32">
-                    <div className="h-10"></div>
-                    <div className="border-t border-slate-400 pt-1 text-[10px] font-bold text-slate-700 uppercase">
-                      Settler Cum Secretary
-                      <span className="block text-[8px] text-slate-400 font-normal">AAGAJ FOUNDATION</span>
-                    </div>
-                  </div>
-
-                  {/* Official Stamp Overlay */}
-                  <div className="relative flex flex-col items-center">
-                    <div className="w-20 h-20 rounded-full border-2 border-rose-700 border-dashed flex flex-col items-center justify-center p-1 opacity-80 rotate-[-12deg] bg-rose-50/50">
-                      <span className="text-[6.5px] font-black text-rose-900 uppercase">AAGAJ FOUNDATION</span>
-                      <span className="text-[5px] text-rose-700 font-bold">REG. 759445/2020</span>
-                      <span className="text-[5px] text-rose-700 font-bold">DARPAN: BR/2020/0260968</span>
-                      <span className="text-[5.5px] font-black text-rose-800 mt-0.5">OFFICIAL SEAL</span>
-                    </div>
-                  </div>
-
-                  <div className="w-32">
-                    <div className="h-10"></div>
-                    <div className="border-t border-slate-400 pt-1 text-[10px] font-bold text-slate-700 uppercase">
-                      Settler Cum President
-                      <span className="block text-[8px] text-slate-400 font-normal">AAGAJ FOUNDATION</span>
-                    </div>
-                  </div>
-
-                  <div className="w-32">
-                    <div className="h-10"></div>
-                    <div className="border-t border-slate-400 pt-1 text-[10px] font-bold text-slate-700 uppercase">
-                      Coordinator / समन्वयक
-                      <span className="block text-[8px] text-slate-400 font-normal">AAGAJ FOUNDATION</span>
-                    </div>
-                  </div>
-
-                </div>
-
-                {/* Footer QR Verification Code */}
-                <div className="mt-6 pt-3 border-t border-slate-200 flex justify-between items-center font-sans text-[9px] text-slate-500">
-                  <span>Verify online at: www.aagajfoundation.com/membership</span>
-                  <div className="flex items-center gap-2">
-                    <span>Scan to verify certificate</span>
-                    <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=45x45&data=AAGAJ-MBR:${generatedMember?.membershipId}%0ANAME:${encodeURIComponent(generatedMember?.fullName || '')}`}
-                      alt="QR"
-                      className="w-10 h-10 object-contain rounded border border-slate-300"
-                    />
-                  </div>
-                </div>
-
               </div>
             </div>
 
