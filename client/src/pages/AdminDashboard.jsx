@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import html2canvas from 'html2canvas-pro';
 import { transliterateToHindi } from '../utils/transliterate';
 import PartnershipCertificate from '../components/PartnershipCertificate';
+import MembershipCertificate from '../components/MembershipCertificate';
 import {
   getAllApplicants,
   getAllBeneficiaries,
@@ -142,6 +143,27 @@ const AdminDashboard = () => {
   const [showPartnershipCertModal, setShowPartnershipCertModal] = useState(false);
   const [partnershipCertSubmitting, setPartnershipCertSubmitting] = useState(false);
   const [partnershipCertError, setPartnershipCertError] = useState('');
+
+  // Membership Master States
+  const [memberships, setMemberships] = useState([]);
+  const [selectedMembershipCert, setSelectedMembershipCert] = useState(null);
+  const [showMembershipCertModal, setShowMembershipCertModal] = useState(false);
+
+  const handleDeleteMember = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this membership record?')) return;
+    try {
+      const res = await apiClient.delete(`/api/membership/${id}`);
+      if (res.data && res.data.success) {
+        alert('Member record deleted successfully!');
+        syncData();
+      } else {
+        alert(res.data?.message || 'Failed to delete member record.');
+      }
+    } catch (err) {
+      console.error('Delete Member Error:', err);
+      alert('Error deleting member record.');
+    }
+  };
 
   const [certStartDate, setCertStartDate] = useState('');
   const [certDuration, setCertDuration] = useState('2 माह');
@@ -325,7 +347,7 @@ const AdminDashboard = () => {
   const syncData = async () => {
     setLoading(true);
     try {
-      const [appRes, benRes, apptRes, hcRes, txnRes, donRes, hospStatsRes, hospListRes, hospBillsRes, auditRes, enquiriesRes] = await Promise.all([
+      const [appRes, benRes, apptRes, hcRes, txnRes, donRes, hospStatsRes, hospListRes, hospBillsRes, auditRes, enquiriesRes, memRes] = await Promise.all([
         getAllApplicants().catch(err => []),
         getAllBeneficiaries().catch(err => []),
         getAllAppointments().catch(err => ({ success: false, data: [] })),
@@ -336,7 +358,8 @@ const AdminDashboard = () => {
         getHospitalAdminHospitals().catch(err => ({ success: false, data: [] })),
         getHospitalGlobalReports().catch(err => ({ success: false, data: [] })),
         getHospitalAuditLogs().catch(err => ({ success: false, data: [] })),
-        apiClient.get('/api/admin/enquiries/all').catch(err => ({ data: { success: false, data: [] } }))
+        apiClient.get('/api/admin/enquiries/all').catch(err => ({ data: { success: false, data: [] } })),
+        apiClient.get('/api/membership/all').catch(err => ({ data: { success: false, data: [] } }))
       ]);
 
       setApplicants(Array.isArray(appRes) ? appRes : []);
@@ -347,6 +370,7 @@ const AdminDashboard = () => {
       setDonations(Array.isArray(donRes.data) ? donRes.data : (Array.isArray(donRes) ? donRes : []));
       setAuditLogs(auditRes.success ? auditRes.data : []);
       setEnquiries(enquiriesRes.data?.success ? enquiriesRes.data.data : []);
+      setMemberships(memRes.data?.success ? memRes.data.data : (Array.isArray(memRes.data?.data) ? memRes.data.data : []));
 
       if (hospStatsRes.success) {
         setHospStats(hospStatsRes.stats);
@@ -1194,6 +1218,17 @@ const AdminDashboard = () => {
           e.message?.toLowerCase().includes(term)
         ));
 
+      case 'memberships':
+        return memberships.filter(m => (
+          m.fullName?.toLowerCase().includes(term) ||
+          m.membershipId?.toLowerCase().includes(term) ||
+          m.certificateNo?.toLowerCase().includes(term) ||
+          m.mobileNumber?.includes(term) ||
+          m.aadhaarNumber?.includes(term) ||
+          m.paymentId?.toLowerCase().includes(term) ||
+          m.membershipType?.toLowerCase().includes(term)
+        ));
+
       default:
         return [];
     }
@@ -1214,6 +1249,7 @@ const AdminDashboard = () => {
       case 'dashboard': return 'Super Admin Dashboard';
       case 'ngoJobs': return 'NGO Coordinator Careers Data';
       case 'normalJobs': return 'Normal Jobs Candidates Log';
+      case 'memberships': return 'Registered Official Memberships & Certificates';
       case 'hospitalMaster': return 'Swasthya Suraksha Partner Control (Hospital Master)';
       case 'healthcards': return 'Issued Identity Health Cards';
       case 'appointments': return 'Doctor Schedule Bookings';
@@ -1288,6 +1324,12 @@ const AdminDashboard = () => {
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${currentView === 'dashboard' ? 'bg-[#fdd831] text-[#051630]' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
             >
               <Users className="h-4.5 w-4.5" /> Dashboard Metrics
+            </button>
+            <button
+              onClick={() => { setCurrentView('memberships'); setCurrentPage(1); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${currentView === 'memberships' ? 'bg-[#fdd831] text-[#051630]' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
+            >
+              <Award className="h-4.5 w-4.5" /> Memberships Master
             </button>
           </div>
 
@@ -1632,6 +1674,31 @@ const AdminDashboard = () => {
                     <span className="text-[10px] text-slate-400 mt-1 block">Active online contribution</span>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* ======================================================== */}
+          {/*   4.5. MEMBERSHIPS MASTER VIEW SUMMARY                   */}
+          {/* ======================================================== */}
+          {currentView === 'memberships' && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-gradient-to-br from-rose-900 to-rose-950 text-white p-5 rounded-3xl border border-rose-800 shadow-md">
+                <span className="text-xs text-rose-200 font-bold uppercase tracking-wider">Total Registered Members</span>
+                <h3 className="text-3xl font-black text-[#fdd831] mt-2">{memberships.length}</h3>
+                <p className="text-[10px] text-rose-300 mt-1 font-semibold">Official enrolled members with certificates</p>
+              </div>
+              <div className="bg-white border border-slate-100 p-5 rounded-3xl shadow-sm">
+                <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Total Membership Fees</span>
+                <h3 className="text-3xl font-black text-rose-900 mt-2">₹{memberships.reduce((acc, m) => acc + (Number(m.paymentAmount) || 0), 0).toLocaleString('en-IN')}</h3>
+                <p className="text-[10px] text-slate-500 mt-1 font-semibold">Verified online payment contributions</p>
+              </div>
+              <div className="bg-white border border-slate-100 p-5 rounded-3xl shadow-sm flex flex-col justify-between">
+                <div>
+                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Certificates Issued</span>
+                  <h3 className="text-3xl font-black text-emerald-600 mt-2">{memberships.filter(m => m.certificateIssued !== false).length}</h3>
+                </div>
+                <span className="text-[10px] text-emerald-700 font-bold">100% Verified Certificates Issued ✅</span>
               </div>
             </div>
           )}
@@ -2391,6 +2458,89 @@ const AdminDashboard = () => {
                                     onClick={() => handleDeleteEnquiry(enq._id)}
                                     className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:text-rose-600 hover:bg-rose-50 transition-all cursor-pointer"
                                     title="Delete"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  )}
+
+                  {/* ========================================== */}
+                  {/*  TABLE 9. MEMBERSHIPS & CERTIFICATES LOG   */}
+                  {/* ========================================== */}
+                  {currentView === 'memberships' && (
+                    <table className="w-full text-left border-collapse whitespace-nowrap">
+                      <thead>
+                        <tr className="border-b border-slate-100 bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                          <th className="py-3 px-4">Photo</th>
+                          <th className="py-3 px-4">Membership ID</th>
+                          <th className="py-3 px-4">Member Name</th>
+                          <th className="py-3 px-4">Guardian Name</th>
+                          <th className="py-3 px-4">Mobile</th>
+                          <th className="py-3 px-4">Joining Date</th>
+                          <th className="py-3 px-4">Membership Type</th>
+                          <th className="py-3 px-4">Payment Info</th>
+                          <th className="py-3 px-4 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-slate-700 text-xs">
+                        {paginatedList.length === 0 ? (
+                          <tr>
+                            <td colSpan="9" className="text-center py-12 text-slate-400 font-semibold">No registered memberships found.</td>
+                          </tr>
+                        ) : (
+                          paginatedList.map(m => (
+                            <tr key={m._id} className="hover:bg-slate-50/50 transition-all">
+                              <td className="py-3 px-4">
+                                {m.photoUrl ? (
+                                  <img src={m.photoUrl} alt="Member" className="h-9 w-9 rounded-full object-cover border border-slate-200" />
+                                ) : (
+                                  <div className="h-9 w-9 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-[10px]">
+                                    AF
+                                  </div>
+                                )}
+                              </td>
+                              <td className="py-3 px-4 font-black text-rose-800 font-mono">{m.membershipId}</td>
+                              <td className="py-3 px-4 font-bold text-slate-900">
+                                <p>{m.fullName}</p>
+                                <span className="text-[10px] text-slate-400 font-semibold">{m.city || m.district || 'N/A'}, {m.state || 'Bihar'}</span>
+                              </td>
+                              <td className="py-3 px-4 font-semibold text-slate-700">{m.fatherOrHusbandName || 'N/A'}</td>
+                              <td className="py-3 px-4 font-semibold text-slate-800">+91 {m.mobileNumber}</td>
+                              <td className="py-3 px-4 font-medium text-slate-600">{m.joiningDate}</td>
+                              <td className="py-3 px-4">
+                                <span className="inline-flex rounded-full bg-rose-50 text-rose-800 border border-rose-200 px-2 py-0.5 text-[10px] font-black uppercase">
+                                  {m.membershipType || 'General Member'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <div className="flex flex-col">
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 px-2 py-0.5 text-[9px] font-black uppercase w-max">
+                                    Paid ₹{m.paymentAmount} ✅
+                                  </span>
+                                  <span className="text-[9px] font-mono text-slate-400 mt-0.5">{m.paymentId}</span>
+                                </div>
+                              </td>
+                              <td className="py-3 px-4 text-right font-semibold">
+                                <div className="flex justify-end gap-1.5">
+                                  <button
+                                    onClick={() => {
+                                      setSelectedMembershipCert(m);
+                                      setShowMembershipCertModal(true);
+                                    }}
+                                    className="inline-flex items-center gap-1 rounded-xl bg-rose-800 text-white px-2.5 py-1.5 text-[10px] font-bold hover:bg-rose-900 transition-all cursor-pointer shadow-sm"
+                                  >
+                                    <Award className="h-3.5 w-3.5" /> View Certificate
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteMember(m._id)}
+                                    className="inline-flex items-center gap-1 rounded-xl bg-slate-100 text-rose-600 hover:bg-rose-100 px-2 py-1.5 text-[10px] font-bold transition-all cursor-pointer"
+                                    title="Delete Member Record"
                                   >
                                     <Trash2 className="h-3.5 w-3.5" />
                                   </button>
@@ -5977,6 +6127,30 @@ const AdminDashboard = () => {
             <PartnershipCertificate
               partner={selectedPartnershipCert}
               onClose={() => setShowPartnershipCertModal(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL 13. MEMBERSHIP CERTIFICATE PREVIEW MODAL --- */}
+      {showMembershipCertModal && selectedMembershipCert && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/65 p-2 sm:p-4 overflow-y-auto font-sans">
+          <div className="w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-2xl sm:rounded-3xl bg-white shadow-2xl border border-slate-100 p-3 sm:p-5 text-left relative space-y-4">
+            <div className="flex justify-between items-center bg-rose-50 border border-rose-200 p-3 rounded-2xl">
+              <div className="flex items-center gap-2 text-rose-900 font-bold text-xs uppercase tracking-wide">
+                <Award className="h-4.5 w-4.5 text-rose-700" />
+                <span>Official Membership Certificate - {selectedMembershipCert.fullName} ({selectedMembershipCert.membershipId})</span>
+              </div>
+              <button
+                onClick={() => setShowMembershipCertModal(false)}
+                className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-200 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <MembershipCertificate
+              member={selectedMembershipCert}
+              onClose={() => setShowMembershipCertModal(false)}
             />
           </div>
         </div>
