@@ -3,6 +3,13 @@ const router = express.Router();
 const crypto = require('crypto');
 const Membership = require('../models/MembershipSchema');
 
+const Razorpay = require('razorpay');
+
+const razorpay = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET
+});
+
 // Utility to generate unique Membership ID & Certificate No
 const generateMembershipIds = async () => {
     const count = await Membership.countDocuments();
@@ -13,9 +20,73 @@ const generateMembershipIds = async () => {
     return { membershipId, certificateNo };
 };
 
-// POST /api/membership/register - Register a new member & record payment
-router.post('/register', async (req, res) => {
+// 1. POST /api/membership/create-order - Create Razorpay Order
+router.post('/create-order', async (req, res) => {
     try {
+        const { paymentAmount, fullName, mobileNumber } = req.body;
+        const numericAmount = Number(paymentAmount);
+
+        if (!numericAmount || isNaN(numericAmount) || numericAmount < 1) {
+            return res.status(400).json({ success: false, message: 'Please enter a valid payment amount.' });
+        }
+
+        const orderOptions = {
+            amount: Math.round(numericAmount * 100), // paise
+            currency: 'INR',
+            receipt: `rcpt_mbr_${Date.now()}`,
+            notes: {
+                applicant_name: fullName || 'Member',
+                mobile: mobileNumber || ''
+            }
+        };
+
+        const order = await razorpay.orders.create(orderOptions);
+
+        res.json({
+            success: true,
+            orderId: order.id,
+            amount: order.amount,
+            currency: order.currency,
+            key: process.env.RAZORPAY_KEY_ID
+        });
+    } catch (error) {
+        console.error('Error creating Razorpay order for membership:', error);
+        res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to create payment order.'
+        });
+    }
+});
+
+// 2. POST /api/membership/verify-payment - Verify HMAC signature & save record
+router.post('/verify-payment', async (req, res) => {
+    try {
+        const {
+            razorpay_order_id,
+            razorpay_payment_id,
+            razorpay_signature,
+            formData
+        } = req.body;
+
+        if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !formData) {
+            return res.status(400).json({ success: false, message: 'Missing payment details or form data.' });
+        }
+
+        // Verify Razorpay HMAC Signature
+        const body = razorpay_order_id + '|' + razorpay_payment_id;
+        const expectedSignature = crypto
+            .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+            .update(body.toString())
+            .digest('hex');
+
+        if (expectedSignature !== razorpay_signature) {
+            return res.status(400).json({
+                success: false,
+                message: 'Payment verification failed. Invalid transaction signature.'
+            });
+        }
+
+        // Signature valid - Save Member Record
         const {
             fullName,
             fatherOrHusbandName,
@@ -37,9 +108,8 @@ router.post('/register', async (req, res) => {
             joiningDate,
             interestAreas,
             declarationAccepted,
-            paymentAmount,
-            paymentId
-        } = req.body;
+            paymentAmount
+        } = formData;
 
         if (!fullName || !fullName.trim()) {
             return res.status(400).json({ success: false, message: 'Full Name is required.' });
@@ -47,18 +117,9 @@ router.post('/register', async (req, res) => {
         if (!mobileNumber || !mobileNumber.trim()) {
             return res.status(400).json({ success: false, message: 'Mobile Number is required.' });
         }
-        if (!declarationAccepted) {
-            return res.status(400).json({ success: false, message: 'You must accept the declaration.' });
-        }
-        
-        const numericAmount = Number(paymentAmount);
-        if (isNaN(numericAmount) || numericAmount <= 0) {
-            return res.status(400).json({ success: false, message: 'Please enter a valid payment amount.' });
-        }
 
+        const numericAmount = Number(paymentAmount);
         const { membershipId, certificateNo } = await generateMembershipIds();
-        const txnId = paymentId || `TXN-MBR-${Date.now()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
-        const orderId = `ORD-MBR-${Date.now()}`;
 
         const newMember = new Membership({
             membershipId,
@@ -85,8 +146,8 @@ router.post('/register', async (req, res) => {
             declarationAccepted: Boolean(declarationAccepted),
             paymentAmount: numericAmount,
             paymentStatus: 'Paid',
-            paymentId: txnId,
-            orderId: orderId,
+            paymentId: razorpay_payment_id,
+            orderId: razorpay_order_id,
             certificateIssued: true
         });
 
@@ -94,15 +155,15 @@ router.post('/register', async (req, res) => {
 
         res.status(201).json({
             success: true,
-            message: 'Membership registration successful and certificate generated!',
+            message: 'Payment verified and Membership registered successfully!',
             data: newMember
         });
 
     } catch (error) {
-        console.error('Error registering member:', error);
+        console.error('Error verifying membership payment:', error);
         res.status(500).json({
             success: false,
-            message: error.message || 'Server error during membership registration.'
+            message: error.message || 'Server error during payment verification.'
         });
     }
 });
