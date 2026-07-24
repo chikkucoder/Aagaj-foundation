@@ -144,9 +144,14 @@ const PartnershipCertificate = ({ partner, onClose }) => {
                   </svg>
                 </div>
 
-                {/* Top Bar: Certificate No. */}
+                {/* Top Bar: NGO Darpan & Certificate No. */}
                 <div className="flex justify-between items-center w-full z-20 pl-28 pr-6 pt-1">
-                  <div></div>
+                  <div className="text-left">
+                    <span className="text-xs font-serif text-slate-800 tracking-wider">
+                      NGO DARPAN NO – <span className="font-bold border-b border-dashed border-slate-600 px-2 font-mono text-[#8B1E4B]">BR/2020/0260968</span>
+                    </span>
+                    <div className="w-48 h-[2px] bg-[#D4AF37] mt-0.5"></div>
+                  </div>
                   <div className="text-right">
                     <span className="text-xs font-serif text-slate-800 tracking-wider">
                       Certificate No.: <span className="font-bold border-b border-dashed border-slate-600 px-2 font-mono text-[#0D5C53]">{certNo}</span>
@@ -171,6 +176,9 @@ const PartnershipCertificate = ({ partner, onClose }) => {
                       <span className="text-xl font-black text-[#0D5C53] tracking-widest uppercase">AAGAJ</span>
                       <span className="text-xl font-black text-[#8B1E4B] tracking-widest uppercase">FOUNDATION</span>
                     </div>
+                    <span className="text-[10px] font-sans font-bold text-slate-600 tracking-widest uppercase mt-0.5">
+                      NGO DARPAN NO – BR/2020/0260968 &nbsp;|&nbsp; REG NO – 759445
+                    </span>
                   </div>
 
                   {/* Title */}
@@ -250,9 +258,11 @@ const PartnershipCertificate = ({ partner, onClose }) => {
 
                   {/* Center Official Seal */}
                   <div className="flex flex-col items-center text-center">
-                    <div className="w-16 h-16 rounded-full border-2 border-dashed border-[#C5A059] flex items-center justify-center p-1 bg-amber-50/30">
-                      <div className="w-full h-full rounded-full border border-[#D4AF37] flex items-center justify-center text-[8px] font-black text-[#8B1E4B] tracking-tighter uppercase text-center p-0.5">
-                        OFFICIAL<br />SEAL
+                    <div className="w-16 h-16 rounded-full border-2 border-dashed border-[#C5A059] flex items-center justify-center p-0.5 bg-amber-50/30">
+                      <div className="w-full h-full rounded-full border border-[#D4AF37] flex flex-col items-center justify-center text-[7px] font-black text-[#8B1E4B] tracking-tighter uppercase text-center p-0.5 leading-tight">
+                        <span className="text-[6.5px]">AAGAJ</span>
+                        <span className="text-[5.5px] font-bold text-slate-700">BR/2020/0260968</span>
+                        <span className="text-[#0D5C53] text-[6.5px]">OFFICIAL SEAL</span>
                       </div>
                     </div>
                     <span className="text-[8px] font-serif text-slate-400 mt-0.5">(Official Seal)</span>
