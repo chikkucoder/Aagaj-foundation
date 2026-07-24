@@ -175,4 +175,80 @@ router.post('/reset-password', async (req, res) => {
     }
 });
 
+// 🟢 3. Authenticated Change Password Route
+router.post('/change-password', async (req, res) => {
+    try {
+        const { email, currentPassword, newPassword } = req.body;
+
+        if (!email || !currentPassword || !newPassword) {
+            return res.status(400).json({ success: false, message: "Email, Current Password, and New Password are required." });
+        }
+
+        if (newPassword.length < 6) {
+            return res.status(400).json({ success: false, message: "New password must be at least 6 characters long." });
+        }
+
+        const admin = await Admin.findOne({ email });
+        if (!admin) {
+            return res.status(404).json({ success: false, message: "Admin account not found." });
+        }
+
+        // Verify current password
+        const isMatch = await bcrypt.compare(currentPassword, admin.password);
+        if (!isMatch) {
+            return res.status(400).json({ success: false, message: "Incorrect current password. Please check and try again." });
+        }
+
+        // Update password (Schema pre-save hook automatically hashes newPassword)
+        admin.password = newPassword;
+        await admin.save();
+
+        res.json({ success: true, message: "Password changed successfully!" });
+
+    } catch (error) {
+        console.error("Change Password Error:", error);
+        res.status(500).json({ success: false, message: "Server error while changing password." });
+    }
+});
+
+// 🟢 4. Update Admin Profile Route
+router.put('/update-profile', async (req, res) => {
+    try {
+        const { currentEmail, fullName, newEmail } = req.body;
+
+        if (!currentEmail) {
+            return res.status(400).json({ success: false, message: "Current email is required." });
+        }
+
+        const admin = await Admin.findOne({ email: currentEmail });
+        if (!admin) {
+            return res.status(404).json({ success: false, message: "Admin account not found." });
+        }
+
+        if (fullName && fullName.trim()) {
+            admin.fullName = fullName.trim();
+        }
+
+        if (newEmail && newEmail.trim() !== currentEmail) {
+            const emailExists = await Admin.findOne({ email: newEmail.trim() });
+            if (emailExists) {
+                return res.status(400).json({ success: false, message: "Email address is already in use by another admin." });
+            }
+            admin.email = newEmail.trim();
+        }
+
+        await admin.save();
+
+        res.json({
+            success: true,
+            message: "Profile details updated successfully!",
+            admin: { fullName: admin.fullName, email: admin.email, role: admin.role || 'Super Admin' }
+        });
+
+    } catch (error) {
+        console.error("Update Profile Error:", error);
+        res.status(500).json({ success: false, message: "Server error while updating profile." });
+    }
+});
+
 module.exports = router;

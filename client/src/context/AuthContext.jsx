@@ -36,14 +36,30 @@ export const AuthProvider = ({ children }) => {
         }
       }
 
+      const adminEmail = sessionStorage.getItem('adminEmail');
       setUser({
         fullName: storedUserName,
-        email: storedUserEmail,
+        email: storedUserEmail || adminEmail || '',
         uniqueId: uniqueId
       });
     }
     setLoading(false);
   }, []);
+
+  const updateUser = (updatedData) => {
+    setUser(prev => {
+      const newObj = { ...prev, ...updatedData };
+      if (newObj.fullName) sessionStorage.setItem('loggedInUser', newObj.fullName);
+      if (newObj.email) {
+        if (role === 'admin') {
+          sessionStorage.setItem('adminEmail', newObj.email);
+        } else {
+          sessionStorage.setItem('loggedInUserEmail', newObj.email);
+        }
+      }
+      return newObj;
+    });
+  };
 
   const login = async (username, password, selectedRole) => {
     setLoading(true);
@@ -131,7 +147,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, role, token, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, role, token, loading, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
