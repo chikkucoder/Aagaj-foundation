@@ -58,11 +58,16 @@ import {
   Edit,
   UserPlus,
   Image,
-  Award
+  Award,
+  EyeOff,
+  KeyRound,
+  ShieldCheck,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 
 const AdminDashboard = () => {
-  const { logout, user } = useAuth();
+  const { logout, user, updateUser } = useAuth();
   const navigate = useNavigate();
 
   // Navigation Sidebar State
@@ -149,19 +154,122 @@ const AdminDashboard = () => {
   const [selectedMembershipCert, setSelectedMembershipCert] = useState(null);
   const [showMembershipCertModal, setShowMembershipCertModal] = useState(false);
 
-  const handleDeleteMember = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this membership record?')) return;
+  // Admin Profile & Security Settings States
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profileActiveTab, setProfileActiveTab] = useState('password'); // 'password' | 'profile'
+  
+  // Profile Form States
+  const [profileFullName, setProfileFullName] = useState(user?.fullName || 'Administrator');
+  const [profileEmail, setProfileEmail] = useState(user?.email || sessionStorage.getItem('adminEmail') || '');
+  const [profileSubmitting, setProfileSubmitting] = useState(false);
+  const [profileSuccessMsg, setProfileSuccessMsg] = useState('');
+  const [profileErrorMsg, setProfileErrorMsg] = useState('');
+
+  // Password Form States
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordSubmitting, setPasswordSubmitting] = useState(false);
+  const [passwordSuccessMsg, setPasswordSuccessMsg] = useState('');
+  const [passwordErrorMsg, setPasswordErrorMsg] = useState('');
+
+  useEffect(() => {
+    if (user) {
+      if (user.fullName) setProfileFullName(user.fullName);
+      const emailVal = user.email || sessionStorage.getItem('adminEmail');
+      if (emailVal) setProfileEmail(emailVal);
+    }
+  }, [user]);
+
+  const getPasswordStrength = (pass) => {
+    if (!pass) return { score: 0, label: '', color: '' };
+    let score = 0;
+    if (pass.length >= 6) score += 1;
+    if (pass.length >= 10) score += 1;
+    if (/[A-Z]/.test(pass)) score += 1;
+    if (/[0-9]/.test(pass)) score += 1;
+    if (/[^A-Za-z0-9]/.test(pass)) score += 1;
+
+    if (score <= 2) return { score, label: 'Weak (कमजोर)', color: 'bg-rose-500' };
+    if (score <= 4) return { score, label: 'Medium (मध्यम)', color: 'bg-amber-500' };
+    return { score, label: 'Strong (मजबूत)', color: 'bg-emerald-500' };
+  };
+
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    setProfileSuccessMsg('');
+    setProfileErrorMsg('');
+    setProfileSubmitting(true);
+
     try {
-      const res = await apiClient.delete(`/api/membership/${id}`);
+      const activeEmail = user?.email || sessionStorage.getItem('adminEmail') || profileEmail;
+      const res = await apiClient.put('/api/admin/register/update-profile', {
+        currentEmail: activeEmail,
+        fullName: profileFullName,
+        newEmail: profileEmail
+      });
+
       if (res.data && res.data.success) {
-        alert('Member record deleted successfully!');
-        syncData();
+        setProfileSuccessMsg('Profile details updated successfully!');
+        if (updateUser) {
+          updateUser({ fullName: profileFullName, email: profileEmail });
+        }
+        setTimeout(() => setProfileSuccessMsg(''), 4000);
       } else {
-        alert(res.data?.message || 'Failed to delete member record.');
+        setProfileErrorMsg(res.data?.message || 'Failed to update profile.');
       }
     } catch (err) {
-      console.error('Delete Member Error:', err);
-      alert('Error deleting member record.');
+      console.error(err);
+      setProfileErrorMsg(err.response?.data?.message || 'Server error updating profile.');
+    } finally {
+      setProfileSubmitting(false);
+    }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPasswordSuccessMsg('');
+    setPasswordErrorMsg('');
+
+    if (!currentPassword) {
+      setPasswordErrorMsg('Please enter your Current Password.');
+      return;
+    }
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordErrorMsg('New password must be at least 6 characters long.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordErrorMsg('New password and confirm password do not match!');
+      return;
+    }
+
+    setPasswordSubmitting(true);
+    try {
+      const activeEmail = user?.email || sessionStorage.getItem('adminEmail') || profileEmail;
+      const res = await apiClient.post('/api/admin/register/change-password', {
+        email: activeEmail,
+        currentPassword,
+        newPassword
+      });
+
+      if (res.data && res.data.success) {
+        setPasswordSuccessMsg('Password changed successfully!');
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setTimeout(() => setPasswordSuccessMsg(''), 4000);
+      } else {
+        setPasswordErrorMsg(res.data?.message || 'Failed to change password.');
+      }
+    } catch (err) {
+      console.error(err);
+      setPasswordErrorMsg(err.response?.data?.message || 'Server error changing password.');
+    } finally {
+      setPasswordSubmitting(false);
     }
   };
 
@@ -1421,6 +1529,13 @@ const AdminDashboard = () => {
           <div className="space-y-1.5">
             <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">System Control</p>
             <button
+              onClick={() => { setShowProfileModal(true); setProfileActiveTab('password'); setIsSidebarOpen(false); }}
+              className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-all text-slate-300 hover:bg-slate-800 hover:text-white bg-slate-800/40 border border-slate-700/50"
+            >
+              <span className="flex items-center gap-3"><UserCheck className="h-4.5 w-4.5 text-[#fdd831]" /> Admin Profile</span>
+              <KeyRound className="h-3.5 w-3.5 text-slate-400" />
+            </button>
+            <button
               onClick={() => { setCurrentView('carouselControl'); setCurrentPage(1); setIsSidebarOpen(false); }}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${currentView === 'carouselControl' ? 'bg-[#fdd831] text-[#051630]' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}
             >
@@ -1444,13 +1559,22 @@ const AdminDashboard = () => {
 
         {/* Sidebar Footer Profiles */}
         <div className="p-4 border-t border-slate-800 bg-[#030e20]">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="h-8 w-8 rounded-full bg-[#fdd831] text-[#051630] font-black flex items-center justify-center text-xs">
-              AD
+          <div 
+            onClick={() => { setShowProfileModal(true); setProfileActiveTab('password'); }}
+            className="flex items-center justify-between p-2 rounded-xl bg-slate-900/60 hover:bg-slate-800 border border-slate-800 cursor-pointer transition-all mb-3 group"
+            title="Click to manage profile & change password"
+          >
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-full bg-[#fdd831] text-[#051630] font-black flex items-center justify-center text-xs shadow-md">
+                AD
+              </div>
+              <div>
+                <p className="text-xs font-bold text-white leading-none group-hover:text-[#fdd831] transition-all">{user?.fullName || 'Administrator'}</p>
+                <span className="text-[10px] text-slate-400 leading-none">Super Admin</span>
+              </div>
             </div>
-            <div>
-              <p className="text-xs font-bold text-white leading-none">{user?.fullName || 'Administrator'}</p>
-              <span className="text-[10px] text-slate-500 leading-none">Super Admin</span>
+            <div className="p-1 rounded-lg bg-slate-800 text-slate-400 group-hover:text-[#fdd831] group-hover:bg-slate-700 transition-all">
+              <KeyRound className="h-3.5 w-3.5" />
             </div>
           </div>
           <button
@@ -6152,6 +6276,283 @@ const AdminDashboard = () => {
               member={selectedMembershipCert}
               onClose={() => setShowMembershipCertModal(false)}
             />
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL 14. ADMIN PROFILE & SECURITY SETTINGS MODAL --- */}
+      {showProfileModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/65 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto font-sans">
+          <div className="w-full max-w-xl max-h-[92vh] overflow-y-auto rounded-3xl bg-white shadow-2xl border border-slate-100 text-left relative flex flex-col">
+            
+            {/* Profile Header Header Banner */}
+            <div className="bg-gradient-to-r from-[#051630] via-[#0b2854] to-[#051630] p-6 rounded-t-3xl text-white relative overflow-hidden">
+              <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 opacity-10 pointer-events-none">
+                <ShieldCheck className="h-44 w-44 text-white" />
+              </div>
+
+              <div className="flex justify-between items-start relative z-10">
+                <div className="flex items-center gap-4">
+                  <div className="h-14 w-14 rounded-2xl bg-[#fdd831] text-[#051630] font-black flex items-center justify-center text-xl shadow-lg border-2 border-white/20">
+                    AD
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-black text-white leading-tight">
+                      {user?.fullName || 'Super Administrator'}
+                    </h2>
+                    <p className="text-xs text-slate-300 font-medium mt-0.5">{user?.email || sessionStorage.getItem('adminEmail') || 'admin@aagajfoundation.com'}</p>
+                    <span className="inline-flex items-center gap-1 mt-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold uppercase tracking-wider">
+                      <ShieldCheck className="h-3 w-3" /> System Super Administrator
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowProfileModal(false)}
+                  className="rounded-xl p-2 text-slate-300 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Navigation Tabs */}
+              <div className="flex gap-2 mt-6 pt-4 border-t border-white/10 relative z-10">
+                <button
+                  type="button"
+                  onClick={() => setProfileActiveTab('password')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                    profileActiveTab === 'password'
+                      ? 'bg-[#fdd831] text-[#051630] shadow-md'
+                      : 'bg-white/10 text-slate-200 hover:bg-white/20'
+                  }`}
+                >
+                  <KeyRound className="h-3.5 w-3.5" /> Security & Change Password
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setProfileActiveTab('profile')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                    profileActiveTab === 'profile'
+                      ? 'bg-[#fdd831] text-[#051630] shadow-md'
+                      : 'bg-white/10 text-slate-200 hover:bg-white/20'
+                  }`}
+                >
+                  <UserCheck className="h-3.5 w-3.5" /> Profile Details
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body Content */}
+            <div className="p-6 space-y-5">
+              
+              {/* TAB 1: SECURITY & CHANGE PASSWORD */}
+              {profileActiveTab === 'password' && (
+                <form onSubmit={handleChangePassword} className="space-y-4">
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                      <KeyRound className="h-4 w-4 text-rose-600" /> Change Account Password (पासवर्ड बदलें)
+                    </h3>
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      Enter your current password and set a new secure password.
+                    </p>
+                  </div>
+
+                  {passwordSuccessMsg && (
+                    <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold rounded-xl flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                      <span>{passwordSuccessMsg}</span>
+                    </div>
+                  )}
+
+                  {passwordErrorMsg && (
+                    <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold rounded-xl flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+                      <span>{passwordErrorMsg}</span>
+                    </div>
+                  )}
+
+                  {/* Current Password Field */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">Current Password (वर्तमान पासवर्ड)</label>
+                    <div className="relative">
+                      <input
+                        type={showCurrentPassword ? "text" : "password"}
+                        required
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        placeholder="Enter your existing password"
+                        className="w-full border border-slate-200 bg-slate-50 focus:bg-white rounded-xl pl-3 pr-10 py-2.5 text-xs font-semibold text-slate-900 outline-none focus:border-rose-600 transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* New Password Field */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">New Password (नया पासवर्ड)</label>
+                    <div className="relative">
+                      <input
+                        type={showNewPassword ? "text" : "password"}
+                        required
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Minimum 6 characters"
+                        className="w-full border border-slate-200 bg-slate-50 focus:bg-white rounded-xl pl-3 pr-10 py-2.5 text-xs font-semibold text-slate-900 outline-none focus:border-rose-600 transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+
+                    {/* Password Strength Indicator */}
+                    {newPassword && (
+                      <div className="pt-1.5 space-y-1">
+                        <div className="flex justify-between items-center text-[10px] font-bold">
+                          <span className="text-slate-400 uppercase">Strength:</span>
+                          <span className="text-slate-700">{getPasswordStrength(newPassword).label}</span>
+                        </div>
+                        <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className={`h-full transition-all duration-300 ${getPasswordStrength(newPassword).color}`}
+                            style={{ width: `${(getPasswordStrength(newPassword).score / 5) * 100}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Confirm Password Field */}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">Confirm New Password (नए पासवर्ड की पुष्टि करें)</label>
+                    <div className="relative">
+                      <input
+                        type={showConfirmPassword ? "text" : "password"}
+                        required
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Re-enter new password"
+                        className={`w-full border rounded-xl pl-3 pr-10 py-2.5 text-xs font-semibold text-slate-900 outline-none transition-all ${
+                          confirmPassword && confirmPassword !== newPassword
+                            ? 'border-rose-400 bg-rose-50/50'
+                            : 'border-slate-200 bg-slate-50 focus:bg-white focus:border-rose-600'
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                    {confirmPassword && confirmPassword !== newPassword && (
+                      <p className="text-[10px] font-bold text-rose-600 mt-0.5">⚠️ Passwords do not match</p>
+                    )}
+                  </div>
+
+                  {/* Submit Button */}
+                  <div className="pt-3 border-t border-slate-100 flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowProfileModal(false)}
+                      className="flex-1 rounded-xl bg-slate-100 hover:bg-slate-200 py-2.5 text-xs font-bold text-slate-700 transition-all cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={passwordSubmitting}
+                      className="flex-1 rounded-xl bg-[#051630] hover:bg-slate-900 text-[#fdd831] py-2.5 text-xs font-extrabold shadow-md transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                    >
+                      {passwordSubmitting ? 'Updating...' : 'Update Password'}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* TAB 2: PROFILE DETAILS */}
+              {profileActiveTab === 'profile' && (
+                <form onSubmit={handleUpdateProfile} className="space-y-4">
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                      <UserCheck className="h-4 w-4 text-indigo-600" /> Super Admin Profile Details (एडमिन प्रोफ़ाइल)
+                    </h3>
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      Manage administrative identity and system notification email address.
+                    </p>
+                  </div>
+
+                  {profileSuccessMsg && (
+                    <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold rounded-xl flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                      <span>{profileSuccessMsg}</span>
+                    </div>
+                  )}
+
+                  {profileErrorMsg && (
+                    <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold rounded-xl flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+                      <span>{profileErrorMsg}</span>
+                    </div>
+                  )}
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">Administrator Full Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={profileFullName}
+                      onChange={(e) => setProfileFullName(e.target.value)}
+                      className="w-full border border-slate-200 bg-slate-50 focus:bg-white rounded-xl px-3 py-2.5 text-xs font-extrabold text-slate-900 outline-none focus:border-indigo-600 transition-all"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-600 uppercase tracking-wider block">Admin System Email Address</label>
+                    <input
+                      type="email"
+                      required
+                      value={profileEmail}
+                      onChange={(e) => setProfileEmail(e.target.value)}
+                      className="w-full border border-slate-200 bg-slate-50 focus:bg-white rounded-xl px-3 py-2.5 text-xs font-extrabold text-slate-900 outline-none focus:border-indigo-600 transition-all"
+                    />
+                  </div>
+
+                  <div className="p-3 rounded-2xl bg-indigo-50/70 border border-indigo-100 space-y-1 text-[11px] text-indigo-900 font-medium">
+                    <p><strong className="font-bold">Role:</strong> Super Admin (Full Control)</p>
+                    <p><strong className="font-bold">Status:</strong> Active System Administrator ✅</p>
+                  </div>
+
+                  {/* Submit Button */}
+                  <div className="pt-3 border-t border-slate-100 flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowProfileModal(false)}
+                      className="flex-1 rounded-xl bg-slate-100 hover:bg-slate-200 py-2.5 text-xs font-bold text-slate-700 transition-all cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={profileSubmitting}
+                      className="flex-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 text-xs font-extrabold shadow-md transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                    >
+                      {profileSubmitting ? 'Saving...' : 'Save Profile Changes'}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+            </div>
           </div>
         </div>
       )}
