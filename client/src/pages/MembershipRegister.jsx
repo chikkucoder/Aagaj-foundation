@@ -852,7 +852,7 @@ const MembershipRegister = () => {
                 {/* Header Info */}
                 <div className="flex justify-between items-center text-[11px] font-sans font-bold text-slate-600 mb-4 pb-2 border-b border-rose-200">
                   <div>
-                    Reg. No: <span className="text-slate-900 font-black">759445/2020</span> (Govt. Reg.)
+                    Reg. No: <span className="text-slate-900 font-black">759445/2020</span> | NGO DARPAN: <span className="text-rose-900 font-black">BR/2020/0260968</span>
                   </div>
                   <div className="text-center font-mono">
                     <span className="bg-rose-100 text-rose-800 px-3 py-1 rounded-full text-xs font-black">
@@ -871,7 +871,7 @@ const MembershipRegister = () => {
                     AAGAJ FOUNDATION
                   </h1>
                   <p className="text-xs font-sans font-bold text-slate-600 uppercase tracking-widest">
-                    (Registered Under Indian Trust Act 1882)
+                    (Registered Under Indian Trust Act 1882 | NGO DARPAN NO – BR/2020/0260968)
                   </p>
                   <p className="text-xs font-sans font-medium text-slate-500">
                     Head Office: Main Road, Patna, Bihar | Web: www.aagajfoundation.com
@@ -956,9 +956,10 @@ const MembershipRegister = () => {
                   {/* Official Stamp Overlay */}
                   <div className="relative flex flex-col items-center">
                     <div className="w-20 h-20 rounded-full border-2 border-rose-700 border-dashed flex flex-col items-center justify-center p-1 opacity-80 rotate-[-12deg] bg-rose-50/50">
-                      <span className="text-[7px] font-black text-rose-900 uppercase">AAGAJ FOUNDATION</span>
+                      <span className="text-[6.5px] font-black text-rose-900 uppercase">AAGAJ FOUNDATION</span>
                       <span className="text-[5px] text-rose-700 font-bold">REG. 759445/2020</span>
-                      <span className="text-[6px] font-black text-rose-800 mt-0.5">OFFICIAL SEAL</span>
+                      <span className="text-[5px] text-rose-700 font-bold">DARPAN: BR/2020/0260968</span>
+                      <span className="text-[5.5px] font-black text-rose-800 mt-0.5">OFFICIAL SEAL</span>
                     </div>
                   </div>
 
