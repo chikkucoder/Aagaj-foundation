@@ -24,7 +24,8 @@ import {
   getHospitalActivity,
   getEmployeeActivity,
   getAdminTransactions,
-  editHealthCardDetails
+  editHealthCardDetails,
+  deleteMembership
 } from '../api/userApi';
 import apiClient from '../api/apiClient';
 import {
@@ -574,6 +575,25 @@ const AdminDashboard = () => {
       setCertFormError(err.response?.data?.message || "Server connection error.");
     } finally {
       setCertFormSubmitting(false);
+    }
+  };
+
+  const handleDeleteMember = async (id) => {
+    if (!id) return;
+    if (!window.confirm("क्या आप वाकई इस सदस्यता रिकॉर्ड को हटाना चाहते हैं? (Are you sure you want to delete this membership record?)")) {
+      return;
+    }
+    try {
+      const res = await deleteMembership(id);
+      if (res && res.success) {
+        alert("सदस्यता रिकॉर्ड सफलतापूर्वक हटा दिया गया!");
+        setMemberships(prev => prev.filter(m => m._id !== id));
+      } else {
+        alert(res?.message || "हटाने में विफलता हुई।");
+      }
+    } catch (err) {
+      console.error("Error deleting member record:", err);
+      alert(err.response?.data?.message || "सदस्यता रिकॉर्ड हटाने में त्रुटि हुई।");
     }
   };
 
