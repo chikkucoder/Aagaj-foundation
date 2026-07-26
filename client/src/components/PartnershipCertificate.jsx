@@ -11,9 +11,10 @@ const PartnershipCertificate = ({ partner, onClose }) => {
     const updateScale = () => {
       if (containerRef.current) {
         const width = containerRef.current.clientWidth;
-        if (width > 0) {
-          setScale(Math.min(1, width / 960));
-        }
+        const availableHeight = Math.max(300, window.innerHeight - 150);
+        const widthScale = width > 0 ? width / 960 : 1;
+        const heightScale = availableHeight / 670;
+        setScale(Math.min(1, widthScale, heightScale));
       }
     };
 
