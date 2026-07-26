@@ -17,7 +17,9 @@ import {
   addHospitalBill,
   verifyHospitalPatient,
   getHospitalAppointments,
-  updateHospitalAppointmentStatus
+  updateHospitalAppointmentStatus,
+  editHospitalBill,
+  deleteHospitalBill
 } from '../api/userApi';
 import {
   Building,
@@ -44,7 +46,11 @@ import {
   User,
   Phone,
   Tag,
-  Award
+  Award,
+  Download,
+  ChevronLeft,
+  ChevronRight,
+  Image as ImageIcon
 } from 'lucide-react';
 
 const HospitalDashboard = () => {
@@ -81,10 +87,22 @@ const HospitalDashboard = () => {
   const [verifyCardStatus, setVerifyCardStatus] = useState('');
   const [verifyCardClass, setVerifyCardClass] = useState('text-slate-400');
   const [uploadedBillPhoto, setUploadedBillPhoto] = useState(null);
+  const [uploadedBillPhotos, setUploadedBillPhotos] = useState([]);
 
   // Partnership Certificate States
   const [partnerProfile, setPartnerProfile] = useState(null);
   const [showPartnerCertModal, setShowPartnerCertModal] = useState(false);
+
+  // Patient Bill Receipt Preview Modal State
+  const [selectedBillReceipt, setSelectedBillReceipt] = useState(null);
+  const [showBillReceiptModal, setShowBillReceiptModal] = useState(false);
+  const [activeReceiptIndex, setActiveReceiptIndex] = useState(0);
+
+  // Edit Patient Bill States
+  const [selectedEditBill, setSelectedEditBill] = useState(null);
+  const [showEditBillModal, setShowEditBillModal] = useState(false);
+  const [editBillPhoto, setEditBillPhoto] = useState(null);
+  const [editBillPhotos, setEditBillPhotos] = useState([]);
 
   // Search Filter Terms
   const [searchTerm, setSearchTerm] = useState('');
@@ -94,6 +112,7 @@ const HospitalDashboard = () => {
   const { register: regEditHosp, handleSubmit: handleEditHospSubmit, setValue: setEditValue } = useForm();
   const { register: regCreds, handleSubmit: handleCredsSubmit, reset: resetCredsForm } = useForm();
   const { register: regBill, handleSubmit: handleBillSubmit, setValue: setBillValue, watch: watchBill, reset: resetBillForm } = useForm();
+  const { register: regEditBill, handleSubmit: handleEditBillSubmit, setValue: setEditBillValue, reset: resetEditBillForm } = useForm();
 
   const watchHealthId = watchBill('healthId');
 
@@ -363,14 +382,35 @@ const HospitalDashboard = () => {
   };
 
   const handleBillPhotoChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setUploadedBillPhoto(event.target.result);
-      };
-      reader.readAsDataURL(file);
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      const readers = files.map(file => {
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (event) => resolve(event.target.result);
+          reader.readAsDataURL(file);
+        });
+      });
+
+      Promise.all(readers).then(base64Images => {
+        setUploadedBillPhotos(prev => [...prev, ...base64Images]);
+        if (!uploadedBillPhoto && base64Images.length > 0) {
+          setUploadedBillPhoto(base64Images[0]);
+        }
+      });
     }
+  };
+
+  const removeUploadedPhoto = (index) => {
+    setUploadedBillPhotos(prev => {
+      const updated = prev.filter((_, i) => i !== index);
+      if (updated.length > 0) {
+        setUploadedBillPhoto(updated[0]);
+      } else {
+        setUploadedBillPhoto(null);
+      }
+      return updated;
+    });
   };
 
   const onAddBillSubmit = async (data) => {
@@ -386,7 +426,8 @@ const HospitalDashboard = () => {
         treatmentDetails: data.treatmentDetails,
         billAmount: Number(data.billAmount),
         status: data.billStatus,
-        billPhoto: uploadedBillPhoto
+        billPhoto: uploadedBillPhotos[0] || uploadedBillPhoto || '',
+        billPhotos: uploadedBillPhotos.length > 0 ? uploadedBillPhotos : (uploadedBillPhoto ? [uploadedBillPhoto] : [])
       };
 
       const res = await addHospitalBill(payload);
@@ -395,6 +436,7 @@ const HospitalDashboard = () => {
         setShowAddBillModal(false);
         resetBillForm();
         setUploadedBillPhoto(null);
+        setUploadedBillPhotos([]);
         setVerifyCardStatus('');
         fetchPartnerData();
       } else {
@@ -402,6 +444,113 @@ const HospitalDashboard = () => {
       }
     } catch (err) {
       setErrorMsg('Server connection error while generating bill.');
+    }
+  };
+
+  const handleOpenEditBill = (bill) => {
+    setSelectedEditBill(bill);
+    const photos = (bill.billPhotos && bill.billPhotos.length > 0)
+      ? bill.billPhotos
+      : (bill.billPhoto ? [bill.billPhoto] : []);
+    setEditBillPhotos(photos);
+    setEditBillPhoto(photos[0] || null);
+    setEditBillValue('healthId', bill.healthId || 'General');
+    setEditBillValue('patientName', bill.patientName || '');
+    setEditBillValue('patientMobile', bill.patientMobile || '');
+    setEditBillValue('treatmentDetails', bill.treatmentDetails || '');
+    setEditBillValue('billAmount', bill.billAmount || '');
+    setEditBillValue('billStatus', bill.status || 'Paid');
+    setShowEditBillModal(true);
+  };
+
+  const handleEditBillPhotoChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      const readers = files.map(file => {
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (event) => resolve(event.target.result);
+          reader.readAsDataURL(file);
+        });
+      });
+
+      Promise.all(readers).then(base64Images => {
+        setEditBillPhotos(prev => [...prev, ...base64Images]);
+        if (!editBillPhoto && base64Images.length > 0) {
+          setEditBillPhoto(base64Images[0]);
+        }
+      });
+    }
+  };
+
+  const removeEditPhoto = (index) => {
+    setEditBillPhotos(prev => {
+      const updated = prev.filter((_, i) => i !== index);
+      if (updated.length > 0) {
+        setEditBillPhoto(updated[0]);
+      } else {
+        setEditBillPhoto(null);
+      }
+      return updated;
+    });
+  };
+
+  const onEditBillSubmit = async (data) => {
+    if (!selectedEditBill) return;
+    setErrorMsg('');
+    setSuccessMsg('');
+    const hospId = sessionStorage.getItem('loggedInHospitalId') || user?.uniqueId;
+    try {
+      const payload = {
+        hospitalId: hospId,
+        healthId: data.healthId || 'General',
+        patientName: data.patientName,
+        patientMobile: data.patientMobile,
+        treatmentDetails: data.treatmentDetails,
+        billAmount: Number(data.billAmount),
+        status: data.billStatus,
+        billPhoto: editBillPhotos[0] || editBillPhoto || '',
+        billPhotos: editBillPhotos.length > 0 ? editBillPhotos : (editBillPhoto ? [editBillPhoto] : [])
+      };
+
+      const res = await editHospitalBill(selectedEditBill._id, payload);
+      if (res.success) {
+        setSuccessMsg('Treatment bill record updated successfully!');
+        setShowEditBillModal(false);
+        setSelectedEditBill(null);
+        setEditBillPhoto(null);
+        setEditBillPhotos([]);
+        fetchPartnerData();
+      } else {
+        setErrorMsg(res.message || 'Failed to update bill record.');
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMsg('Server connection error while updating bill.');
+    }
+  };
+
+  const handleDeleteBill = async (billId) => {
+    if (!billId) return;
+    if (!window.confirm('क्या आप वाकई इस पेशेंट बिल रिकॉर्ड को हटाना चाहते हैं? (Are you sure you want to delete this bill record?)')) {
+      return;
+    }
+
+    setErrorMsg('');
+    setSuccessMsg('');
+    const hospId = sessionStorage.getItem('loggedInHospitalId') || user?.uniqueId;
+    try {
+      const res = await deleteHospitalBill(billId, hospId);
+      if (res && res.success) {
+        setSuccessMsg('पेशेंट बिल रिकॉर्ड सफलतापूर्वक हटा दिया गया! (Bill record deleted successfully!)');
+        setPartnerBills(prev => prev.filter(b => b._id !== billId));
+        fetchPartnerData();
+      } else {
+        setErrorMsg(res?.message || 'Failed to delete bill record.');
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMsg(err.response?.data?.message || 'Server connection error while deleting bill.');
     }
   };
 
@@ -717,14 +866,17 @@ const HospitalDashboard = () => {
                               </td>
                               <td className="py-3 px-4 text-center">
                                 {r.billPhoto ? (
-                                  <a
-                                    href={r.billPhoto}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="inline-flex rounded p-1 border border-slate-200 text-rose-600 bg-rose-50 hover:bg-rose-100 hover:border-rose-300"
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedBillReceipt(r);
+                                      setShowBillReceiptModal(true);
+                                    }}
+                                    className="inline-flex items-center gap-1 rounded px-2 py-1 border border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100 hover:border-rose-300 font-bold text-[10px] cursor-pointer transition-all shadow-sm"
+                                    title="View Uploaded Receipt"
                                   >
-                                    <FileText className="h-3.5 w-3.5" />
-                                  </a>
+                                    <FileText className="h-3.5 w-3.5" /> View Receipt
+                                  </button>
                                 ) : <span className="text-slate-400 font-semibold italic text-[10px]">No Photo</span>}
                               </td>
                             </tr>
@@ -842,12 +994,13 @@ const HospitalDashboard = () => {
                           <th className="py-3 px-4">Amount</th>
                           <th className="py-3 px-4">Status</th>
                           <th className="py-3 px-4 text-center">Receipt Image</th>
+                          <th className="py-3 px-4 text-right">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 text-slate-700 text-xs">
                         {filteredData.length === 0 ? (
                           <tr>
-                            <td colSpan="8" className="text-center py-12 text-slate-400 font-medium">No treatments have been billed yet.</td>
+                            <td colSpan="9" className="text-center py-12 text-slate-400 font-medium">No treatments have been billed yet.</td>
                           </tr>
                         ) : (
                           filteredData.map(b => (
@@ -870,15 +1023,38 @@ const HospitalDashboard = () => {
                               </td>
                               <td className="py-3 px-4 text-center">
                                 {b.billPhoto ? (
-                                  <a
-                                    href={b.billPhoto}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="inline-flex rounded p-1 border border-slate-200 text-rose-600 bg-rose-50 hover:bg-rose-100 hover:border-rose-300"
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedBillReceipt(b);
+                                      setShowBillReceiptModal(true);
+                                    }}
+                                    className="inline-flex items-center gap-1 rounded px-2 py-1 border border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100 hover:border-rose-300 font-bold text-[10px] cursor-pointer transition-all shadow-sm"
+                                    title="View Uploaded Receipt"
                                   >
-                                    <FileText className="h-3.5 w-3.5" />
-                                  </a>
+                                    <FileText className="h-3.5 w-3.5" /> View Receipt
+                                  </button>
                                 ) : <span className="text-slate-400 font-semibold italic text-[10px]">No Photo</span>}
+                              </td>
+                              <td className="py-3 px-4 text-right">
+                                <div className="flex justify-end gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenEditBill(b)}
+                                    className="inline-flex items-center gap-1 rounded-xl bg-slate-100 text-indigo-600 hover:bg-indigo-100 px-2.5 py-1.5 text-[10px] font-bold transition-all cursor-pointer shadow-sm"
+                                    title="Edit Bill Record"
+                                  >
+                                    <Edit2 className="h-3.5 w-3.5" /> Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteBill(b._id)}
+                                    className="inline-flex items-center gap-1 rounded-xl bg-slate-100 text-rose-600 hover:bg-rose-100 px-2 py-1.5 text-[10px] font-bold transition-all cursor-pointer"
+                                    title="Delete Bill Record"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           ))
@@ -1182,16 +1358,16 @@ const HospitalDashboard = () => {
 
       {/* --- MODAL 4: ADD PATIENT TREATMENT BILL (HOSPITAL PARTNER VIEW) --- */}
       {showAddBillModal && !isAdmin && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 overflow-y-auto">
-          <div className="w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100">
-            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 p-4">
+        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-slate-900/65 p-2 sm:p-4 overflow-y-auto font-sans">
+          <div className="w-full max-w-lg max-h-[92vh] flex flex-col overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 text-left my-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 p-4 shrink-0">
               <h3 className="text-base font-extrabold text-slate-800">Generate Patient Bill</h3>
               <button onClick={() => setShowAddBillModal(false)} className="rounded-lg p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <form onSubmit={handleBillSubmit(onAddBillSubmit)} className="p-6 space-y-4">
+            <form onSubmit={handleBillSubmit(onAddBillSubmit)} className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
 
               {/* Health ID Checkbox Input group */}
               <div>
@@ -1201,7 +1377,7 @@ const HospitalDashboard = () => {
                     type="text"
                     {...regBill('healthId')}
                     placeholder="E.g. MC-123456"
-                    className="flex-grow rounded-xl border border-slate-200 py-2.5 px-3 text-slate-800 text-sm uppercase outline-none focus:border-rose-500 transition-all"
+                    className="flex-grow rounded-xl border border-slate-200 py-2.5 px-3 text-slate-800 text-sm uppercase outline-none focus:border-rose-500 transition-all font-semibold"
                   />
                   <button
                     type="button"
@@ -1216,59 +1392,79 @@ const HospitalDashboard = () => {
 
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Patient Full Name</label>
-                <input type="text" {...regBill('patientName', { required: true })} className="block mt-1 w-full rounded-xl border border-slate-200 py-2.5 px-3 text-slate-800 text-sm focus:border-rose-500 outline-none" placeholder="Verification will autofill this" />
+                <input type="text" {...regBill('patientName', { required: true })} className="block mt-1 w-full rounded-xl border border-slate-200 py-2.5 px-3 text-slate-800 text-sm focus:border-rose-500 outline-none font-semibold" placeholder="Verification will autofill this" />
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Mobile Number</label>
-                <input type="text" {...regBill('patientMobile', { required: true, pattern: /^[0-9]{10}$/ })} className="block mt-1 w-full rounded-xl border border-slate-200 py-2.5 px-3 text-slate-800 text-sm focus:border-rose-500 outline-none" placeholder="10-digit number" />
+                <input type="text" {...regBill('patientMobile', { required: true, pattern: /^[0-9]{10}$/ })} className="block mt-1 w-full rounded-xl border border-slate-200 py-2.5 px-3 text-slate-800 text-sm focus:border-rose-500 outline-none font-semibold" placeholder="10-digit number" />
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Treatment / Diagnostic Details</label>
-                <textarea rows="2" {...regBill('treatmentDetails', { required: true })} className="block mt-1 w-full rounded-xl border border-slate-200 py-2.5 px-3 text-slate-800 text-sm focus:border-rose-500 outline-none" placeholder="E.g. Diagnostic Fever Test, Medicine..." />
+                <textarea rows="2" {...regBill('treatmentDetails', { required: true })} className="block mt-1 w-full rounded-xl border border-slate-200 py-2.5 px-3 text-slate-800 text-sm focus:border-rose-500 outline-none font-medium" placeholder="E.g. Diagnostic Fever Test, Medicine..." />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Bill Amount (₹)</label>
-                  <input type="number" {...regBill('billAmount', { required: true, min: 1 })} className="block mt-1 w-full rounded-xl border border-slate-200 py-2.5 px-3 text-slate-800 text-sm focus:border-rose-500 outline-none" placeholder="500" />
+                  <input type="number" {...regBill('billAmount', { required: true, min: 1 })} className="block mt-1 w-full rounded-xl border border-slate-200 py-2.5 px-3 text-slate-800 text-sm focus:border-rose-500 outline-none font-bold" placeholder="500" />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Payment Status</label>
-                  <select {...regBill('billStatus')} className="block mt-1 w-full rounded-xl border border-slate-200 py-2.5 px-3 text-slate-800 text-sm focus:border-rose-500 bg-white outline-none">
+                  <select {...regBill('billStatus')} className="block mt-1 w-full rounded-xl border border-slate-200 py-2.5 px-3 text-slate-800 text-sm focus:border-rose-500 bg-white outline-none font-semibold">
                     <option value="Paid">Paid</option>
                     <option value="Unpaid">Unpaid</option>
                   </select>
                 </div>
               </div>
 
-              {/* Base64 Bill File Image Upload */}
+              {/* Multiple Bill Photos Upload Area */}
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Upload Bill Photo / Invoice</label>
-                <div className="mt-1 flex items-center justify-center border-2 border-dashed border-slate-200 bg-slate-50 p-4 rounded-xl relative transition-all hover:bg-slate-100">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider">
+                    Upload Bill Photos / Receipts ({uploadedBillPhotos.length} Attached)
+                  </label>
+                  <span className="text-[10px] text-rose-600 font-bold">Multiple Allowed</span>
+                </div>
+
+                <div className="mt-1 flex items-center justify-center border-2 border-dashed border-slate-200 bg-slate-50 p-4 rounded-2xl relative transition-all hover:bg-slate-100">
                   <input
                     type="file"
                     accept="image/*"
+                    multiple
                     onChange={handleBillPhotoChange}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                   />
-                  {uploadedBillPhoto ? (
-                    <div className="text-center">
-                      <img src={uploadedBillPhoto} alt="Invoice preview" className="max-h-[120px] rounded-lg shadow-sm border border-slate-200 mx-auto" />
-                      <p className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-wider">Click/drag to change receipt</p>
-                    </div>
-                  ) : (
-                    <div className="text-center text-slate-400">
-                      <Camera className="h-6 w-6 mx-auto mb-1.5" />
-                      <span className="text-xs font-bold block uppercase tracking-wide">Select receipt image</span>
-                      <span className="text-[10px] block mt-0.5">JPEG, JPG, PNG up to 2MB</span>
-                    </div>
-                  )}
+                  <div className="text-center text-slate-500 pointer-events-none">
+                    <Camera className="h-6 w-6 mx-auto mb-1 opacity-70 text-rose-600" />
+                    <span className="text-xs font-bold block text-slate-700">Click or drag receipt images to upload</span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">JPG, PNG up to 2MB each (select 1 or multiple)</span>
+                  </div>
                 </div>
+
+                {/* Uploaded Thumbnails Strip */}
+                {uploadedBillPhotos.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3 p-2 bg-slate-50 rounded-xl border border-slate-100">
+                    {uploadedBillPhotos.map((photo, idx) => (
+                      <div key={idx} className="relative group rounded-lg overflow-hidden border border-slate-200 shadow-sm bg-white">
+                        <img src={photo} alt={`Receipt ${idx + 1}`} className="h-16 w-16 object-cover" />
+                        <span className="absolute top-0.5 left-0.5 bg-slate-900/80 text-white text-[8px] px-1 font-mono font-bold rounded">#{idx + 1}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeUploadedPhoto(idx)}
+                          className="absolute top-0.5 right-0.5 bg-rose-600 hover:bg-rose-700 text-white rounded-full p-0.5 shadow cursor-pointer transition-all"
+                          title="Remove Image"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              <button type="submit" className="w-full rounded-xl bg-[#ED1C24] hover:bg-[#b0151b] text-white font-bold py-3 mt-6 text-sm shadow-md transition-all">
+              <button type="submit" className="w-full rounded-xl bg-[#ED1C24] hover:bg-[#b0151b] text-white font-bold py-3 mt-4 text-sm shadow-md transition-all cursor-pointer">
                 GENERATE TREATMENT LOG
               </button>
             </form>
@@ -1278,12 +1474,280 @@ const HospitalDashboard = () => {
 
       {/* --- PARTNERSHIP CERTIFICATE VIEW MODAL --- */}
       {showPartnerCertModal && partnerProfile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/65 p-4 overflow-y-auto font-sans">
-          <div className="w-full max-w-5xl overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 p-4 text-left relative">
+        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-slate-900/75 p-2 sm:p-4 overflow-y-auto font-sans">
+          <div className="w-full max-w-5xl max-h-[95vh] overflow-y-auto rounded-3xl bg-white shadow-2xl border border-slate-100 p-2 sm:p-4 text-left relative my-auto">
             <PartnershipCertificate
               partner={partnerProfile}
               onClose={() => setShowPartnerCertModal(false)}
             />
+          </div>
+        </div>
+      )}
+
+      {/* --- PATIENT BILL RECEIPT PHOTO VIEW MODAL (WITH MULTI-IMAGE CAROUSEL & AUTO-VIEWPORT FIT) --- */}
+      {showBillReceiptModal && selectedBillReceipt && (() => {
+        const photos = (selectedBillReceipt.billPhotos && selectedBillReceipt.billPhotos.length > 0)
+          ? selectedBillReceipt.billPhotos
+          : (selectedBillReceipt.billPhoto ? [selectedBillReceipt.billPhoto] : []);
+        const activePhoto = photos[activeReceiptIndex] || photos[0] || selectedBillReceipt.billPhoto;
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-slate-900/75 p-2 sm:p-4 overflow-y-auto font-sans">
+            <div className="w-full max-w-xl max-h-[92vh] flex flex-col overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 text-left relative my-auto">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 p-3.5 sm:p-4 shrink-0">
+                <div>
+                  <h3 className="text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-tight flex items-center gap-1.5">
+                    <FileText className="h-4 w-4 text-rose-600" /> Patient Treatment Receipt / Invoice ({photos.length} {photos.length > 1 ? 'Files' : 'File'})
+                  </h3>
+                  <p className="text-[10px] text-slate-500 font-semibold mt-0.5">
+                    Bill ID: <span className="font-mono text-slate-800">{selectedBillReceipt.billId}</span> | Patient: <span className="text-slate-900">{selectedBillReceipt.patientName}</span>
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowBillReceiptModal(false);
+                    setSelectedBillReceipt(null);
+                    setActiveReceiptIndex(0);
+                  }}
+                  className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Scrollable Content Body */}
+              <div className="p-4 sm:p-5 space-y-3 overflow-y-auto flex-1">
+                {/* Patient & Bill Summary Info */}
+                <div className="grid grid-cols-2 gap-2.5 bg-slate-50 p-2.5 rounded-2xl border border-slate-100 text-[11px]">
+                  <div>
+                    <span className="text-slate-400 font-bold block text-[9px] uppercase">Patient Name</span>
+                    <strong className="text-slate-900">{selectedBillReceipt.patientName}</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-bold block text-[9px] uppercase">Health Card ID</span>
+                    <strong className="text-rose-600 font-mono">{selectedBillReceipt.healthId || 'General'}</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-bold block text-[9px] uppercase">Treatment Details</span>
+                    <span className="text-slate-700 font-medium truncate block">{selectedBillReceipt.treatmentDetails}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-bold block text-[9px] uppercase">Bill Amount & Status</span>
+                    <strong className="text-slate-900">₹{selectedBillReceipt.billAmount}</strong>
+                    <span className={`ml-2 inline-flex rounded px-1.5 py-0.5 text-[8px] font-black uppercase ${
+                      selectedBillReceipt.status === 'Paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                    }`}>
+                      {selectedBillReceipt.status}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Main Receipt Image Viewer Container */}
+                <div className="border border-slate-800 rounded-2xl overflow-hidden bg-slate-950 flex flex-col justify-center items-center relative min-h-[200px] max-h-[40vh] p-2 shadow-inner">
+                  {activePhoto ? (
+                    <>
+                      <img
+                        src={activePhoto}
+                        alt={`Uploaded Patient Receipt ${activeReceiptIndex + 1}`}
+                        className="max-h-[36vh] w-auto object-contain rounded-lg shadow-md transition-all duration-200"
+                      />
+
+                      {/* Next / Prev Controls for Multi-Photo */}
+                      {photos.length > 1 && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setActiveReceiptIndex(prev => (prev > 0 ? prev - 1 : photos.length - 1))}
+                            className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-slate-900/80 hover:bg-slate-900 text-white p-2 border border-slate-700 shadow-md cursor-pointer transition-all"
+                            title="Previous Image"
+                          >
+                            <ChevronLeft className="h-5 w-5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setActiveReceiptIndex(prev => (prev < photos.length - 1 ? prev + 1 : 0))}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-slate-900/80 hover:bg-slate-900 text-white p-2 border border-slate-700 shadow-md cursor-pointer transition-all"
+                            title="Next Image"
+                          >
+                            <ChevronRight className="h-5 w-5" />
+                          </button>
+                          <div className="absolute top-2 right-2 bg-slate-900/85 text-white text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border border-slate-700">
+                            {activeReceiptIndex + 1} / {photos.length}
+                          </div>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-center py-8 text-slate-500">
+                      <Camera className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-xs font-bold uppercase tracking-wider">No Receipt Photo Uploaded</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Multiple Image Thumbnails Bar */}
+                {photos.length > 1 && (
+                  <div className="flex items-center gap-2 overflow-x-auto p-1 bg-slate-50 rounded-xl border border-slate-100">
+                    {photos.map((p, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setActiveReceiptIndex(idx)}
+                        className={`relative rounded-lg overflow-hidden border-2 shrink-0 transition-all cursor-pointer ${
+                          idx === activeReceiptIndex ? 'border-rose-600 ring-2 ring-rose-200' : 'border-slate-200 opacity-60 hover:opacity-100'
+                        }`}
+                      >
+                        <img src={p} alt={`Thumb ${idx + 1}`} className="h-12 w-12 object-cover" />
+                        <span className="absolute bottom-0 right-0 bg-slate-900/80 text-white text-[8px] px-1 font-mono">#{idx + 1}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer Toolbar */}
+              <div className="flex justify-end gap-2 p-3 sm:p-4 bg-slate-50 border-t border-slate-100 shrink-0">
+                {activePhoto && (
+                  <a
+                    href={activePhoto}
+                    download={`Bill_${selectedBillReceipt.billId}_Receipt_${activeReceiptIndex + 1}.png`}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold cursor-pointer transition-all shadow-sm"
+                  >
+                    <Download className="h-4 w-4" /> Download Receipt (#{activeReceiptIndex + 1})
+                  </a>
+                )}
+                <button
+                  onClick={() => {
+                    setShowBillReceiptModal(false);
+                    setSelectedBillReceipt(null);
+                    setActiveReceiptIndex(0);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold cursor-pointer transition-all"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* --- MODAL: EDIT PATIENT TREATMENT BILL (HOSPITAL PARTNER VIEW) --- */}
+      {showEditBillModal && selectedEditBill && (
+        <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-slate-900/60 p-2 sm:p-4 overflow-y-auto font-sans">
+          <div className="w-full max-w-lg max-h-[92vh] flex flex-col overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 text-left my-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 p-4 shrink-0">
+              <div>
+                <h3 className="text-base font-extrabold text-slate-800">Edit Patient Treatment Bill</h3>
+                <p className="text-[10px] text-slate-500 font-semibold mt-0.5">
+                  Bill ID: <span className="font-mono text-slate-800">{selectedEditBill.billId}</span>
+                </p>
+              </div>
+              <button onClick={() => { setShowEditBillModal(false); setSelectedEditBill(null); }} className="rounded-lg p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditBillSubmit(onEditBillSubmit)} className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
+
+              <div>
+                <label className="block text-xs font-bold text-rose-600 uppercase tracking-wider">Patient Health Card ID</label>
+                <input
+                  type="text"
+                  {...regEditBill('healthId')}
+                  placeholder="E.g. MC-123456 or General"
+                  className="mt-1 w-full rounded-xl border border-slate-200 py-2.5 px-3 text-slate-800 text-sm uppercase outline-none focus:border-rose-500 transition-all font-semibold"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Patient Full Name</label>
+                <input type="text" {...regEditBill('patientName', { required: true })} className="block mt-1 w-full rounded-xl border border-slate-200 py-2.5 px-3 text-slate-800 text-sm focus:border-rose-500 outline-none font-semibold" placeholder="Full Name" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Mobile Number</label>
+                <input type="text" {...regEditBill('patientMobile', { required: true, pattern: /^[0-9]{10}$/ })} className="block mt-1 w-full rounded-xl border border-slate-200 py-2.5 px-3 text-slate-800 text-sm focus:border-rose-500 outline-none font-semibold" placeholder="10-digit number" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Treatment / Diagnostic Details</label>
+                <textarea rows="2" {...regEditBill('treatmentDetails', { required: true })} className="block mt-1 w-full rounded-xl border border-slate-200 py-2.5 px-3 text-slate-800 text-sm focus:border-rose-500 outline-none font-medium" placeholder="Details..." />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Bill Amount (₹)</label>
+                  <input type="number" {...regEditBill('billAmount', { required: true, min: 1 })} className="block mt-1 w-full rounded-xl border border-slate-200 py-2.5 px-3 text-slate-800 text-sm focus:border-rose-500 outline-none font-bold" placeholder="500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Payment Status</label>
+                  <select {...regEditBill('billStatus')} className="block mt-1 w-full rounded-xl border border-slate-200 py-2.5 px-3 text-slate-800 text-sm focus:border-rose-500 bg-white outline-none font-semibold">
+                    <option value="Paid">Paid</option>
+                    <option value="Unpaid">Unpaid</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Upload Multiple New Bill Photos / Invoice */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider">
+                    Bill Photos / Receipts ({editBillPhotos.length} Attached)
+                  </label>
+                  <span className="text-[10px] text-rose-600 font-bold">Multiple Allowed</span>
+                </div>
+
+                <div className="mt-1 flex items-center justify-center border-2 border-dashed border-slate-200 bg-slate-50 p-4 rounded-2xl relative transition-all hover:bg-slate-100">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleEditBillPhotoChange}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  />
+                  <div className="text-center text-slate-500 pointer-events-none">
+                    <Camera className="h-6 w-6 mx-auto mb-1 opacity-70 text-rose-600" />
+                    <span className="text-xs font-bold block text-slate-700">Click or drag images to add/change receipts</span>
+                    <span className="text-[10px] text-slate-400 block mt-0.5">JPEG, JPG, PNG up to 2MB each</span>
+                  </div>
+                </div>
+
+                {/* Edit Uploaded Thumbnails Strip */}
+                {editBillPhotos.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3 p-2 bg-slate-50 rounded-xl border border-slate-100">
+                    {editBillPhotos.map((photo, idx) => (
+                      <div key={idx} className="relative group rounded-lg overflow-hidden border border-slate-200 shadow-sm bg-white">
+                        <img src={photo} alt={`Receipt ${idx + 1}`} className="h-16 w-16 object-cover" />
+                        <span className="absolute top-0.5 left-0.5 bg-slate-900/80 text-white text-[8px] px-1 font-mono font-bold rounded">#{idx + 1}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeEditPhoto(idx)}
+                          className="absolute top-0.5 right-0.5 bg-rose-600 hover:bg-rose-700 text-white rounded-full p-0.5 shadow cursor-pointer transition-all"
+                          title="Remove Image"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowEditBillModal(false); setSelectedEditBill(null); }}
+                  className="flex-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 text-sm transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="flex-1 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 text-sm shadow-md transition-all cursor-pointer">
+                  UPDATE BILL RECORD
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

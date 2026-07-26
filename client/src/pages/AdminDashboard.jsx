@@ -64,7 +64,10 @@ import {
   KeyRound,
   ShieldCheck,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Camera,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 const AdminDashboard = () => {
@@ -154,6 +157,11 @@ const AdminDashboard = () => {
   const [memberships, setMemberships] = useState([]);
   const [selectedMembershipCert, setSelectedMembershipCert] = useState(null);
   const [showMembershipCertModal, setShowMembershipCertModal] = useState(false);
+
+  // Patient Bill Receipt Preview Modal State
+  const [selectedBillReceipt, setSelectedBillReceipt] = useState(null);
+  const [showBillReceiptModal, setShowBillReceiptModal] = useState(false);
+  const [activeReceiptIndex, setActiveReceiptIndex] = useState(0);
 
   // Admin Profile & Security Settings States
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -4611,8 +4619,9 @@ const AdminDashboard = () => {
 
                     {/* Patient Bills */}
                     <div>
-                      <h3 className="text-xs font-black uppercase text-slate-800 border-b border-slate-100 pb-2 mb-3 tracking-wide">
-                        Billing & Treatment History ({hospActivityData.bills?.length || 0})
+                      <h3 className="text-xs font-black uppercase text-slate-800 border-b border-slate-100 pb-2 mb-3 tracking-wide flex items-center justify-between">
+                        <span>Billing & Treatment History ({hospActivityData.bills?.length || 0})</span>
+                        <span className="text-[10px] text-slate-400 font-semibold uppercase">Patient Invoices & Receipts</span>
                       </h3>
                       <div className="overflow-x-auto rounded-xl border border-slate-100">
                         <table className="w-full text-left border-collapse whitespace-nowrap">
@@ -4624,20 +4633,21 @@ const AdminDashboard = () => {
                               <th className="py-2 px-3">Details</th>
                               <th className="py-2 px-3 text-right">Amount</th>
                               <th className="py-2 px-3">Status</th>
+                              <th className="py-2 px-3 text-center">Receipt Image</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100 text-slate-700 text-[11px]">
                             {hospActivityData.bills?.length === 0 ? (
                               <tr>
-                                <td colSpan="6" className="text-center py-6 text-slate-400 font-semibold">No bills generated.</td>
+                                <td colSpan="7" className="text-center py-6 text-slate-400 font-semibold">No bills generated.</td>
                               </tr>
                             ) : (
                               hospActivityData.bills.map(b => (
                                 <tr key={b._id} className="hover:bg-slate-50/20 transition-all">
                                   <td className="py-2.5 px-3 font-bold text-slate-400">{b.billId}</td>
                                   <td className="py-2.5 px-3 font-bold text-slate-900">{b.patientName}</td>
-                                  <td className="py-2.5 px-3 font-bold text-slate-500">{b.healthId || 'General'}</td>
-                                  <td className="py-2.5 px-3 truncate max-w-[150px] text-slate-400">{b.treatmentDetails}</td>
+                                  <td className="py-2.5 px-3 font-bold text-[#ED1C24]">{b.healthId || 'General'}</td>
+                                  <td className="py-2.5 px-3 truncate max-w-[150px] text-slate-500">{b.treatmentDetails}</td>
                                   <td className="py-2.5 px-3 text-right font-black text-slate-900">₹{b.billAmount}</td>
                                   <td className="py-2.5 px-3">
                                     <span className={`inline-flex rounded px-1.5 py-0.5 text-[9px] font-black uppercase ${
@@ -4645,6 +4655,23 @@ const AdminDashboard = () => {
                                     }`}>
                                       {b.status}
                                     </span>
+                                  </td>
+                                  <td className="py-2.5 px-3 text-center">
+                                    {b.billPhoto ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setSelectedBillReceipt(b);
+                                          setShowBillReceiptModal(true);
+                                        }}
+                                        className="inline-flex items-center gap-1 rounded px-2 py-1 border border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100 hover:border-rose-300 font-bold text-[10px] cursor-pointer transition-all shadow-sm"
+                                        title="View Patient Uploaded Bill Receipt"
+                                      >
+                                        <FileText className="h-3.5 w-3.5" /> View Receipt
+                                      </button>
+                                    ) : (
+                                      <span className="text-slate-400 font-semibold italic text-[10px]">No Photo</span>
+                                    )}
                                   </td>
                                 </tr>
                               ))
@@ -6576,6 +6603,155 @@ const AdminDashboard = () => {
           </div>
         </div>
       )}
+
+      {/* --- PATIENT BILL RECEIPT PHOTO VIEW MODAL (WITH MULTI-IMAGE CAROUSEL & AUTO-VIEWPORT FIT) --- */}
+      {showBillReceiptModal && selectedBillReceipt && (() => {
+        const photos = (selectedBillReceipt.billPhotos && selectedBillReceipt.billPhotos.length > 0)
+          ? selectedBillReceipt.billPhotos
+          : (selectedBillReceipt.billPhoto ? [selectedBillReceipt.billPhoto] : []);
+        const activePhoto = photos[activeReceiptIndex] || photos[0] || selectedBillReceipt.billPhoto;
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center bg-slate-900/75 p-2 sm:p-4 overflow-y-auto font-sans">
+            <div className="w-full max-w-xl max-h-[92vh] flex flex-col overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 text-left relative my-auto">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 p-3.5 sm:p-4 shrink-0">
+                <div>
+                  <h3 className="text-xs sm:text-sm font-extrabold text-slate-800 uppercase tracking-tight flex items-center gap-1.5">
+                    <FileText className="h-4 w-4 text-rose-600" /> Patient Treatment Receipt / Invoice ({photos.length} {photos.length > 1 ? 'Files' : 'File'})
+                  </h3>
+                  <p className="text-[10px] text-slate-500 font-semibold mt-0.5">
+                    Bill ID: <span className="font-mono text-slate-800">{selectedBillReceipt.billId}</span> | Patient: <span className="text-slate-900">{selectedBillReceipt.patientName}</span>
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowBillReceiptModal(false);
+                    setSelectedBillReceipt(null);
+                    setActiveReceiptIndex(0);
+                  }}
+                  className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Scrollable Content Body */}
+              <div className="p-4 sm:p-5 space-y-3 overflow-y-auto flex-1">
+                {/* Patient & Bill Summary Info */}
+                <div className="grid grid-cols-2 gap-2.5 bg-slate-50 p-2.5 rounded-2xl border border-slate-100 text-[11px]">
+                  <div>
+                    <span className="text-slate-400 font-bold block text-[9px] uppercase">Patient Name</span>
+                    <strong className="text-slate-900">{selectedBillReceipt.patientName}</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-bold block text-[9px] uppercase">Health Card ID</span>
+                    <strong className="text-rose-600 font-mono">{selectedBillReceipt.healthId || 'General'}</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-bold block text-[9px] uppercase">Treatment Details</span>
+                    <span className="text-slate-700 font-medium truncate block">{selectedBillReceipt.treatmentDetails}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 font-bold block text-[9px] uppercase">Bill Amount & Status</span>
+                    <strong className="text-slate-900">₹{selectedBillReceipt.billAmount}</strong>
+                    <span className={`ml-2 inline-flex rounded px-1.5 py-0.5 text-[8px] font-black uppercase ${
+                      selectedBillReceipt.status === 'Paid' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                    }`}>
+                      {selectedBillReceipt.status}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Main Receipt Image Viewer Container */}
+                <div className="border border-slate-800 rounded-2xl overflow-hidden bg-slate-950 flex flex-col justify-center items-center relative min-h-[200px] max-h-[40vh] p-2 shadow-inner">
+                  {activePhoto ? (
+                    <>
+                      <img
+                        src={activePhoto}
+                        alt={`Uploaded Patient Receipt ${activeReceiptIndex + 1}`}
+                        className="max-h-[36vh] w-auto object-contain rounded-lg shadow-md transition-all duration-200"
+                      />
+
+                      {/* Next / Prev Controls for Multi-Photo */}
+                      {photos.length > 1 && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => setActiveReceiptIndex(prev => (prev > 0 ? prev - 1 : photos.length - 1))}
+                            className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-slate-900/80 hover:bg-slate-900 text-white p-2 border border-slate-700 shadow-md cursor-pointer transition-all"
+                            title="Previous Image"
+                          >
+                            <ChevronLeft className="h-5 w-5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setActiveReceiptIndex(prev => (prev < photos.length - 1 ? prev + 1 : 0))}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-slate-900/80 hover:bg-slate-900 text-white p-2 border border-slate-700 shadow-md cursor-pointer transition-all"
+                            title="Next Image"
+                          >
+                            <ChevronRight className="h-5 w-5" />
+                          </button>
+                          <div className="absolute top-2 right-2 bg-slate-900/85 text-white text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border border-slate-700">
+                            {activeReceiptIndex + 1} / {photos.length}
+                          </div>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-center py-8 text-slate-500">
+                      <Camera className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-xs font-bold uppercase tracking-wider">No Receipt Photo Uploaded</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Multiple Image Thumbnails Bar */}
+                {photos.length > 1 && (
+                  <div className="flex items-center gap-2 overflow-x-auto p-1 bg-slate-50 rounded-xl border border-slate-100">
+                    {photos.map((p, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setActiveReceiptIndex(idx)}
+                        className={`relative rounded-lg overflow-hidden border-2 shrink-0 transition-all cursor-pointer ${
+                          idx === activeReceiptIndex ? 'border-rose-600 ring-2 ring-rose-200' : 'border-slate-200 opacity-60 hover:opacity-100'
+                        }`}
+                      >
+                        <img src={p} alt={`Thumb ${idx + 1}`} className="h-12 w-12 object-cover" />
+                        <span className="absolute bottom-0 right-0 bg-slate-900/80 text-white text-[8px] px-1 font-mono">#{idx + 1}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer Toolbar */}
+              <div className="flex justify-end gap-2 p-3 sm:p-4 bg-slate-50 border-t border-slate-100 shrink-0">
+                {activePhoto && (
+                  <a
+                    href={activePhoto}
+                    download={`Bill_${selectedBillReceipt.billId}_Receipt_${activeReceiptIndex + 1}.png`}
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold cursor-pointer transition-all shadow-sm"
+                  >
+                    <Download className="h-4 w-4" /> Download Receipt (#{activeReceiptIndex + 1})
+                  </a>
+                )}
+                <button
+                  onClick={() => {
+                    setShowBillReceiptModal(false);
+                    setSelectedBillReceipt(null);
+                    setActiveReceiptIndex(0);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold cursor-pointer transition-all"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );
