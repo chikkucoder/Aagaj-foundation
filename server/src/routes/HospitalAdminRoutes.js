@@ -556,20 +556,104 @@ router.get('/hospital/bills', verifyHospital, validateRequest({ query: hospitalI
 // 3. Add/Update Patient Bill
 router.post('/hospital/add-bill', verifyHospital, validateRequest({ body: addBillSchema }), enforceHospitalScope, async (req, res) => {
     try {
-        const { hospitalId, healthId, patientName, patientMobile, treatmentDetails, billAmount, status, billPhoto } = req.body;
+        const { hospitalId, healthId, patientName, patientMobile, treatmentDetails, billAmount, status, billPhoto, billPhotos } = req.body;
 
         if (!patientName || !patientMobile || !treatmentDetails || !billAmount) {
             return res.status(400).json({ success: false, message: 'Missing required billing fields' });
         }
 
+        const photosList = Array.isArray(billPhotos) && billPhotos.length > 0
+            ? billPhotos
+            : (billPhoto ? [billPhoto] : []);
+
+        const primaryPhoto = photosList[0] || billPhoto || '';
+
         const billId = 'BILL-' + Date.now();
         const newBill = new PatientBill({
-            billId, hospitalId, healthId, patientName, patientMobile, treatmentDetails, billAmount, status, billPhoto
+            billId,
+            hospitalId,
+            healthId,
+            patientName,
+            patientMobile,
+            treatmentDetails,
+            billAmount,
+            status,
+            billPhoto: primaryPhoto,
+            billPhotos: photosList
         });
 
         await newBill.save();
         res.json({ success: true, message: "Bill added successfully", data: newBill });
     } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+});
+
+// 3.5 Edit Patient Bill (Hospital Partner)
+router.put('/hospital/edit-bill/:id', verifyHospital, async (req, res) => {
+    try {
+        const { hospitalId, healthId, patientName, patientMobile, treatmentDetails, billAmount, status, billPhoto, billPhotos } = req.body;
+        const billId = req.params.id;
+
+        if (hospitalId !== req.hospitalUser.uniqueId) {
+            return res.status(403).json({ success: false, message: "Forbidden: hospital scope mismatch" });
+        }
+
+        const photosList = Array.isArray(billPhotos) && billPhotos.length > 0
+            ? billPhotos
+            : (billPhoto ? [billPhoto] : null);
+
+        const updateData = {
+            healthId: healthId || 'General',
+            patientName: patientName ? patientName.trim() : '',
+            patientMobile: patientMobile ? patientMobile.trim() : '',
+            treatmentDetails: treatmentDetails ? treatmentDetails.trim() : '',
+            billAmount: Number(billAmount),
+            status: status || 'Unpaid'
+        };
+
+        if (photosList && photosList.length > 0) {
+            updateData.billPhotos = photosList;
+            updateData.billPhoto = photosList[0];
+        } else if (billPhoto) {
+            updateData.billPhoto = billPhoto;
+            updateData.billPhotos = [billPhoto];
+        }
+
+        const updatedBill = await PatientBill.findOneAndUpdate(
+            { _id: billId, hospitalId },
+            { $set: updateData },
+            { new: true }
+        );
+
+        if (!updatedBill) {
+            return res.status(404).json({ success: false, message: "Bill record not found or access denied" });
+        }
+
+        res.json({ success: true, message: "Bill record updated successfully", data: updatedBill });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// 3.6 Delete Patient Bill (Hospital Partner)
+router.delete('/hospital/delete-bill/:id', verifyHospital, async (req, res) => {
+    try {
+        const billId = req.params.id;
+        const { hospitalId } = req.query;
+
+        const targetHospitalId = hospitalId || req.hospitalUser.uniqueId;
+        if (targetHospitalId !== req.hospitalUser.uniqueId) {
+            return res.status(403).json({ success: false, message: "Forbidden: hospital scope mismatch" });
+        }
+
+        const deletedBill = await PatientBill.findOneAndDelete({ _id: billId, hospitalId: targetHospitalId });
+        if (!deletedBill) {
+            return res.status(404).json({ success: false, message: "Bill record not found" });
+        }
+
+        res.json({ success: true, message: "Bill record deleted successfully" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
 });
 
 // 4. Verify Patient (Fetch Name & Mobile from Health Card ID)

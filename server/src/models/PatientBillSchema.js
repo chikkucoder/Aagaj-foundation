@@ -40,8 +40,11 @@ const PatientBillSchema = new mongoose.Schema({
         default: Date.now
     },
     billPhoto: {
-        type: String // Base64 or URL
-    }
+        type: String // Base64 or URL (primary image for backwards compatibility)
+    },
+    billPhotos: [{
+        type: String // Array of Base64 or URLs for multiple receipts
+    }]
 });
 
 module.exports = mongoose.model('PatientBill', PatientBillSchema);

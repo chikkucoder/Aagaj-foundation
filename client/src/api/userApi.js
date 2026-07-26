@@ -176,5 +176,18 @@ export const deleteMembership = async (id) => {
   return response.data;
 };
 
+// --- HOSPITAL PATIENT BILLS ---
+export const editHospitalBill = async (id, data) => {
+  const response = await apiClient.put(`/api/hospital-admin-system/hospital/edit-bill/${id}`, data);
+  return response.data;
+};
+
+export const deleteHospitalBill = async (id, hospitalId) => {
+  const response = await apiClient.delete(`/api/hospital-admin-system/hospital/delete-bill/${id}`, {
+    params: { hospitalId }
+  });
+  return response.data;
+};
+
 
 

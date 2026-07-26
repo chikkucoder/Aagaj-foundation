@@ -62,7 +62,8 @@ const addBillSchema = Joi.object({
     treatmentDetails: Joi.string().trim().min(2).max(1000).required(),
     billAmount: Joi.number().positive().required(),
     status: Joi.string().valid('Paid', 'Unpaid').required(),
-    billPhoto: Joi.string().allow('', null).optional()
+    billPhoto: Joi.string().allow('', null).optional(),
+    billPhotos: Joi.array().items(Joi.string().allow('', null)).optional()
 });
 
 const appointmentBookSchema = Joi.object({
