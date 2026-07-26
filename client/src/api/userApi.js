@@ -170,4 +170,11 @@ export const getAdminTransactions = async () => {
   return response.data;
 };
 
+// --- MEMBERSHIPS ---
+export const deleteMembership = async (id) => {
+  const response = await apiClient.delete(`/api/membership/${id}`);
+  return response.data;
+};
+
+
 
