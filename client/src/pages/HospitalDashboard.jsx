@@ -50,7 +50,11 @@ import {
   Download,
   ChevronLeft,
   ChevronRight,
-  Image as ImageIcon
+  Image as ImageIcon,
+  KeyRound,
+  Smartphone,
+  ShieldCheck,
+  Clock
 } from 'lucide-react';
 
 const HospitalDashboard = () => {
@@ -62,6 +66,19 @@ const HospitalDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
+  // --- PATIENT ON-SITE OTP CHECK-IN MODAL STATES ---
+  const [showCheckinOtpModal, setShowCheckinOtpModal] = useState(false);
+  const [checkinOtpSessionId, setCheckinOtpSessionId] = useState('');
+  const [checkinMaskedMobile, setCheckinMaskedMobile] = useState('');
+  const [checkinPatientName, setCheckinPatientName] = useState('');
+  const [checkinHealthId, setCheckinHealthId] = useState('');
+  const [checkinApptId, setCheckinApptId] = useState(null);
+  const [checkinOtpInput, setCheckinOtpInput] = useState('');
+  const [checkinOtpLoading, setCheckinOtpLoading] = useState(false);
+  const [checkinOtpError, setCheckinOtpError] = useState('');
+  const [checkinResendTimer, setCheckinResendTimer] = useState(60);
+  const [checkinExpiryTimer, setCheckinExpiryTimer] = useState(300);
 
   // --- SUPER-ADMIN (MASTER PANEL) STATES ---
   const [adminStats, setAdminStats] = useState({ totalHospitals: 0, totalTreatments: 0, totalAppointments: 0, totalBilling: 0 });
@@ -551,6 +568,135 @@ const HospitalDashboard = () => {
     } catch (err) {
       console.error(err);
       setErrorMsg(err.response?.data?.message || 'Server connection error while deleting bill.');
+    }
+  };
+
+  // Timer Effect for Check-in OTP Resend Cooldown
+  useEffect(() => {
+    let resendInterval = null;
+    if (showCheckinOtpModal && checkinResendTimer > 0) {
+      resendInterval = setInterval(() => {
+        setCheckinResendTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (resendInterval) clearInterval(resendInterval);
+    };
+  }, [showCheckinOtpModal, checkinResendTimer]);
+
+  // Timer Effect for Check-in OTP Expiration Countdown
+  useEffect(() => {
+    let expiryInterval = null;
+    if (showCheckinOtpModal && checkinExpiryTimer > 0) {
+      expiryInterval = setInterval(() => {
+        setCheckinExpiryTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (expiryInterval) clearInterval(expiryInterval);
+    };
+  }, [showCheckinOtpModal, checkinExpiryTimer]);
+
+  const formatTimer = (totalSeconds) => {
+    if (totalSeconds <= 0) return '00:00';
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
+
+  const handleRequestPatientCheckinOtp = async (healthId, apptId = null) => {
+    if (!healthId) {
+      alert('Please select a patient with a valid Health ID.');
+      return;
+    }
+    setErrorMsg('');
+    setSuccessMsg('');
+    const hospId = sessionStorage.getItem('loggedInHospitalId') || user?.uniqueId;
+
+    try {
+      const response = await apiClient.post('/api/hospital/patient/request-checkin-otp', {
+        healthId,
+        hospitalId: hospId
+      });
+
+      if (response.data?.success) {
+        setCheckinOtpSessionId(response.data.sessionId);
+        setCheckinMaskedMobile(response.data.maskedMobile);
+        setCheckinPatientName(response.data.patientName || '');
+        setCheckinHealthId(healthId);
+        setCheckinApptId(apptId);
+        setCheckinResendTimer(60);
+        setCheckinExpiryTimer(300);
+        setCheckinOtpInput('');
+        setCheckinOtpError('');
+        setShowCheckinOtpModal(true);
+      } else {
+        alert(response.data?.message || 'Failed to request OTP for patient check-in.');
+      }
+    } catch (err) {
+      console.error('Request Check-in OTP Error:', err);
+      alert(err.response?.data?.message || 'Error requesting OTP for patient check-in.');
+    }
+  };
+
+  const handleResendCheckinOtp = async () => {
+    if (checkinResendTimer > 0 || checkinOtpLoading) return;
+    setCheckinOtpError('');
+    setCheckinOtpLoading(true);
+    const hospId = sessionStorage.getItem('loggedInHospitalId') || user?.uniqueId;
+    try {
+      const response = await apiClient.post('/api/hospital/patient/request-checkin-otp', {
+        healthId: checkinHealthId,
+        hospitalId: hospId
+      });
+      if (response.data?.success) {
+        setCheckinOtpSessionId(response.data.sessionId);
+        setCheckinResendTimer(60);
+        setCheckinExpiryTimer(300);
+        setCheckinOtpInput('');
+        setCheckinOtpError('A new OTP has been sent to the patient mobile number.');
+      } else {
+        setCheckinOtpError(response.data?.message || 'Failed to resend OTP.');
+      }
+    } catch (err) {
+      setCheckinOtpError(err.response?.data?.message || 'Error resending OTP.');
+    } finally {
+      setCheckinOtpLoading(false);
+    }
+  };
+
+  const handleVerifyCheckinOtpSubmit = async (e) => {
+    e.preventDefault();
+    const trimmedOtp = checkinOtpInput.trim();
+    if (!trimmedOtp || trimmedOtp.length < 4) {
+      setCheckinOtpError('Please enter the complete OTP provided by patient.');
+      return;
+    }
+
+    setCheckinOtpLoading(true);
+    setCheckinOtpError('');
+    const hospId = sessionStorage.getItem('loggedInHospitalId') || user?.uniqueId;
+
+    try {
+      const response = await apiClient.post('/api/hospital/patient/verify-checkin-otp', {
+        sessionId: checkinOtpSessionId,
+        otp: trimmedOtp,
+        appointmentId: checkinApptId,
+        action: 'Admitted',
+        hospitalId: hospId
+      });
+
+      if (response.data?.success) {
+        setSuccessMsg(`Patient ${checkinPatientName} verified with OTP! Check-in / Admission logged successfully.`);
+        setShowCheckinOtpModal(false);
+        fetchPartnerData();
+      } else {
+        setCheckinOtpError(response.data?.message || 'Invalid OTP');
+      }
+    } catch (err) {
+      setCheckinOtpError(err.response?.data?.message || 'Patient Check-in OTP verification failed');
+    } finally {
+      setCheckinOtpLoading(false);
     }
   };
 
@@ -1101,13 +1247,20 @@ const HospitalDashboard = () => {
                                     <span className="bg-amber-100 text-amber-800 rounded px-1.5 py-0.5 text-[9px] font-black uppercase">
                                       Pending
                                     </span>
-                                    <div className="flex gap-1.5 mt-1">
+                                    <div className="flex flex-wrap gap-1.5 mt-1">
                                       <button
                                         onClick={() => handleUpdateAppointmentStatus(a._id, 'Approved')}
                                         className="rounded bg-emerald-100 px-2 py-0.5 text-[9px] font-bold text-emerald-800 hover:bg-emerald-200 transition-all cursor-pointer"
                                         title="Approve Appointment"
                                       >
                                         Approve
+                                      </button>
+                                      <button
+                                        onClick={() => handleRequestPatientCheckinOtp(a.healthId, a._id)}
+                                        className="rounded bg-indigo-600 px-2 py-0.5 text-[9px] font-black text-white hover:bg-indigo-700 transition-all cursor-pointer flex items-center gap-1 shadow-sm"
+                                        title="Verify Patient Physical Arrival via OTP"
+                                      >
+                                        <ShieldCheck className="h-3 w-3" /> OTP Check-In
                                       </button>
                                       <button
                                         onClick={() => handleUpdateAppointmentStatus(a._id, 'Rejected')}
@@ -1119,8 +1272,21 @@ const HospitalDashboard = () => {
                                     </div>
                                   </div>
                                 ) : a.status === 'Approved' ? (
-                                  <span className="bg-emerald-100 text-emerald-800 rounded px-1.5 py-0.5 text-[9px] font-black uppercase">
-                                    Approved
+                                  <div className="flex flex-col gap-1 items-start">
+                                    <span className="bg-emerald-100 text-emerald-800 rounded px-1.5 py-0.5 text-[9px] font-black uppercase">
+                                      Approved
+                                    </span>
+                                    <button
+                                      onClick={() => handleRequestPatientCheckinOtp(a.healthId, a._id)}
+                                      className="rounded bg-indigo-600 px-2 py-0.5 text-[9px] font-black text-white hover:bg-indigo-700 transition-all cursor-pointer flex items-center gap-1 shadow-sm mt-1"
+                                      title="Verify Patient Physical Arrival via OTP"
+                                    >
+                                      <ShieldCheck className="h-3 w-3" /> OTP Check-In
+                                    </button>
+                                  </div>
+                                ) : (a.status === 'Admitted' || a.status === 'Checked-In') ? (
+                                  <span className="bg-indigo-100 text-indigo-900 border border-indigo-200 rounded px-2 py-0.5 text-[9px] font-black uppercase flex items-center gap-1">
+                                    <ShieldCheck className="h-3 w-3 text-indigo-600" /> OTP Verified Check-In
                                   </span>
                                 ) : (
                                   <span className="bg-rose-100 text-rose-800 rounded px-1.5 py-0.5 text-[9px] font-black uppercase">
@@ -1747,6 +1913,124 @@ const HospitalDashboard = () => {
                   UPDATE BILL RECORD
                 </button>
               </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL: PATIENT ON-SITE OTP CHECK-IN MODAL (DOCTOR / HOSPITAL PORTAL) --- */}
+      {showCheckinOtpModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4 overflow-y-auto font-sans">
+          <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 text-left relative my-auto">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 p-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-indigo-100 text-indigo-600">
+                  <Lock className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-800 tracking-tight">On-Site Patient Verification</h3>
+                  <p className="text-[11px] text-slate-500 font-semibold">Patient: <span className="font-bold text-slate-900">{checkinPatientName}</span> ({checkinHealthId})</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowCheckinOtpModal(false)}
+                className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer transition-all"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleVerifyCheckinOtpSubmit} className="p-6 space-y-5">
+              
+              <div className="text-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <Smartphone className="h-8 w-8 mx-auto text-indigo-600 mb-2 opacity-80" />
+                <p className="text-xs font-semibold text-slate-600">
+                  Ask patient for the 4-digit verification OTP sent to their mobile:
+                </p>
+                <div className="mt-1 text-sm font-extrabold text-slate-900 font-mono tracking-wider">
+                  +91 {checkinMaskedMobile}
+                </div>
+              </div>
+
+              {/* OTP Input */}
+              <div>
+                <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider text-center mb-1.5">
+                  Enter Patient OTP Code
+                </label>
+                <div className="relative max-w-xs mx-auto">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                    <KeyRound className="h-5 w-5" />
+                  </span>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={checkinOtpInput}
+                    onChange={(e) => setCheckinOtpInput(e.target.value.replace(/\D/g, ''))}
+                    placeholder="1234"
+                    className="w-full text-center text-2xl font-black font-mono tracking-[0.5em] py-3 pl-10 pr-4 rounded-2xl border-2 border-indigo-200 text-slate-900 focus:border-indigo-600 outline-none transition-all shadow-inner bg-white"
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              {/* Expiry Status Bar */}
+              <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-100">
+                <span className="flex items-center gap-1 text-amber-700">
+                  <Clock className="h-3.5 w-3.5" /> Expires in: <strong className="font-mono text-slate-900">{formatTimer(checkinExpiryTimer)}</strong>
+                </span>
+                <span className="text-slate-600">
+                  Attempts: 5/5
+                </span>
+              </div>
+
+              {/* Error Alert inside Modal */}
+              {checkinOtpError && (
+                <div className="rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs font-bold text-rose-700 flex items-center gap-2">
+                  <ShieldCheck className="h-4 w-4 shrink-0 text-rose-600" />
+                  <span>{checkinOtpError}</span>
+                </div>
+              )}
+
+              {/* Submit OTP Button */}
+              <button
+                type="submit"
+                disabled={checkinOtpLoading || checkinOtpInput.trim().length < 4 || checkinExpiryTimer <= 0}
+                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 text-sm font-black shadow-lg shadow-indigo-500/25 tracking-wider uppercase cursor-pointer disabled:opacity-50 transition-all active:scale-95 duration-200"
+              >
+                {checkinOtpLoading ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    VERIFYING PATIENT OTP...
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="h-4 w-4" />
+                    CONFIRM VERIFICATION &amp; CHECK-IN PATIENT
+                  </>
+                )}
+              </button>
+
+              {/* Resend OTP Action */}
+              <div className="text-center pt-1 border-t border-slate-100">
+                {checkinResendTimer > 0 ? (
+                  <p className="text-xs text-slate-500 font-semibold">
+                    Resend code available in: <strong className="font-mono text-indigo-600">{checkinResendTimer}s</strong>
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleResendCheckinOtp}
+                    disabled={checkinOtpLoading}
+                    className="inline-flex items-center gap-1.5 text-xs font-extrabold text-indigo-600 hover:text-indigo-800 cursor-pointer underline transition-all"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" /> Resend Patient OTP SMS
+                  </button>
+                )}
+              </div>
+
             </form>
           </div>
         </div>

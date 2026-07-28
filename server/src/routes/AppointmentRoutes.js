@@ -34,12 +34,14 @@ const buildHealthIdCandidates = (rawHealthId) => {
     return Array.from(candidates).filter(Boolean);
 };
 
+const { requestOtpSession, verifyOtpSession } = require('../services/otpService');
+
 // Verify that a Health ID exists before appointment booking
 router.get('/verify-health/:healthId', async (req, res) => {
     try {
         const candidates = buildHealthIdCandidates(req.params.healthId);
         const card = await HealthCard.findOne({ healthId: { $in: candidates } })
-            .select('healthId fullName mobile bloodGroup')
+            .select('healthId fullName mobile bloodGroup age gender aadhar')
             .lean();
 
         if (!card) {
@@ -49,6 +51,88 @@ router.get('/verify-health/:healthId', async (req, res) => {
         return res.json({ success: true, data: card });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// ✅ Request OTP for Appointment Booking Health ID Verification
+router.post('/request-otp', async (req, res) => {
+    try {
+        const { healthId } = req.body;
+        if (!healthId) {
+            return res.status(400).json({ success: false, message: 'Health Card ID is required.' });
+        }
+
+        const candidates = buildHealthIdCandidates(healthId);
+        const card = await HealthCard.findOne({ healthId: { $in: candidates } }).lean();
+
+        if (!card) {
+            return res.status(404).json({ success: false, message: 'Health ID card not found. Please check card number.' });
+        }
+
+        if (!card.mobile) {
+            return res.status(400).json({ success: false, message: 'No registered mobile number found for this Health ID.' });
+        }
+
+        const otpResult = await requestOtpSession({
+            identifier: card.healthId,
+            scope: 'appointment',
+            mobile: card.mobile,
+            metadata: {
+                healthId: card.healthId,
+                fullName: card.fullName,
+                mobile: card.mobile,
+                gender: card.gender,
+                age: card.age,
+                bloodGroup: card.bloodGroup,
+                aadhar: card.aadhar
+            }
+        });
+
+        if (otpResult.rateLimited) {
+            return res.status(429).json({
+                success: false,
+                ...otpResult
+            });
+        }
+
+        res.json({
+            success: true,
+            ...otpResult,
+            healthId: card.healthId
+        });
+    } catch (error) {
+        console.error('Appointment Request OTP Error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// ✅ Verify OTP for Appointment Booking
+router.post('/verify-otp', async (req, res) => {
+    try {
+        const { sessionId, otp } = req.body;
+        if (!sessionId || !otp) {
+            return res.status(400).json({ success: false, message: 'Missing required parameters (sessionId, otp).' });
+        }
+
+        const verifyResult = await verifyOtpSession({
+            sessionId,
+            scope: 'appointment',
+            otp
+        });
+
+        if (!verifyResult.success) {
+            return res.status(400).json(verifyResult);
+        }
+
+        res.json({
+            success: true,
+            message: 'Health ID verified with OTP successfully!',
+            accessToken: verifyResult.accessToken,
+            data: verifyResult.metadata
+        });
+    } catch (error) {
+        console.error('Appointment Verify OTP Error:', error);
+        res.status(500).json({ success: false, message: error.message });
     }
 });
 
