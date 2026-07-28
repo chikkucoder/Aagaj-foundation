@@ -852,18 +852,18 @@ const HealthCard = () => {
               {/* CARD FRONT SIDE */}
               <div 
                 ref={cardFrontRef}
-                className="w-[550px] h-[340px] rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden relative flex flex-col justify-between select-none font-sans"
+                className="w-[550px] min-h-[350px] rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden relative flex flex-col justify-between select-none font-sans"
               >
                 
                 {/* Issued under banner strip */}
-                <div className="bg-slate-50 text-[#2e3192] text-center py-1.5 text-[10px] font-black uppercase tracking-wider border-b border-slate-100">
+                <div className="bg-slate-50 text-[#2e3192] text-center py-1 text-[10px] font-black uppercase tracking-wider border-b border-slate-100">
                   This Card is Being Issued Under Swasthya Suraksha Yojna
                 </div>
 
                 {/* Premium Header */}
-                <div className="bg-gradient-to-r from-[#2e3192] to-[#1a1c54] h-[85px] text-white py-4 px-6 flex justify-between items-center relative">
+                <div className="bg-gradient-to-r from-[#2e3192] to-[#1a1c54] h-[72px] text-white py-2.5 px-6 flex justify-between items-center relative">
                   <div className="flex items-center gap-3">
-                    <img src="/logo.jpg" alt="Logo" className="h-11 w-11 rounded-lg bg-white p-0.5" />
+                    <img src="/logo.jpg" alt="Logo" className="h-10 w-10 rounded-lg bg-white p-0.5" />
                     <span className="text-xl font-black text-[#ed1c24] tracking-wider uppercase">Aagaj.Foundation</span>
                   </div>
                   <div className="text-right flex flex-col items-end justify-center">
@@ -876,9 +876,9 @@ const HealthCard = () => {
                 </div>
 
                 {/* Body Details Grid */}
-                <div className="flex-grow flex p-6 gap-6 bg-white">
+                <div className="flex-grow flex px-6 py-3.5 gap-5 bg-white items-center">
                   {/* Portrait photo */}
-                  <div className="w-[110px] h-[140px] rounded-xl border-[3px] border-[#2e3192] bg-slate-50 overflow-hidden shrink-0 shadow-sm p-0.5">
+                  <div className="w-[105px] h-[130px] rounded-xl border-[3px] border-[#2e3192] bg-slate-50 overflow-hidden shrink-0 shadow-sm p-0.5">
                     <img
                       src={successCardPhotoUrl}
                       alt="Patient"
@@ -889,7 +889,7 @@ const HealthCard = () => {
                   </div>
 
                   {/* Personal stats particulars */}
-                  <div className="flex-grow grid grid-cols-2 gap-x-4 gap-y-3 items-start self-start text-xs">
+                  <div className="flex-grow grid grid-cols-2 gap-x-4 gap-y-2 items-start self-start text-xs">
                     <div className="col-span-2">
                       <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">Patient Name</label>
                       <span className="font-extrabold text-slate-800 text-sm block uppercase truncate">{successCard.fullName}</span>
@@ -918,7 +918,7 @@ const HealthCard = () => {
                 </div>
 
                 {/* Card Front Footer */}
-                <div className="bg-slate-50 border-t-2 border-[#ed1c24] py-3 px-6 flex justify-between items-center text-xs">
+                <div className="bg-slate-50 border-t-2 border-[#ed1c24] py-2.5 px-6 flex justify-between items-center text-xs">
                   <div>
                     <span className="text-[9px] font-black text-emerald-600 block">VALID IDENTITY</span>
                     <span className="text-[8px] text-slate-400 font-medium">Digitally Secured Profile</span>
@@ -935,16 +935,16 @@ const HealthCard = () => {
               {/* CARD BACK SIDE */}
               <div 
                 ref={cardBackRef}
-                className="w-[550px] h-[340px] rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden relative flex flex-col justify-between select-none font-sans"
+                className="w-[550px] min-h-[350px] rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden relative flex flex-col justify-between select-none font-sans"
               >
                 
                 {/* Back Header Banner */}
-                <div className="bg-[#ed1c24] text-white text-center py-2.5 text-xs font-black uppercase tracking-wider">
+                <div className="bg-[#ed1c24] text-white text-center py-2 text-xs font-black uppercase tracking-wider">
                   Residential &amp; Emergency Details
                 </div>
 
                 {/* Back Details Grid */}
-                <div className="flex-grow p-6 flex flex-col justify-between bg-white text-xs">
+                <div className="flex-grow px-6 py-4 flex flex-col justify-between bg-white text-xs">
                   
                   <div className="flex items-center justify-between">
                     {/* Multi fields */}
@@ -984,7 +984,7 @@ const HealthCard = () => {
                         </div>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-2 gap-x-6 gap-y-3 flex-grow text-xs text-left">
+                      <div className="grid grid-cols-2 gap-x-6 gap-y-2 flex-grow text-xs text-left">
                         <div>
                           <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">Village</label>
                           <span className="font-bold text-slate-700 block uppercase">{successCard.address?.village}</span>
@@ -1025,7 +1025,7 @@ const HealthCard = () => {
                   </div>
 
                   {/* Foot Note Emergency Strip */}
-                  <div className="border border-dashed border-slate-200 bg-slate-50 p-3 rounded-2xl text-center mt-4">
+                  <div className="border border-dashed border-slate-200 bg-slate-50 p-2.5 rounded-2xl text-center mt-2">
                     <p className="text-[9px] font-black text-slate-900 tracking-wider uppercase m-0">AAGAJ FOUNDATION - REG: 1882 ACT</p>
                     <p className="text-[8px] text-slate-400 font-medium m-0 mt-0.5">This card is a digital health identity. If found, please return to the foundation.</p>
                   </div>
