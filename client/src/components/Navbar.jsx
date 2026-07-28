@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Menu, X, ChevronDown, LogOut, User, Heart, Shield, Search, Scissors, ShieldCheck, Printer, RefreshCw, AlertTriangle, Award, Download } from 'lucide-react';
+import { Menu, X, ChevronDown, LogOut, User, Heart, Shield, Search, Scissors, ShieldCheck, Printer, RefreshCw, AlertTriangle, Award, Download, Lock, Smartphone, KeyRound, Clock } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import html2canvas from 'html2canvas-pro';
 import { transliterateToHindi } from '../utils/transliterate';
@@ -22,16 +22,58 @@ const Navbar = () => {
   const [silayiVerifyError, setSilayiVerifyError] = useState('');
   const [silayiLoading, setSilayiLoading] = useState(false);
 
+  // OTP Verification Modal States for Silayi Registration
+  const [showSilayiRegOtpModal, setShowSilayiRegOtpModal] = useState(false);
+  const [silayiRegOtpSessionId, setSilayiRegOtpSessionId] = useState('');
+  const [silayiRegMaskedMobile, setSilayiRegMaskedMobile] = useState('');
+  const [silayiRegOtpInput, setSilayiRegOtpInput] = useState('');
+  const [silayiRegOtpLoading, setSilayiRegOtpLoading] = useState(false);
+  const [silayiRegOtpError, setSilayiRegOtpError] = useState('');
+  const [silayiRegResendTimer, setSilayiRegResendTimer] = useState(60);
+  const [silayiRegExpiryTimer, setSilayiRegExpiryTimer] = useState(300);
+
   const openSilayiModal = () => {
     setIsSilayiModalOpen(true);
     setSilayiSearchQuery('');
     setSilayiVerifyResult(null);
     setSilayiVerifyError('');
+    setShowSilayiRegOtpModal(false);
+    setSilayiRegOtpInput('');
+    setSilayiRegOtpError('');
   };
 
   const closeSilayiModal = () => {
     setIsSilayiModalOpen(false);
+    setShowSilayiRegOtpModal(false);
+    setSilayiRegOtpInput('');
+    setSilayiRegOtpError('');
   };
+
+  // Timer Effect for 60-second Resend OTP Cooldown (Silayi Registration)
+  useEffect(() => {
+    let resendInterval = null;
+    if (showSilayiRegOtpModal && silayiRegResendTimer > 0) {
+      resendInterval = setInterval(() => {
+        setSilayiRegResendTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (resendInterval) clearInterval(resendInterval);
+    };
+  }, [showSilayiRegOtpModal, silayiRegResendTimer]);
+
+  // Timer Effect for 5-minute OTP Expiration Countdown (Silayi Registration)
+  useEffect(() => {
+    let expiryInterval = null;
+    if (showSilayiRegOtpModal && silayiRegExpiryTimer > 0) {
+      expiryInterval = setInterval(() => {
+        setSilayiRegExpiryTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (expiryInterval) clearInterval(expiryInterval);
+    };
+  }, [showSilayiRegOtpModal, silayiRegExpiryTimer]);
 
   // Silayi Certificate Verification Modal States
   const [isSilayiCertModalOpen, setIsSilayiCertModalOpen] = useState(false);
@@ -39,6 +81,17 @@ const Navbar = () => {
   const [silayiCertVerifyResult, setSilayiCertVerifyResult] = useState(null);
   const [silayiCertVerifyError, setSilayiCertVerifyError] = useState('');
   const [silayiCertLoading, setSilayiCertLoading] = useState(false);
+
+  // OTP Verification Modal States for Silayi Certificate
+  const [showSilayiCertOtpModal, setShowSilayiCertOtpModal] = useState(false);
+  const [silayiCertOtpSessionId, setSilayiCertOtpSessionId] = useState('');
+  const [silayiCertMaskedMobile, setSilayiCertMaskedMobile] = useState('');
+  const [silayiCertOtpInput, setSilayiCertOtpInput] = useState('');
+  const [silayiCertOtpLoading, setSilayiCertOtpLoading] = useState(false);
+  const [silayiCertOtpError, setSilayiCertOtpError] = useState('');
+  const [silayiCertResendTimer, setSilayiCertResendTimer] = useState(60);
+  const [silayiCertExpiryTimer, setSilayiCertExpiryTimer] = useState(300);
+
   const publicCertRef = useRef(null);
 
   const openSilayiCertModal = () => {
@@ -46,10 +99,50 @@ const Navbar = () => {
     setSilayiCertSearchQuery('');
     setSilayiCertVerifyResult(null);
     setSilayiCertVerifyError('');
+    setShowSilayiCertOtpModal(false);
+    setSilayiCertOtpInput('');
+    setSilayiCertOtpError('');
   };
 
   const closeSilayiCertModal = () => {
     setIsSilayiCertModalOpen(false);
+    setShowSilayiCertOtpModal(false);
+    setSilayiCertOtpInput('');
+    setSilayiCertOtpError('');
+  };
+
+  // Timer Effect for 60-second Resend OTP Cooldown
+  useEffect(() => {
+    let resendInterval = null;
+    if (showSilayiCertOtpModal && silayiCertResendTimer > 0) {
+      resendInterval = setInterval(() => {
+        setSilayiCertResendTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (resendInterval) clearInterval(resendInterval);
+    };
+  }, [showSilayiCertOtpModal, silayiCertResendTimer]);
+
+  // Timer Effect for 5-minute OTP Expiration Countdown
+  useEffect(() => {
+    let expiryInterval = null;
+    if (showSilayiCertOtpModal && silayiCertExpiryTimer > 0) {
+      expiryInterval = setInterval(() => {
+        setSilayiCertExpiryTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (expiryInterval) clearInterval(expiryInterval);
+    };
+  }, [showSilayiCertOtpModal, silayiCertExpiryTimer]);
+
+  // Helper to format seconds as MM:SS
+  const formatTimer = (totalSeconds) => {
+    if (totalSeconds <= 0) return '00:00';
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
   };
 
   // Clean print mode class from body after printing finishes
@@ -64,7 +157,7 @@ const Navbar = () => {
   }, []);
 
   const handleSilayiVerify = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!silayiSearchQuery.trim()) {
       setSilayiVerifyError('कृपया आधार, मोबाइल या क्रमांक संख्या प्रविष्ट करें।');
       return;
@@ -76,10 +169,20 @@ const Navbar = () => {
 
     try {
       const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-      const response = await fetch(`${baseUrl}/api/schemes/verify?query=${encodeURIComponent(silayiSearchQuery.trim())}`);
+      const response = await fetch(`${baseUrl}/api/silayi/request-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: silayiSearchQuery.trim() })
+      });
       const result = await response.json();
-      if (result.success && result.data) {
-        setSilayiVerifyResult(result.data);
+      if (result.success) {
+        setSilayiRegOtpSessionId(result.sessionId);
+        setSilayiRegMaskedMobile(result.maskedMobile);
+        setSilayiRegResendTimer(60);
+        setSilayiRegExpiryTimer(300);
+        setSilayiRegOtpInput('');
+        setSilayiRegOtpError('');
+        setShowSilayiRegOtpModal(true);
       } else {
         setSilayiVerifyError(result.message || 'पंजीकरण रिकॉर्ड नहीं मिला। कृपया इनपुट की जांच करें।');
       }
@@ -88,6 +191,70 @@ const Navbar = () => {
       setSilayiVerifyError('रिकॉर्ड सत्यापन विफलता।');
     } finally {
       setSilayiLoading(false);
+    }
+  };
+
+  const handleResendSilayiRegOtp = async () => {
+    if (silayiRegResendTimer > 0 || silayiRegOtpLoading) return;
+    setSilayiRegOtpError('');
+    setSilayiRegOtpLoading(true);
+    try {
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${baseUrl}/api/silayi/request-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: silayiSearchQuery.trim() })
+      });
+      const result = await response.json();
+      if (result.success) {
+        setSilayiRegOtpSessionId(result.sessionId);
+        setSilayiRegResendTimer(60);
+        setSilayiRegExpiryTimer(300);
+        setSilayiRegOtpInput('');
+        setSilayiRegOtpError('पंजीकृत मोबाइल नंबर पर एक नया OTP भेजा गया है।');
+      } else {
+        setSilayiRegOtpError(result.message || 'OTP पुनः भेजने में विफल।');
+      }
+    } catch (err) {
+      setSilayiRegOtpError('OTP भेजने में त्रुटि।');
+    } finally {
+      setSilayiRegOtpLoading(false);
+    }
+  };
+
+  const handleVerifySilayiRegOtpSubmit = async (e) => {
+    if (e) e.preventDefault();
+    const trimmedOtp = silayiRegOtpInput.trim();
+    if (!trimmedOtp || trimmedOtp.length < 4) {
+      setSilayiRegOtpError('कृपया फोन पर प्राप्त पूरा OTP दर्ज करें।');
+      return;
+    }
+
+    setSilayiRegOtpLoading(true);
+    setSilayiRegOtpError('');
+
+    try {
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${baseUrl}/api/silayi/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: silayiRegOtpSessionId,
+          otp: trimmedOtp
+        })
+      });
+      const result = await response.json();
+      if (result.success && result.data) {
+        setSilayiVerifyResult(result.data);
+        setShowSilayiRegOtpModal(false);
+      } else {
+        setSilayiRegOtpError(result.message || 'अमान्य OTP (Invalid OTP)');
+      }
+    } catch (err) {
+      console.error(err);
+      setSilayiRegOtpError('OTP सत्यापन विफल');
+    } finally {
+      setSilayiRegOtpLoading(false);
     }
   };
 
@@ -108,7 +275,7 @@ const Navbar = () => {
   };
 
   const handleSilayiCertVerify = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!silayiCertSearchQuery.trim()) {
       setSilayiCertVerifyError('कृपया प्रमाणपत्र संख्या, आधार या मोबाइल दर्ज करें।');
       return;
@@ -120,14 +287,20 @@ const Navbar = () => {
 
     try {
       const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-      const response = await fetch(`${baseUrl}/api/schemes/verify?query=${encodeURIComponent(silayiCertSearchQuery.trim())}`);
+      const response = await fetch(`${baseUrl}/api/silayi/request-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: silayiCertSearchQuery.trim() })
+      });
       const result = await response.json();
-      if (result.success && result.data) {
-        if (result.data.certificateIssued) {
-          setSilayiCertVerifyResult(result.data);
-        } else {
-          setSilayiCertVerifyError('पंजीकरण रिकॉर्ड मिल गया है, लेकिन प्रमाणपत्र अभी तक प्रशासनिक प्राधिकारी द्वारा जारी नहीं किया गया है।');
-        }
+      if (result.success) {
+        setSilayiCertOtpSessionId(result.sessionId);
+        setSilayiCertMaskedMobile(result.maskedMobile);
+        setSilayiCertResendTimer(60);
+        setSilayiCertExpiryTimer(300);
+        setSilayiCertOtpInput('');
+        setSilayiCertOtpError('');
+        setShowSilayiCertOtpModal(true);
       } else {
         setSilayiCertVerifyError(result.message || 'सत्यापन रिकॉर्ड नहीं मिला। कृपया इनपुट की जांच करें।');
       }
@@ -136,6 +309,74 @@ const Navbar = () => {
       setSilayiCertVerifyError('प्रमाणपत्र सत्यापन विफलता।');
     } finally {
       setSilayiCertLoading(false);
+    }
+  };
+
+  const handleResendSilayiCertOtp = async () => {
+    if (silayiCertResendTimer > 0 || silayiCertOtpLoading) return;
+    setSilayiCertOtpError('');
+    setSilayiCertOtpLoading(true);
+    try {
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${baseUrl}/api/silayi/request-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: silayiCertSearchQuery.trim() })
+      });
+      const result = await response.json();
+      if (result.success) {
+        setSilayiCertOtpSessionId(result.sessionId);
+        setSilayiCertResendTimer(60);
+        setSilayiCertExpiryTimer(300);
+        setSilayiCertOtpInput('');
+        setSilayiCertOtpError('पंजीकृत मोबाइल नंबर पर एक नया OTP भेजा गया है।');
+      } else {
+        setSilayiCertOtpError(result.message || 'OTP पुनः भेजने में विफल।');
+      }
+    } catch (err) {
+      setSilayiCertOtpError('OTP भेजने में त्रुटि।');
+    } finally {
+      setSilayiCertOtpLoading(false);
+    }
+  };
+
+  const handleVerifySilayiCertOtpSubmit = async (e) => {
+    if (e) e.preventDefault();
+    const trimmedOtp = silayiCertOtpInput.trim();
+    if (!trimmedOtp || trimmedOtp.length < 4) {
+      setSilayiCertOtpError('कृपया फोन पर प्राप्त पूरा OTP दर्ज करें।');
+      return;
+    }
+
+    setSilayiCertOtpLoading(true);
+    setSilayiCertOtpError('');
+
+    try {
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${baseUrl}/api/silayi/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: silayiCertOtpSessionId,
+          otp: trimmedOtp
+        })
+      });
+      const result = await response.json();
+      if (result.success && result.data) {
+        if (result.data.certificateIssued) {
+          setSilayiCertVerifyResult(result.data);
+          setShowSilayiCertOtpModal(false);
+        } else {
+          setSilayiCertOtpError('पंजीकरण रिकॉर्ड मिल गया है, लेकिन प्रमाणपत्र अभी तक जारी नहीं किया गया है।');
+        }
+      } else {
+        setSilayiCertOtpError(result.message || 'अमान्य OTP (Invalid OTP)');
+      }
+    } catch (err) {
+      console.error(err);
+      setSilayiCertOtpError('OTP सत्यापन विफल');
+    } finally {
+      setSilayiCertOtpLoading(false);
     }
   };
 
@@ -1224,6 +1465,242 @@ const Navbar = () => {
               </div>
             )}
 
+          </div>
+        </div>
+      )}
+
+      {/* --- SILAYI CERTIFICATE OTP VERIFICATION MODAL --- */}
+      {showSilayiCertOtpModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4 overflow-y-auto font-sans">
+          <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 text-left relative my-auto">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 p-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-red-100 text-[#000080]">
+                  <Lock className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-800 tracking-tight">सिलाई प्रमाणपत्र OTP सत्यापन</h3>
+                  <p className="text-[11px] text-slate-500 font-semibold">Security Verification</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowSilayiCertOtpModal(false)}
+                className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer transition-all"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleVerifySilayiCertOtpSubmit} className="p-6 space-y-5">
+              
+              <div className="text-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <Smartphone className="h-8 w-8 mx-auto text-[#000080] mb-2 opacity-80" />
+                <p className="text-xs font-semibold text-slate-600">
+                  पंजीकृत मोबाइल नंबर पर भेजा गया सत्यापन कोड दर्ज करें:
+                </p>
+                <div className="mt-1 text-sm font-extrabold text-slate-900 font-mono tracking-wider">
+                  +91 {silayiCertMaskedMobile}
+                </div>
+              </div>
+
+              {/* OTP Input */}
+              <div>
+                <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider text-center mb-1.5">
+                  Enter OTP Code
+                </label>
+                <div className="relative max-w-xs mx-auto">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                    <KeyRound className="h-5 w-5" />
+                  </span>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={silayiCertOtpInput}
+                    onChange={(e) => setSilayiCertOtpInput(e.target.value.replace(/\D/g, ''))}
+                    placeholder="1234"
+                    className="w-full text-center text-2xl font-black font-mono tracking-[0.5em] py-3 pl-10 pr-4 rounded-2xl border-2 border-indigo-200 text-slate-900 focus:border-[#000080] outline-none transition-all shadow-inner bg-white"
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              {/* Expiry Status Bar */}
+              <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-100">
+                <span className="flex items-center gap-1 text-amber-700">
+                  <Clock className="h-3.5 w-3.5" /> Expires in: <strong className="font-mono text-slate-900">{formatTimer(silayiCertExpiryTimer)}</strong>
+                </span>
+                <span className="text-slate-600">
+                  Attempts: 5/5
+                </span>
+              </div>
+
+              {/* Error Alert inside Modal */}
+              {silayiCertOtpError && (
+                <div className="rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs font-bold text-rose-700 flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600" />
+                  <span>{silayiCertOtpError}</span>
+                </div>
+              )}
+
+              {/* Submit OTP Button */}
+              <button
+                type="submit"
+                disabled={silayiCertOtpLoading || silayiCertOtpInput.trim().length < 4 || silayiCertExpiryTimer <= 0}
+                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#000080] hover:bg-slate-900 text-white py-3.5 text-sm font-black shadow-lg shadow-indigo-900/25 tracking-wider uppercase cursor-pointer disabled:opacity-50 transition-all active:scale-95 duration-200"
+              >
+                {silayiCertOtpLoading ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    Verifying OTP...
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="h-4 w-4" />
+                    VERIFY OTP &amp; VIEW CERTIFICATE
+                  </>
+                )}
+              </button>
+
+              {/* Resend OTP Action */}
+              <div className="text-center pt-1 border-t border-slate-100">
+                {silayiCertResendTimer > 0 ? (
+                  <p className="text-xs text-slate-500 font-semibold">
+                    Didn't receive code? Resend available in <strong className="font-mono text-[#000080]">{silayiCertResendTimer}s</strong>
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleResendSilayiCertOtp}
+                    disabled={silayiCertOtpLoading}
+                    className="inline-flex items-center gap-1.5 text-xs font-extrabold text-[#000080] hover:text-indigo-900 cursor-pointer underline transition-all"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" /> Resend OTP via SMS
+                  </button>
+                )}
+              </div>
+
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- SILAYI REGISTRATION OTP VERIFICATION MODAL --- */}
+      {showSilayiRegOtpModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4 overflow-y-auto font-sans">
+          <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 text-left relative my-auto">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 p-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-red-100 text-[#ED1C24]">
+                  <Lock className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-800 tracking-tight">सिलाई पंजीकरण OTP सत्यापन</h3>
+                  <p className="text-[11px] text-slate-500 font-semibold">Security Verification</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowSilayiRegOtpModal(false)}
+                className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer transition-all"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleVerifySilayiRegOtpSubmit} className="p-6 space-y-5">
+              
+              <div className="text-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <Smartphone className="h-8 w-8 mx-auto text-[#ED1C24] mb-2 opacity-80" />
+                <p className="text-xs font-semibold text-slate-600">
+                  पंजीकृत मोबाइल नंबर पर भेजा गया सत्यापन कोड दर्ज करें:
+                </p>
+                <div className="mt-1 text-sm font-extrabold text-slate-900 font-mono tracking-wider">
+                  +91 {silayiRegMaskedMobile}
+                </div>
+              </div>
+
+              {/* OTP Input */}
+              <div>
+                <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider text-center mb-1.5">
+                  Enter OTP Code
+                </label>
+                <div className="relative max-w-xs mx-auto">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                    <KeyRound className="h-5 w-5" />
+                  </span>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={silayiRegOtpInput}
+                    onChange={(e) => setSilayiRegOtpInput(e.target.value.replace(/\D/g, ''))}
+                    placeholder="1234"
+                    className="w-full text-center text-2xl font-black font-mono tracking-[0.5em] py-3 pl-10 pr-4 rounded-2xl border-2 border-red-200 text-slate-900 focus:border-[#ED1C24] outline-none transition-all shadow-inner bg-white"
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              {/* Expiry Status Bar */}
+              <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-100">
+                <span className="flex items-center gap-1 text-amber-700">
+                  <Clock className="h-3.5 w-3.5" /> Expires in: <strong className="font-mono text-slate-900">{formatTimer(silayiRegExpiryTimer)}</strong>
+                </span>
+                <span className="text-slate-600">
+                  Attempts: 5/5
+                </span>
+              </div>
+
+              {/* Error Alert inside Modal */}
+              {silayiRegOtpError && (
+                <div className="rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs font-bold text-rose-700 flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600" />
+                  <span>{silayiRegOtpError}</span>
+                </div>
+              )}
+
+              {/* Submit OTP Button */}
+              <button
+                type="submit"
+                disabled={silayiRegOtpLoading || silayiRegOtpInput.trim().length < 4 || silayiRegExpiryTimer <= 0}
+                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#ED1C24] hover:bg-[#b0151b] text-white py-3.5 text-sm font-black shadow-lg shadow-red-900/25 tracking-wider uppercase cursor-pointer disabled:opacity-50 transition-all active:scale-95 duration-200"
+              >
+                {silayiRegOtpLoading ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    Verifying OTP...
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="h-4 w-4" />
+                    VERIFY OTP &amp; VIEW RECEIPT
+                  </>
+                )}
+              </button>
+
+              {/* Resend OTP Action */}
+              <div className="text-center pt-1 border-t border-slate-100">
+                {silayiRegResendTimer > 0 ? (
+                  <p className="text-xs text-slate-500 font-semibold">
+                    Didn't receive code? Resend available in <strong className="font-mono text-[#ED1C24]">{silayiRegResendTimer}s</strong>
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleResendSilayiRegOtp}
+                    disabled={silayiRegOtpLoading}
+                    className="inline-flex items-center gap-1.5 text-xs font-extrabold text-[#ED1C24] hover:text-red-900 cursor-pointer underline transition-all"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" /> Resend OTP via SMS
+                  </button>
+                )}
+              </div>
+
+            </form>
           </div>
         </div>
       )}
