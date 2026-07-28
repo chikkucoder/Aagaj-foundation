@@ -614,7 +614,7 @@ const HospitalDashboard = () => {
     const hospId = sessionStorage.getItem('loggedInHospitalId') || user?.uniqueId;
 
     try {
-      const response = await apiClient.post('/api/hospital/patient/request-checkin-otp', {
+      const response = await apiClient.post('/api/hospital-admin-system/hospital/patient/request-checkin-otp', {
         healthId,
         hospitalId: hospId
       });
@@ -645,7 +645,7 @@ const HospitalDashboard = () => {
     setCheckinOtpLoading(true);
     const hospId = sessionStorage.getItem('loggedInHospitalId') || user?.uniqueId;
     try {
-      const response = await apiClient.post('/api/hospital/patient/request-checkin-otp', {
+      const response = await apiClient.post('/api/hospital-admin-system/hospital/patient/request-checkin-otp', {
         healthId: checkinHealthId,
         hospitalId: hospId
       });
@@ -678,7 +678,7 @@ const HospitalDashboard = () => {
     const hospId = sessionStorage.getItem('loggedInHospitalId') || user?.uniqueId;
 
     try {
-      const response = await apiClient.post('/api/hospital/patient/verify-checkin-otp', {
+      const response = await apiClient.post('/api/hospital-admin-system/hospital/patient/verify-checkin-otp', {
         sessionId: checkinOtpSessionId,
         otp: trimmedOtp,
         appointmentId: checkinApptId,
