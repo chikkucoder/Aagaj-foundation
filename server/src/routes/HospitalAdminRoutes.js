@@ -656,6 +656,8 @@ router.delete('/hospital/delete-bill/:id', verifyHospital, async (req, res) => {
     }
 });
 
+const { requestOtpSession, verifyOtpSession } = require('../services/otpService');
+
 // 4. Verify Patient (Fetch Name & Mobile from Health Card ID)
 router.get('/hospital/verify-patient/:healthId', verifyHospital, async (req, res) => {
     try {
@@ -670,6 +672,121 @@ router.get('/hospital/verify-patient/:healthId', verifyHospital, async (req, res
             }
         });
     } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+});
+
+// 4.1 Request Patient On-Site Check-in / Admission OTP (Doctor / Hospital Portal)
+router.post('/hospital/patient/request-checkin-otp', verifyHospital, async (req, res) => {
+    try {
+        const { healthId, hospitalId } = req.body;
+        const targetHospitalId = hospitalId || req.hospitalUser.uniqueId;
+        if (targetHospitalId !== req.hospitalUser.uniqueId) {
+            return res.status(403).json({ success: false, message: 'Forbidden: hospital scope mismatch' });
+        }
+
+        if (!healthId) {
+            return res.status(400).json({ success: false, message: 'Health Card ID is required.' });
+        }
+
+        const patient = await HealthCard.findOne({ healthId: healthId.trim() }).lean();
+        if (!patient) {
+            return res.status(404).json({ success: false, message: 'Patient Health ID card not found in database.' });
+        }
+
+        if (!patient.mobile) {
+            return res.status(400).json({ success: false, message: 'No registered mobile number associated with this Health ID.' });
+        }
+
+        const otpResult = await requestOtpSession({
+            identifier: patient.healthId,
+            scope: 'hospital_checkin',
+            mobile: patient.mobile,
+            metadata: {
+                healthId: patient.healthId,
+                patientName: patient.fullName,
+                mobile: patient.mobile,
+                hospitalId: targetHospitalId
+            }
+        });
+
+        if (otpResult.rateLimited) {
+            return res.status(429).json({ success: false, ...otpResult });
+        }
+
+        res.json({
+            success: true,
+            ...otpResult,
+            patientName: patient.fullName,
+            healthId: patient.healthId
+        });
+    } catch (error) {
+        console.error('Hospital Request Check-in OTP Error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// 4.2 Verify Patient On-Site Check-in / Admission OTP (Doctor / Hospital Portal)
+router.post('/hospital/patient/verify-checkin-otp', verifyHospital, async (req, res) => {
+    try {
+        const { sessionId, otp, appointmentId, action = 'Admitted', hospitalId } = req.body;
+        const targetHospitalId = hospitalId || req.hospitalUser.uniqueId;
+
+        if (targetHospitalId !== req.hospitalUser.uniqueId) {
+            return res.status(403).json({ success: false, message: 'Forbidden: hospital scope mismatch' });
+        }
+
+        if (!sessionId || !otp) {
+            return res.status(400).json({ success: false, message: 'Missing required parameters (sessionId, otp).' });
+        }
+
+        const verifyResult = await verifyOtpSession({
+            sessionId,
+            scope: 'hospital_checkin',
+            otp
+        });
+
+        if (!verifyResult.success) {
+            return res.status(400).json(verifyResult);
+        }
+
+        // If appointmentId provided, update appointment status to Admitted / Checked-In
+        let appointment = null;
+        if (appointmentId) {
+            const newStatus = action === 'admit' ? 'Admitted' : 'Checked-In';
+            appointment = await Appointment.findOneAndUpdate(
+                { _id: appointmentId, hospitalId: targetHospitalId },
+                { status: newStatus, verifiedAt: new Date() },
+                { new: true }
+            );
+        }
+
+        // Log audit entry
+        try {
+            await AuditLog.create({
+                action: 'PATIENT_PHYSICAL_OTP_CHECKIN',
+                actor: {
+                    type: 'Hospital',
+                    uniqueId: targetHospitalId
+                },
+                details: {
+                    healthId: verifyResult.metadata?.healthId,
+                    patientName: verifyResult.metadata?.patientName,
+                    appointmentId
+                }
+            });
+        } catch (logErr) {
+            console.warn('AuditLog write error:', logErr.message);
+        }
+
+        res.json({
+            success: true,
+            message: 'Patient identity verified with OTP successfully!',
+            patient: verifyResult.metadata,
+            appointment
+        });
+    } catch (error) {
+        console.error('Hospital Verify Check-in OTP Error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
 });
 
 // 4. Fetch Appointments for a Hospital

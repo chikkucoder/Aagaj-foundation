@@ -1,11 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
 import { 
   User, Phone, Mail, MapPin, Shield, CreditCard, Award, Download, Printer, 
   Search, CheckCircle2, AlertCircle, FileText, Image as ImageIcon, Heart, 
-  Sparkles, ChevronRight, Lock, CheckSquare, Square
+  Sparkles, ChevronRight, Lock, CheckSquare, Square, X, Smartphone, KeyRound, Clock, ShieldCheck, RefreshCw
 } from 'lucide-react';
 import html2canvas from 'html2canvas-pro';
 import MembershipCertificate from '../components/MembershipCertificate';
+import apiClient from '../api/apiClient';
 
 const INTEREST_OPTIONS = [
   'Education',
@@ -21,6 +21,16 @@ const PRESET_AMOUNTS = [100, 250, 500, 1000, 2100];
 
 const MembershipRegister = () => {
   const [activeTab, setActiveTab] = useState('register'); // 'register' | 'certificate' | 'verify'
+
+  // OTP Verification Modal States
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpSessionId, setOtpSessionId] = useState('');
+  const [maskedMobile, setMaskedMobile] = useState('');
+  const [otpInput, setOtpInput] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState('');
+  const [resendTimer, setResendTimer] = useState(60);
+  const [expiryTimer, setExpiryTimer] = useState(300);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -272,21 +282,78 @@ const MembershipRegister = () => {
     setGeneratedMember(null);
 
     try {
-      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-      const response = await fetch(`${baseUrl}/api/membership/verify?query=${encodeURIComponent(searchQuery.trim())}`);
-      const result = await response.json();
+      const response = await apiClient.post('/api/membership/request-otp', {
+        query: searchQuery.trim()
+      });
 
-      if (result.success && result.data) {
-        setGeneratedMember(result.data);
-        setActiveTab('certificate');
+      if (response.data?.success) {
+        setOtpSessionId(response.data.sessionId);
+        setMaskedMobile(response.data.maskedMobile);
+        setResendTimer(60);
+        setExpiryTimer(300);
+        setOtpInput('');
+        setOtpError('');
+        setShowOtpModal(true);
       } else {
-        setVerifyError(result.message || 'No membership record found.');
+        setVerifyError(response.data?.message || 'No membership record found matching your query.');
       }
     } catch (err) {
-      console.error(err);
-      setVerifyError('Verification failed. Server connection error.');
+      console.error('Membership Search Error:', err);
+      setVerifyError(err.response?.data?.message || 'Error communicating with server.');
     } finally {
       setVerifyLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (resendTimer > 0 || otpLoading) return;
+    setOtpError('');
+    setOtpLoading(true);
+    try {
+      const response = await apiClient.post('/api/membership/request-otp', { query: searchQuery.trim() });
+      if (response.data?.success) {
+        setOtpSessionId(response.data.sessionId);
+        setResendTimer(60);
+        setExpiryTimer(300);
+        setOtpInput('');
+        setOtpError('A new OTP has been sent to your registered mobile number.');
+      } else {
+        setOtpError(response.data?.message || 'Failed to resend OTP.');
+      }
+    } catch (err) {
+      setOtpError(err.response?.data?.message || 'Error resending OTP.');
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleVerifyOtpSubmit = async (e) => {
+    e.preventDefault();
+    const trimmedOtp = otpInput.trim();
+    if (!trimmedOtp || trimmedOtp.length < 4) {
+      setOtpError('Please enter the complete OTP sent to your phone.');
+      return;
+    }
+
+    setOtpLoading(true);
+    setOtpError('');
+
+    try {
+      const response = await apiClient.post('/api/membership/verify-otp', {
+        sessionId: otpSessionId,
+        otp: trimmedOtp
+      });
+
+      if (response.data?.success && response.data.data) {
+        setGeneratedMember(response.data.data);
+        setShowOtpModal(false);
+      } else {
+        setOtpError(response.data?.message || 'Invalid OTP');
+      }
+    } catch (err) {
+      setOtpError(err.response?.data?.message || 'OTP verification failed');
+    } finally {
+      setOtpLoading(false);
     }
   };
 
@@ -914,6 +981,124 @@ const MembershipRegister = () => {
         )}
 
       </div>
+
+      {/* --- OTP VERIFICATION MODAL OVERLAY --- */}
+      {showOtpModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4 overflow-y-auto font-sans">
+          <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 text-left relative my-auto">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 p-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-rose-100 text-[#8B1E4B]">
+                  <Lock className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-800 tracking-tight">Membership OTP Verification</h3>
+                  <p className="text-[11px] text-slate-500 font-semibold">Security Verification</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowOtpModal(false)}
+                className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer transition-all"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleVerifyOtpSubmit} className="p-6 space-y-5">
+              
+              <div className="text-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <Smartphone className="h-8 w-8 mx-auto text-[#8B1E4B] mb-2 opacity-80" />
+                <p className="text-xs font-semibold text-slate-600">
+                  Enter the verification code sent to your registered mobile number:
+                </p>
+                <div className="mt-1 text-sm font-extrabold text-slate-900 font-mono tracking-wider">
+                  +91 {maskedMobile}
+                </div>
+              </div>
+
+              {/* OTP Input */}
+              <div>
+                <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider text-center mb-1.5">
+                  Enter OTP Code
+                </label>
+                <div className="relative max-w-xs mx-auto">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                    <KeyRound className="h-5 w-5" />
+                  </span>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={otpInput}
+                    onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
+                    placeholder="1234"
+                    className="w-full text-center text-2xl font-black font-mono tracking-[0.5em] py-3 pl-10 pr-4 rounded-2xl border-2 border-rose-200 text-slate-900 focus:border-[#8B1E4B] outline-none transition-all shadow-inner bg-white"
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              {/* Expiry Status Bar */}
+              <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-100">
+                <span className="flex items-center gap-1 text-amber-700">
+                  <Clock className="h-3.5 w-3.5" /> Expires in: <strong className="font-mono text-slate-900">{formatTimer(expiryTimer)}</strong>
+                </span>
+                <span className="text-slate-600">
+                  Attempts: 5/5
+                </span>
+              </div>
+
+              {/* Error Alert inside Modal */}
+              {otpError && (
+                <div className="rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs font-bold text-rose-700 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
+                  <span>{otpError}</span>
+                </div>
+              )}
+
+              {/* Submit OTP Button */}
+              <button
+                type="submit"
+                disabled={otpLoading || otpInput.trim().length < 4 || expiryTimer <= 0}
+                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#8B1E4B] hover:bg-[#6c163a] text-white py-3.5 text-sm font-black shadow-lg shadow-rose-900/25 tracking-wider uppercase cursor-pointer disabled:opacity-50 transition-all active:scale-95 duration-200"
+              >
+                {otpLoading ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    Verifying OTP...
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="h-4 w-4" />
+                    VERIFY OTP &amp; VIEW CERTIFICATE
+                  </>
+                )}
+              </button>
+
+              {/* Resend OTP Action */}
+              <div className="text-center pt-1 border-t border-slate-100">
+                {resendTimer > 0 ? (
+                  <p className="text-xs text-slate-500 font-semibold">
+                    Didn't receive code? Resend available in <strong className="font-mono text-[#8B1E4B]">{resendTimer}s</strong>
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleResendOtp}
+                    disabled={otpLoading}
+                    className="inline-flex items-center gap-1.5 text-xs font-extrabold text-[#8B1E4B] hover:text-rose-900 cursor-pointer underline transition-all"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" /> Resend OTP via SMS
+                  </button>
+                )}
+              </div>
+
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
