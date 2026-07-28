@@ -641,7 +641,8 @@ router.post('/request-otp', async (req, res) => {
             $or: [
                 { serialNumber: trimmed },
                 { mobileNumber: trimmed },
-                { aadharNumber: trimmed }
+                { aadharNumber: trimmed },
+                { certificateNo: trimmed }
             ]
         }).lean();
 
