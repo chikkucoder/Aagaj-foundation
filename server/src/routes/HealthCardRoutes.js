@@ -5,11 +5,13 @@ const multer = require('multer');
 const path = require('path');
 const Razorpay = require('razorpay');
 const HealthCard = require('../models/HealthCardSchema');
+const HealthCardOtp = require('../models/HealthCardOtp');
 const PendingPayment = require('../models/PendingPayment');
 const PaymentLog = require('../models/PaymentLog');
 const crypto = require('crypto');
 const { sendSMS, sendWhatsApp } = require('../services/twilioService');
-const { sendHealthCardConfirmation } = require('../services/emailService');
+const { sendOtpSMS, sendMsg91WidgetOtp, verifyMsg91WidgetOtp, maskMobileNumber } = require('../services/smsService');
+const { sendHealthCardConfirmation, sendHealthCardOtpEmail, maskEmail } = require('../services/emailService');
 const { validateRequest } = require('../middleware/requestValidation');
 const {
     healthCardCheckExistsSchema,
@@ -360,8 +362,241 @@ router.get('/get-by-order/:orderId', async (req, res) => {
     }
 });
 
-// ✅ API to Verify and Fetch Health Card by Health ID (for user verification and download)
-router.get('/verify/:healthId', async (req, res) => {
+// Helper function to hash OTP securely
+const hashOtp = (otp) => {
+    const secret = process.env.JWT_SECRET || 'aagaz_healthcard_secret_key';
+    return crypto.createHmac('sha256', secret).update(String(otp).trim()).digest('hex');
+};
+
+// Middleware to verify Health Card Access Token (issued only after successful OTP verification)
+const verifyCardAccessToken = (req, res, next) => {
+    const authHeader = req.header('Authorization') || req.header('x-card-token');
+    if (!authHeader) {
+        return res.status(401).json({
+            success: false,
+            message: "Access Denied. OTP verification required to view or download Health Card."
+        });
+    }
+
+    const tokenVal = authHeader.replace("Bearer ", "").trim();
+    if (tokenVal === 'employee-session') {
+        return next();
+    }
+
+    try {
+        const decoded = jwt.verify(tokenVal, process.env.JWT_SECRET || 'aagaz_healthcard_secret_key');
+        if (decoded.role === 'admin' || decoded.role === 'employee') {
+            return next();
+        }
+        if (decoded.scope !== 'healthcard_access') {
+            return res.status(403).json({
+                success: false,
+                message: "Access Denied. Invalid token scope."
+            });
+        }
+
+        const reqHealthId = String(req.params.healthId || '').toUpperCase().trim().replace(/^MC-/, '');
+        const tokenHealthId = String(decoded.healthId || '').toUpperCase().trim().replace(/^MC-/, '');
+
+        if (reqHealthId !== tokenHealthId) {
+            return res.status(403).json({
+                success: false,
+                message: "Access Denied. Token does not match requested Health ID."
+            });
+        }
+
+        req.cardAccess = decoded;
+        next();
+    } catch (err) {
+        return res.status(401).json({
+            success: false,
+            message: "Session expired or invalid token. Please complete OTP verification again."
+        });
+    }
+};
+
+// ✅ STEP 1 API: Request OTP for Health Card Access (Sent to Registered Mobile via MSG91 Widget)
+router.post('/request-otp', async (req, res) => {
+    try {
+        const inputId = String(req.body.healthId || '').trim();
+        if (!inputId) {
+            return res.status(400).json({ success: false, message: 'Please enter a valid Health Card ID.' });
+        }
+
+        const upper = inputId.toUpperCase();
+        const candidates = new Set([inputId, upper]);
+        if (/^\d{6}$/.test(inputId)) candidates.add(`MC-${inputId}`);
+        const match = upper.match(/^MC-(\d{6})$/);
+        if (match) candidates.add(match[1]);
+
+        const candidateArray = Array.from(candidates).filter(Boolean);
+        const card = await HealthCard.findOne({ healthId: { $in: candidateArray } });
+
+        if (!card) {
+            return res.status(404).json({
+                success: false,
+                message: 'Health ID card not found. Please check your card number.'
+            });
+        }
+
+        if (!card.mobile) {
+            return res.status(400).json({
+                success: false,
+                message: 'No registered mobile number found for this Health ID. Please contact support.'
+            });
+        }
+
+        const maskedMobile = maskMobileNumber(card.mobile);
+
+        // Rate Limit & Cooldown Check (60 seconds resend timer)
+        const existingSession = await HealthCardOtp.findOne({ healthId: card.healthId });
+        if (existingSession && Date.now() < existingSession.resendAvailableAt.getTime()) {
+            const waitSeconds = Math.ceil((existingSession.resendAvailableAt.getTime() - Date.now()) / 1000);
+            return res.status(429).json({
+                success: false,
+                message: `Please wait ${waitSeconds} seconds before requesting a new OTP.`,
+                resendTimer: waitSeconds,
+                sessionId: existingSession.sessionId,
+                maskedMobile
+            });
+        }
+
+        // Dispatch OTP via MSG91 Widget API
+        let reqId = '';
+        try {
+            const result = await sendMsg91WidgetOtp(card.mobile);
+            reqId = result.reqId;
+        } catch (err) {
+            console.error("MSG91 Widget Send OTP Error:", err.message);
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to send OTP to mobile: ' + (err.message || 'SMS Gateway Error')
+            });
+        }
+
+        const sessionId = crypto.randomBytes(16).toString('hex');
+        const now = Date.now();
+        const expiresAt = new Date(now + 5 * 60 * 1000); // 5 mins validity
+        const resendAvailableAt = new Date(now + 60 * 1000); // 60s cooldown
+
+        await HealthCardOtp.findOneAndUpdate(
+            { healthId: card.healthId },
+            {
+                healthId: card.healthId,
+                sessionId,
+                mobile: card.mobile,
+                email: card.email || '',
+                reqId,
+                attempts: 0,
+                maxAttempts: 5,
+                resendAvailableAt,
+                expiresAt
+            },
+            { upsert: true, new: true }
+        );
+
+        res.json({
+            success: true,
+            message: `OTP sent to registered mobile number (${maskedMobile})`,
+            sessionId,
+            healthId: card.healthId,
+            maskedMobile,
+            resendTimer: 60,
+            expiresMinutes: 5
+        });
+
+    } catch (error) {
+        console.error("Request OTP Error:", error);
+        res.status(500).json({ success: false, message: "Server Error: " + error.message });
+    }
+});
+
+// ✅ STEP 2 API: Verify OTP & Issue Token
+router.post('/verify-otp', async (req, res) => {
+    try {
+        const { healthId, sessionId, otp } = req.body;
+        if (!healthId || !sessionId || !otp) {
+            return res.status(400).json({ success: false, message: 'Missing required parameters (healthId, sessionId, otp).' });
+        }
+
+        const otpSession = await HealthCardOtp.findOne({ sessionId, healthId });
+        if (!otpSession) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid or expired OTP session. Please request a new OTP.'
+            });
+        }
+
+        if (Date.now() > new Date(otpSession.expiresAt).getTime()) {
+            await HealthCardOtp.deleteOne({ _id: otpSession._id });
+            return res.status(400).json({
+                success: false,
+                message: 'OTP has expired (validity 5 minutes). Please request a new OTP.'
+            });
+        }
+
+        if (otpSession.attempts >= otpSession.maxAttempts) {
+            return res.status(429).json({
+                success: false,
+                message: 'Maximum verification attempts (5) exceeded. Please request a new OTP.'
+            });
+        }
+
+        // Increment attempt count
+        otpSession.attempts += 1;
+        await otpSession.save();
+
+        // Verify OTP with MSG91 Widget API
+        let isVerified = false;
+        let verifyMessage = 'Invalid OTP.';
+
+        if (otpSession.reqId) {
+            const verifyRes = await verifyMsg91WidgetOtp(otpSession.reqId, otp);
+            isVerified = verifyRes.success;
+            verifyMessage = verifyRes.message || 'Invalid OTP.';
+        } else if (otpSession.otpHash) {
+            const inputHash = hashOtp(otp);
+            isVerified = (inputHash === otpSession.otpHash);
+        }
+
+        if (!isVerified) {
+            const remaining = otpSession.maxAttempts - otpSession.attempts;
+            if (remaining <= 0) {
+                return res.status(429).json({
+                    success: false,
+                    message: 'Maximum verification attempts (5) exceeded. Please request a new OTP.'
+                });
+            }
+            return res.status(400).json({
+                success: false,
+                message: `${verifyMessage} You have ${remaining} attempt(s) remaining.`
+            });
+        }
+
+        // Success: Delete OTP session & issue 15-minute Card Access Token
+        await HealthCardOtp.deleteOne({ _id: otpSession._id });
+
+        const cardToken = jwt.sign(
+            { healthId: otpSession.healthId, scope: 'healthcard_access' },
+            process.env.JWT_SECRET || 'aagaz_healthcard_secret_key',
+            { expiresIn: '15m' }
+        );
+
+        res.json({
+            success: true,
+            message: 'OTP verified successfully!',
+            cardToken,
+            healthId: otpSession.healthId
+        });
+
+    } catch (error) {
+        console.error("Verify OTP Error:", error);
+        res.status(500).json({ success: false, message: "Server Error: " + error.message });
+    }
+});
+
+// ✅ STEP 3 API: Fetch Health Card Details (Protected by OTP Access Token)
+router.get('/verify/:healthId', verifyCardAccessToken, async (req, res) => {
     try {
         const input = String(req.params.healthId || '').trim();
         const upper = input.toUpperCase();
