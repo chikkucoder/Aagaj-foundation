@@ -66,7 +66,9 @@ function App() {
             <Route path="/medical/verify-healthcard" element={<VerifyHealthCard />} />
             <Route path="/medical/appointment" element={<Appointment />} />
             <Route path="/schemes/silayi" element={<SilayiYojnaDescription />} />
+            <Route path="/silayi/description" element={<SilayiYojnaDescription />} />
             <Route path="/schemes/swarojgaar" element={<SwarojgaarDescription />} />
+            <Route path="/swarojgaar/description" element={<SwarojgaarDescription />} />
             <Route path="/membership/register" element={<MembershipRegister />} />
             <Route path="/membership" element={<MembershipRegister />} />
           </Route>

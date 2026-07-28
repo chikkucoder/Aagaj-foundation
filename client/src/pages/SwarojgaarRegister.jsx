@@ -304,7 +304,7 @@ const SwarojgaarRegister = () => {
         {/* Floating print actions */}
         <div className="max-w-4xl mx-auto mb-6 flex justify-between items-center print:hidden">
           <button
-            onClick={() => navigate('/swarojgaar/description')}
+            onClick={() => navigate('/schemes/swarojgaar')}
             className="flex items-center gap-1.5 text-sm font-bold text-slate-600 hover:text-[#ED1C24] transition-all"
           >
             <ArrowLeft className="h-5 w-5" /> वापस (Back)
@@ -568,7 +568,7 @@ const SwarojgaarRegister = () => {
       {/* Top action header */}
       <div className="max-w-4xl mx-auto flex justify-between items-center mb-6">
         <button
-          onClick={() => navigate('/swarojgaar/description')}
+          onClick={() => navigate('/schemes/swarojgaar')}
           className="flex items-center gap-1.5 text-sm font-bold text-slate-600 hover:text-[#ED1C24] transition-all"
         >
           <ArrowLeft className="h-5 w-5" /> पीछे (Back)
