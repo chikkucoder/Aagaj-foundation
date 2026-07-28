@@ -652,6 +652,7 @@ app.use('/api/admin-register', require('./routes/AdminRegisterRoutes'));
 
 const HospitalAdminRoutes = require('./routes/HospitalAdminRoutes');
 app.use('/api/hospital-admin-system', HospitalAdminRoutes);
+app.use('/api', HospitalAdminRoutes);
 
 const healthCardRoutes = require('./routes/HealthCardRoutes');
 app.use('/api/healthcard', healthCardRoutes);

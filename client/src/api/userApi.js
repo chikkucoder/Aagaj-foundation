@@ -189,5 +189,16 @@ export const deleteHospitalBill = async (id, hospitalId) => {
   return response.data;
 };
 
+// --- HOSPITAL PATIENT CHECK-IN OTP ---
+export const requestPatientCheckinOtp = async (data) => {
+  const response = await apiClient.post('/api/hospital-admin-system/hospital/patient/request-checkin-otp', data);
+  return response.data;
+};
+
+export const verifyPatientCheckinOtp = async (data) => {
+  const response = await apiClient.post('/api/hospital-admin-system/hospital/patient/verify-checkin-otp', data);
+  return response.data;
+};
+
 
 
