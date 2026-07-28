@@ -623,4 +623,94 @@ router.put('/admin/update-certificate-names/:id', verifyAdmin, async (req, res) 
     }
 });
 
+// ==========================================
+// ✅ OTP VERIFICATION ROUTES FOR SILAYI YOJANA
+// ==========================================
+const { requestOtpSession, verifyOtpSession } = require('../services/otpService');
+
+// Request OTP for Silayi Beneficiary Card / Certificate Lookup
+router.post('/request-otp', async (req, res) => {
+    try {
+        const { query } = req.body;
+        if (!query || !query.trim()) {
+            return res.status(400).json({ success: false, message: 'Please enter Serial Number, Mobile Number, or Aadhar Number.' });
+        }
+
+        const trimmed = query.trim();
+        const beneficiary = await Beneficiary.findOne({
+            $or: [
+                { serialNumber: trimmed },
+                { mobileNumber: trimmed },
+                { aadharNumber: trimmed }
+            ]
+        }).lean();
+
+        if (!beneficiary) {
+            return res.status(404).json({ success: false, message: 'No Silayi Yojana registration record found matching your query.' });
+        }
+
+        if (!beneficiary.mobileNumber) {
+            return res.status(400).json({ success: false, message: 'No mobile number associated with this registration record.' });
+        }
+
+        const otpResult = await requestOtpSession({
+            identifier: beneficiary.serialNumber || beneficiary.mobileNumber,
+            scope: 'silayi',
+            mobile: beneficiary.mobileNumber,
+            metadata: {
+                beneficiaryId: beneficiary._id,
+                serialNumber: beneficiary.serialNumber,
+                name: beneficiary.name,
+                mobileNumber: beneficiary.mobileNumber
+            }
+        });
+
+        if (otpResult.rateLimited) {
+            return res.status(429).json({ success: false, ...otpResult });
+        }
+
+        res.json({
+            success: true,
+            ...otpResult,
+            serialNumber: beneficiary.serialNumber
+        });
+    } catch (error) {
+        console.error("Silayi Request OTP Error:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// Verify OTP for Silayi Beneficiary Card / Certificate Lookup
+router.post('/verify-otp', async (req, res) => {
+    try {
+        const { sessionId, otp } = req.body;
+        if (!sessionId || !otp) {
+            return res.status(400).json({ success: false, message: 'Missing required parameters (sessionId, otp).' });
+        }
+
+        const verifyResult = await verifyOtpSession({
+            sessionId,
+            scope: 'silayi',
+            otp
+        });
+
+        if (!verifyResult.success) {
+            return res.status(400).json(verifyResult);
+        }
+
+        const beneficiaryId = verifyResult.metadata?.beneficiaryId;
+        const beneficiary = await Beneficiary.findById(beneficiaryId).lean();
+
+        res.json({
+            success: true,
+            message: 'OTP verified successfully!',
+            accessToken: verifyResult.accessToken,
+            data: beneficiary
+        });
+    } catch (error) {
+        console.error("Silayi Verify OTP Error:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 module.exports = router;

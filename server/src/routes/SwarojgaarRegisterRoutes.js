@@ -389,16 +389,91 @@ router.get('/all-groups', verifyAdminOrEmployee, async (req, res) => {
 });
 
 // ✅ 4. Delete Group (DELETE) - Admin Dashboard के लिए
-router.delete('/delete/:id', verifyAdmin, async (req, res) => {
+const { requestOtpSession, verifyOtpSession } = require('../services/otpService');
+
+// Request OTP for Swarojgaar Group Registration Verification
+router.post('/request-otp', async (req, res) => {
     try {
-        const deletedGroup = await SwarojgaarGroup.findByIdAndDelete(req.params.id);
-        if (!deletedGroup) {
-            return res.status(404).json({ success: false, message: 'Group not found' });
+        const { query } = req.body;
+        if (!query || !query.trim()) {
+            return res.status(400).json({ success: false, message: 'Please enter Serial Number, Group Leader Mobile, or Aadhar.' });
         }
-        res.json({ success: true, message: 'Group and its members deleted successfully' });
+
+        const trimmed = query.trim();
+        const group = await SwarojgaarGroup.findOne({
+            $or: [
+                { serialNumber: trimmed },
+                { 'groupLeader.mobileNumber': trimmed },
+                { 'groupLeader.aadharNumber': trimmed }
+            ]
+        }).lean();
+
+        if (!group) {
+            return res.status(404).json({ success: false, message: 'No Swarojgaar Yojana registration record found matching your query.' });
+        }
+
+        const mobile = group.groupLeader?.mobileNumber;
+        if (!mobile) {
+            return res.status(400).json({ success: false, message: 'No mobile number associated with this group leader.' });
+        }
+
+        const otpResult = await requestOtpSession({
+            identifier: group.serialNumber || mobile,
+            scope: 'swarojgaar',
+            mobile,
+            metadata: {
+                groupId: group._id,
+                serialNumber: group.serialNumber,
+                groupName: group.groupLeader?.name,
+                mobileNumber: mobile
+            }
+        });
+
+        if (otpResult.rateLimited) {
+            return res.status(429).json({ success: false, ...otpResult });
+        }
+
+        res.json({
+            success: true,
+            ...otpResult,
+            serialNumber: group.serialNumber
+        });
     } catch (error) {
-        console.error("Delete Error:", error);
-        res.status(500).json({ success: false, message: "Error deleting group" });
+        console.error('Swarojgaar Request OTP Error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// Verify OTP for Swarojgaar Group Registration Verification
+router.post('/verify-otp', async (req, res) => {
+    try {
+        const { sessionId, otp } = req.body;
+        if (!sessionId || !otp) {
+            return res.status(400).json({ success: false, message: 'Missing required parameters (sessionId, otp).' });
+        }
+
+        const verifyResult = await verifyOtpSession({
+            sessionId,
+            scope: 'swarojgaar',
+            otp
+        });
+
+        if (!verifyResult.success) {
+            return res.status(400).json(verifyResult);
+        }
+
+        const groupId = verifyResult.metadata?.groupId;
+        const group = await SwarojgaarGroup.findById(groupId).lean();
+
+        res.json({
+            success: true,
+            message: 'OTP verified successfully!',
+            accessToken: verifyResult.accessToken,
+            data: group
+        });
+    } catch (error) {
+        console.error('Swarojgaar Verify OTP Error:', error);
+        res.status(500).json({ success: false, message: error.message });
     }
 });
 

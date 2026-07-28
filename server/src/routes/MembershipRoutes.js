@@ -168,6 +168,94 @@ router.post('/verify-payment', async (req, res) => {
     }
 });
 
+const { requestOtpSession, verifyOtpSession } = require('../services/otpService');
+
+// POST /api/membership/request-otp - Request OTP for Membership Lookup / Certificate Download
+router.post('/request-otp', async (req, res) => {
+    try {
+        const { query } = req.body;
+        if (!query || !query.trim()) {
+            return res.status(400).json({ success: false, message: 'Please enter Membership ID, Certificate No, Mobile, or Aadhaar.' });
+        }
+
+        const trimmed = query.trim();
+        const member = await Membership.findOne({
+            $or: [
+                { membershipId: trimmed },
+                { certificateNo: trimmed },
+                { mobileNumber: trimmed },
+                { aadhaarNumber: trimmed }
+            ]
+        }).lean();
+
+        if (!member) {
+            return res.status(404).json({ success: false, message: 'No membership record found matching your details.' });
+        }
+
+        if (!member.mobileNumber) {
+            return res.status(400).json({ success: false, message: 'No mobile number associated with this membership record.' });
+        }
+
+        const otpResult = await requestOtpSession({
+            identifier: member.membershipId || member.mobileNumber,
+            scope: 'membership',
+            mobile: member.mobileNumber,
+            metadata: {
+                memberId: member._id,
+                membershipId: member.membershipId,
+                fullName: member.fullName,
+                mobileNumber: member.mobileNumber
+            }
+        });
+
+        if (otpResult.rateLimited) {
+            return res.status(429).json({ success: false, ...otpResult });
+        }
+
+        res.json({
+            success: true,
+            ...otpResult,
+            membershipId: member.membershipId
+        });
+    } catch (error) {
+        console.error('Membership Request OTP Error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+// POST /api/membership/verify-otp - Verify OTP and Return Member Record
+router.post('/verify-otp', async (req, res) => {
+    try {
+        const { sessionId, otp } = req.body;
+        if (!sessionId || !otp) {
+            return res.status(400).json({ success: false, message: 'Missing required parameters (sessionId, otp).' });
+        }
+
+        const verifyResult = await verifyOtpSession({
+            sessionId,
+            scope: 'membership',
+            otp
+        });
+
+        if (!verifyResult.success) {
+            return res.status(400).json(verifyResult);
+        }
+
+        const memberId = verifyResult.metadata?.memberId;
+        const member = await Membership.findById(memberId).lean();
+
+        res.json({
+            success: true,
+            message: 'Membership OTP verified successfully!',
+            accessToken: verifyResult.accessToken,
+            data: member
+        });
+    } catch (error) {
+        console.error('Membership Verify OTP Error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 // GET /api/membership/verify - Verify / Lookup member by Membership ID, Mobile, or Aadhaar
 router.get('/verify', async (req, res) => {
     try {

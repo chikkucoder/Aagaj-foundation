@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { Camera, Printer, ArrowLeft, RefreshCw, CheckCircle2, AlertTriangle, ShieldCheck, Sparkles, Scissors, Search, UserCheck } from 'lucide-react';
+import { Camera, Printer, ArrowLeft, RefreshCw, CheckCircle2, AlertTriangle, ShieldCheck, Sparkles, Scissors, Search, UserCheck, Lock, X, Smartphone, KeyRound, Clock } from 'lucide-react';
 import { createSilayiOrder, verifySilayiPayment } from '../api/paymentApi';
 import apiClient from '../api/apiClient';
 
@@ -20,6 +20,16 @@ const SilayiRegister = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [verifyResult, setVerifyResult] = useState(null);
   const [verifyError, setVerifyError] = useState('');
+
+  // OTP Verification Modal States
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpSessionId, setOtpSessionId] = useState('');
+  const [maskedMobile, setMaskedMobile] = useState('');
+  const [otpInput, setOtpInput] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState('');
+  const [resendTimer, setResendTimer] = useState(60);
+  const [expiryTimer, setExpiryTimer] = useState(300);
 
   // Image capture states
   const [capturedFile, setCapturedFile] = useState(null);
@@ -252,7 +262,40 @@ const SilayiRegister = () => {
     }
   };
 
-  // Verify Registration Lookup Handler
+  // Timer Effect for 60-second Resend OTP Cooldown
+  useEffect(() => {
+    let resendInterval = null;
+    if (showOtpModal && resendTimer > 0) {
+      resendInterval = setInterval(() => {
+        setResendTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (resendInterval) clearInterval(resendInterval);
+    };
+  }, [showOtpModal, resendTimer]);
+
+  // Timer Effect for 5-minute OTP Expiration Countdown
+  useEffect(() => {
+    let expiryInterval = null;
+    if (showOtpModal && expiryTimer > 0) {
+      expiryInterval = setInterval(() => {
+        setExpiryTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (expiryInterval) clearInterval(expiryInterval);
+    };
+  }, [showOtpModal, expiryTimer]);
+
+  const formatTimer = (totalSeconds) => {
+    if (totalSeconds <= 0) return '00:00';
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
+
+  // Verify Registration Lookup Handler (Requests OTP)
   const handleVerifySearch = async (e) => {
     e.preventDefault();
     if (!searchQuery.trim()) {
@@ -265,19 +308,77 @@ const SilayiRegister = () => {
     setVerifyError('');
 
     try {
-      const res = await apiClient.get('/api/schemes/verify', {
-        params: { query: searchQuery.trim() }
+      const res = await apiClient.post('/api/silayi/request-otp', {
+        query: searchQuery.trim()
       });
-      if (res.data?.success && res.data.data) {
-        setVerifyResult(res.data.data);
+      if (res.data?.success) {
+        setOtpSessionId(res.data.sessionId);
+        setMaskedMobile(res.data.maskedMobile);
+        setResendTimer(60);
+        setExpiryTimer(300);
+        setOtpInput('');
+        setOtpError('');
+        setShowOtpModal(true);
       } else {
         setVerifyError(res.data?.message || 'पंजीकरण रिकॉर्ड नहीं मिला। कृपया इनपुट की जांच करें।');
       }
     } catch (err) {
       console.error(err);
-      setVerifyError('रिकॉर्ड सत्यापन विफलता। (Verification API error)');
+      setVerifyError(err.response?.data?.message || 'रिकॉर्ड सत्यापन विफलता। (Verification API error)');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (resendTimer > 0 || otpLoading) return;
+    setOtpError('');
+    setOtpLoading(true);
+    try {
+      const response = await apiClient.post('/api/silayi/request-otp', { query: searchQuery.trim() });
+      if (response.data?.success) {
+        setOtpSessionId(response.data.sessionId);
+        setResendTimer(60);
+        setExpiryTimer(300);
+        setOtpInput('');
+        setOtpError('पंजीकृत मोबाइल नंबर पर एक नया OTP भेजा गया है।');
+      } else {
+        setOtpError(response.data?.message || 'Failed to resend OTP.');
+      }
+    } catch (err) {
+      setOtpError(err.response?.data?.message || 'Error resending OTP.');
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleVerifyOtpSubmit = async (e) => {
+    e.preventDefault();
+    const trimmedOtp = otpInput.trim();
+    if (!trimmedOtp || trimmedOtp.length < 4) {
+      setOtpError('कृपया फोन पर प्राप्त पूरा OTP प्रविष्ट करें।');
+      return;
+    }
+
+    setOtpLoading(true);
+    setOtpError('');
+
+    try {
+      const response = await apiClient.post('/api/silayi/verify-otp', {
+        sessionId: otpSessionId,
+        otp: trimmedOtp
+      });
+
+      if (response.data?.success && response.data.data) {
+        setVerifyResult(response.data.data);
+        setShowOtpModal(false);
+      } else {
+        setOtpError(response.data?.message || 'अमान्य OTP (Invalid OTP)');
+      }
+    } catch (err) {
+      setOtpError(err.response?.data?.message || 'OTP सत्यापन विफल');
+    } finally {
+      setOtpLoading(false);
     }
   };
 
@@ -845,6 +946,124 @@ const SilayiRegister = () => {
           </div>
         )}
       </div>
+
+      {/* --- OTP VERIFICATION MODAL OVERLAY --- */}
+      {showOtpModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4 overflow-y-auto font-sans">
+          <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 text-left relative my-auto">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 p-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-rose-100 text-[#ED1C24]">
+                  <Lock className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-800 tracking-tight">सिलाई योजना OTP सत्यापन</h3>
+                  <p className="text-[11px] text-slate-500 font-semibold">Security Verification</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowOtpModal(false)}
+                className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer transition-all"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleVerifyOtpSubmit} className="p-6 space-y-5">
+              
+              <div className="text-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <Smartphone className="h-8 w-8 mx-auto text-[#ED1C24] mb-2 opacity-80" />
+                <p className="text-xs font-semibold text-slate-600">
+                  पंजीकृत मोबाइल नंबर पर भेजा गया 4-अंकीय OTP प्रविष्ट करें:
+                </p>
+                <div className="mt-1 text-sm font-extrabold text-slate-900 font-mono tracking-wider">
+                  +91 {maskedMobile}
+                </div>
+              </div>
+
+              {/* OTP Input */}
+              <div>
+                <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider text-center mb-1.5">
+                  Enter OTP Code
+                </label>
+                <div className="relative max-w-xs mx-auto">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                    <KeyRound className="h-5 w-5" />
+                  </span>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={otpInput}
+                    onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
+                    placeholder="1234"
+                    className="w-full text-center text-2xl font-black font-mono tracking-[0.5em] py-3 pl-10 pr-4 rounded-2xl border-2 border-rose-200 text-slate-900 focus:border-[#ED1C24] outline-none transition-all shadow-inner bg-white"
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              {/* Expiry Status Bar */}
+              <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-100">
+                <span className="flex items-center gap-1 text-amber-700">
+                  <Clock className="h-3.5 w-3.5" /> Expires in: <strong className="font-mono text-slate-900">{formatTimer(expiryTimer)}</strong>
+                </span>
+                <span className="text-slate-600">
+                  Attempts: 5/5
+                </span>
+              </div>
+
+              {/* Error Alert inside Modal */}
+              {otpError && (
+                <div className="rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs font-bold text-rose-700 flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600" />
+                  <span>{otpError}</span>
+                </div>
+              )}
+
+              {/* Submit OTP Button */}
+              <button
+                type="submit"
+                disabled={otpLoading || otpInput.trim().length < 4 || expiryTimer <= 0}
+                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-[#ED1C24] hover:bg-[#b0151b] text-white py-3.5 text-sm font-black shadow-lg shadow-red-500/25 tracking-wider uppercase cursor-pointer disabled:opacity-50 transition-all active:scale-95 duration-200"
+              >
+                {otpLoading ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    सत्यापित कर रहे हैं (Verifying)...
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="h-4 w-4" />
+                    OTP सत्यापित करें और कार्ड देखें
+                  </>
+                )}
+              </button>
+
+              {/* Resend OTP Action */}
+              <div className="text-center pt-1 border-t border-slate-100">
+                {resendTimer > 0 ? (
+                  <p className="text-xs text-slate-500 font-semibold">
+                    पुनः OTP भेजें उपलब्ध होगा: <strong className="font-mono text-[#ED1C24]">{resendTimer}s</strong>
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleResendOtp}
+                    disabled={otpLoading}
+                    className="inline-flex items-center gap-1.5 text-xs font-extrabold text-[#ED1C24] hover:text-red-700 cursor-pointer underline transition-all"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" /> SMS द्वारा OTP पुनः भेजें
+                  </button>
+                )}
+              </div>
+
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
