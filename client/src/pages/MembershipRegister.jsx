@@ -1,3 +1,4 @@
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   User, Phone, Mail, MapPin, Shield, CreditCard, Award, Download, Printer, 
   Search, CheckCircle2, AlertCircle, FileText, Image as ImageIcon, Heart, 
@@ -31,6 +32,40 @@ const MembershipRegister = () => {
   const [otpError, setOtpError] = useState('');
   const [resendTimer, setResendTimer] = useState(60);
   const [expiryTimer, setExpiryTimer] = useState(300);
+
+  // Timer Effect for 60-second Resend OTP Cooldown
+  useEffect(() => {
+    let resendInterval = null;
+    if (showOtpModal && resendTimer > 0) {
+      resendInterval = setInterval(() => {
+        setResendTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (resendInterval) clearInterval(resendInterval);
+    };
+  }, [showOtpModal, resendTimer]);
+
+  // Timer Effect for 5-minute OTP Expiration Countdown
+  useEffect(() => {
+    let expiryInterval = null;
+    if (showOtpModal && expiryTimer > 0) {
+      expiryInterval = setInterval(() => {
+        setExpiryTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (expiryInterval) clearInterval(expiryInterval);
+    };
+  }, [showOtpModal, expiryTimer]);
+
+  // Helper to format seconds as MM:SS
+  const formatTimer = (totalSeconds) => {
+    if (totalSeconds <= 0) return '00:00';
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
 
   // Form State
   const [formData, setFormData] = useState({
