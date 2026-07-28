@@ -10,7 +10,13 @@ import {
   ShieldCheck, 
   ShieldAlert, 
   ArrowLeft,
-  Award
+  Award,
+  Lock,
+  Smartphone,
+  Mail,
+  KeyRound,
+  Clock,
+  X
 } from 'lucide-react';
 
 const VerifyHealthCard = () => {
@@ -20,6 +26,19 @@ const VerifyHealthCard = () => {
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [healthCardPhotoUrl, setHealthCardPhotoUrl] = useState('/logo.jpg');
+
+  // OTP Verification States
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otpSessionId, setOtpSessionId] = useState('');
+  const [maskedMobile, setMaskedMobile] = useState('');
+  const [maskedEmail, setMaskedEmail] = useState('');
+  const [otpInput, setOtpInput] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError] = useState('');
+  const [resendTimer, setResendTimer] = useState(60);
+  const [expiryTimer, setExpiryTimer] = useState(300); // 5 minutes
+  const [attemptsLeft, setAttemptsLeft] = useState(5);
+  const [verifiedCardToken, setVerifiedCardToken] = useState('');
 
   // Refs for download
   const cardFrontRef = useRef(null);
@@ -81,11 +100,47 @@ const VerifyHealthCard = () => {
     };
   }, [cardData]);
 
-  const handleSearch = async (e) => {
-    e.preventDefault();
+  // Timer Effect for 60-second Resend OTP Cooldown
+  useEffect(() => {
+    let resendInterval = null;
+    if (showOtpModal && resendTimer > 0) {
+      resendInterval = setInterval(() => {
+        setResendTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (resendInterval) clearInterval(resendInterval);
+    };
+  }, [showOtpModal, resendTimer]);
+
+  // Timer Effect for 5-minute OTP Expiration Countdown
+  useEffect(() => {
+    let expiryInterval = null;
+    if (showOtpModal && expiryTimer > 0) {
+      expiryInterval = setInterval(() => {
+        setExpiryTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (expiryInterval) clearInterval(expiryInterval);
+    };
+  }, [showOtpModal, expiryTimer]);
+
+  // Helper to format seconds as MM:SS
+  const formatTimer = (totalSeconds) => {
+    if (totalSeconds <= 0) return '00:00';
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+  };
+
+  // Step 1: Initiate Health ID Search & Send OTP to Registered Mobile
+  const handleInitiateVerification = async (e) => {
+    if (e) e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
     setCardData(null);
+    setOtpError('');
 
     const inputId = healthId.trim();
     if (!inputId) {
@@ -95,16 +150,117 @@ const VerifyHealthCard = () => {
 
     setLoading(true);
     try {
-      const response = await apiClient.get(`/api/healthcard/verify/${encodeURIComponent(inputId)}`);
+      const response = await apiClient.post('/api/healthcard/request-otp', { healthId: inputId });
       if (response.data?.success) {
-        setCardData(response.data.data);
-        setSuccessMsg('Health ID verified successfully!');
+        const mob = response.data.maskedMobile || response.data.maskedEmail || '';
+        setOtpSessionId(response.data.sessionId);
+        setMaskedMobile(mob);
+        setResendTimer(response.data.resendTimer || 60);
+        setExpiryTimer(300); // 5 minutes
+        setAttemptsLeft(5);
+        setOtpInput('');
+        setShowOtpModal(true);
+        setSuccessMsg(`OTP sent to registered mobile number (${mob})`);
       } else {
-        setErrorMsg(response.data?.message || 'Could not verify Health ID.');
+        setErrorMsg(response.data?.message || 'Failed to request OTP.');
       }
     } catch (err) {
       console.error(err);
       setErrorMsg(err.response?.data?.message || 'Health ID not found. Please check your card number.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Resend OTP Handler
+  const handleResendOtp = async () => {
+    if (resendTimer > 0 || otpLoading) return;
+    setOtpError('');
+    setOtpLoading(true);
+    try {
+      const response = await apiClient.post('/api/healthcard/request-otp', { healthId: healthId.trim() });
+      if (response.data?.success) {
+        setOtpSessionId(response.data.sessionId);
+        setResendTimer(60);
+        setExpiryTimer(300);
+        setAttemptsLeft(5);
+        setOtpInput('');
+        setOtpError('A new OTP has been sent to your registered mobile number.');
+      } else {
+        setOtpError(response.data?.message || 'Failed to resend OTP.');
+      }
+    } catch (err) {
+      setOtpError(err.response?.data?.message || 'Error resending OTP.');
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  // Step 2: Verify OTP and Fetch Health Card
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setOtpError('');
+
+    const trimmedOtp = otpInput.trim();
+    if (!trimmedOtp || trimmedOtp.length < 4) {
+      setOtpError('Please enter the complete OTP sent to your phone.');
+      return;
+    }
+
+    if (expiryTimer <= 0) {
+      setOtpError('OTP has expired. Please click Resend OTP to get a new code.');
+      return;
+    }
+
+    setOtpLoading(true);
+    try {
+      const verifyRes = await apiClient.post('/api/healthcard/verify-otp', {
+        healthId: healthId.trim(),
+        sessionId: otpSessionId,
+        otp: trimmedOtp
+      });
+
+      if (verifyRes.data?.success) {
+        const token = verifyRes.data.cardToken;
+        setVerifiedCardToken(token);
+        setShowOtpModal(false);
+
+        // Fetch card with authorization header token
+        fetchCardWithToken(healthId.trim(), token);
+      } else {
+        setOtpError(verifyRes.data?.message || 'Invalid OTP.');
+        setAttemptsLeft((prev) => Math.max(0, prev - 1));
+      }
+    } catch (err) {
+      console.error(err);
+      const msg = err.response?.data?.message || 'OTP verification failed.';
+      setOtpError(msg);
+      setAttemptsLeft((prev) => Math.max(0, prev - 1));
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  // Step 3: Fetch Health Card Data using Token
+  const fetchCardWithToken = async (id, token) => {
+    setLoading(true);
+    setErrorMsg('');
+    try {
+      const response = await apiClient.get(`/api/healthcard/verify/${encodeURIComponent(id)}`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (response.data?.success) {
+        setCardData(response.data.data);
+        setSuccessMsg('Health ID verified and unlocked successfully!');
+      } else {
+        setErrorMsg(response.data?.message || 'Failed to load Health Card data.');
+      }
+    } catch (err) {
+      console.error(err);
+      setErrorMsg(err.response?.data?.message || 'Access denied or session expired. Please verify OTP again.');
     } finally {
       setLoading(false);
     }
@@ -201,7 +357,7 @@ const VerifyHealthCard = () => {
           </div>
 
           {/* Search Box */}
-          <form onSubmit={handleSearch} className="max-w-md mx-auto space-y-4">
+          <form onSubmit={handleInitiateVerification} className="max-w-md mx-auto space-y-4">
             <div className="relative">
               <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
                 <Search className="h-5 w-5" />
@@ -223,12 +379,12 @@ const VerifyHealthCard = () => {
               {loading ? (
                 <>
                   <RefreshCw className="h-4 w-4 animate-spin" />
-                  Verifying Health Card...
+                  Requesting Security OTP...
                 </>
               ) : (
                 <>
                   <ShieldCheck className="h-4 w-4" />
-                  Verify &amp; Load Card
+                  Verify &amp; Send OTP
                 </>
               )}
             </button>
@@ -287,17 +443,17 @@ const VerifyHealthCard = () => {
               {/* CARD FRONT SIDE */}
               <div 
                 ref={cardFrontRef}
-                className="w-[550px] h-[340px] rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden relative flex flex-col justify-between select-none font-sans"
+                className="w-[550px] min-h-[350px] rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden relative flex flex-col justify-between select-none font-sans"
               >
                 {/* Issued under banner strip */}
-                <div className="bg-slate-50 text-[#2e3192] text-center py-1.5 text-[10px] font-black uppercase tracking-wider border-b border-slate-100">
+                <div className="bg-slate-50 text-[#2e3192] text-center py-1 text-[10px] font-black uppercase tracking-wider border-b border-slate-100">
                   This Card is Being Issued Under Swasthya Suraksha Yojna
                 </div>
 
                 {/* Premium Header */}
-                <div className="bg-gradient-to-r from-[#2e3192] to-[#1a1c54] h-[85px] text-white py-4 px-6 flex justify-between items-center relative">
+                <div className="bg-gradient-to-r from-[#2e3192] to-[#1a1c54] h-[72px] text-white py-2.5 px-6 flex justify-between items-center relative">
                   <div className="flex items-center gap-3">
-                    <img src="/logo.jpg" alt="Logo" className="h-11 w-11 rounded-lg bg-white p-0.5" onError={(e) => { e.target.src = '/logo.jpeg'; }} />
+                    <img src="/logo.jpg" alt="Logo" className="h-10 w-10 rounded-lg bg-white p-0.5" onError={(e) => { e.target.src = '/logo.jpeg'; }} />
                     <span className="text-xl font-black text-[#ed1c24] tracking-wider uppercase">Aagaj.Foundation</span>
                   </div>
                   <div className="text-right flex flex-col items-end justify-center">
@@ -310,9 +466,9 @@ const VerifyHealthCard = () => {
                 </div>
 
                 {/* Body Details Grid */}
-                <div className="flex-grow flex p-6 gap-6 bg-white">
+                <div className="flex-grow flex px-6 py-3.5 gap-5 bg-white items-center">
                   {/* Portrait photo */}
-                  <div className="w-[110px] h-[140px] rounded-xl border-[3px] border-[#2e3192] bg-slate-50 overflow-hidden shrink-0 shadow-sm p-0.5">
+                  <div className="w-[105px] h-[130px] rounded-xl border-[3px] border-[#2e3192] bg-slate-50 overflow-hidden shrink-0 shadow-sm p-0.5">
                     <img
                       src={healthCardPhotoUrl}
                       alt="Patient"
@@ -323,7 +479,7 @@ const VerifyHealthCard = () => {
                   </div>
 
                   {/* Personal stats particulars */}
-                  <div className="flex-grow grid grid-cols-2 gap-x-4 gap-y-3 items-start self-start text-xs text-left">
+                  <div className="flex-grow grid grid-cols-2 gap-x-4 gap-y-2 items-start self-start text-xs text-left">
                     <div className="col-span-2">
                       <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">Patient Name</label>
                       <span className="font-extrabold text-slate-800 text-sm block uppercase truncate">{cardData.fullName}</span>
@@ -352,7 +508,7 @@ const VerifyHealthCard = () => {
                 </div>
 
                 {/* Card Front Footer */}
-                <div className="bg-slate-50 border-t-2 border-[#ed1c24] py-3 px-6 flex justify-between items-center text-xs">
+                <div className="bg-slate-50 border-t-2 border-[#ed1c24] py-2.5 px-6 flex justify-between items-center text-xs">
                   <div>
                     <span className="text-[9px] font-black text-emerald-600 block">VALID IDENTITY</span>
                     <span className="text-[8px] text-slate-400 font-medium">Digitally Secured Profile</span>
@@ -369,15 +525,15 @@ const VerifyHealthCard = () => {
               {/* CARD BACK SIDE */}
               <div 
                 ref={cardBackRef}
-                className="w-[550px] h-[340px] rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden relative flex flex-col justify-between select-none font-sans"
+                className="w-[550px] min-h-[350px] rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden relative flex flex-col justify-between select-none font-sans"
               >
                 {/* Back Header Banner */}
-                <div className="bg-[#ed1c24] text-white text-center py-2.5 text-xs font-black uppercase tracking-wider">
+                <div className="bg-[#ed1c24] text-white text-center py-2 text-xs font-black uppercase tracking-wider">
                   Residential &amp; Emergency Details
                 </div>
 
                 {/* Back Details Grid */}
-                <div className="flex-grow p-6 flex flex-col justify-between bg-white text-xs">
+                <div className="flex-grow px-6 py-4 flex flex-col justify-between bg-white text-xs">
                   
                   <div className="flex items-center justify-between">
                     {/* Multi fields */}
@@ -416,7 +572,7 @@ const VerifyHealthCard = () => {
                         </div>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-2 gap-x-6 gap-y-3 flex-grow text-xs text-left">
+                      <div className="grid grid-cols-2 gap-x-6 gap-y-2 flex-grow text-xs text-left">
                         <div>
                           <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">Village</label>
                           <span className="font-bold text-slate-700 block uppercase">{cardData.address?.village}</span>
@@ -457,7 +613,7 @@ const VerifyHealthCard = () => {
                   </div>
 
                   {/* Foot Note Emergency Strip */}
-                  <div className="border border-dashed border-slate-200 bg-slate-50 p-3 rounded-2xl text-center mt-4">
+                  <div className="border border-dashed border-slate-200 bg-slate-50 p-2.5 rounded-2xl text-center mt-2">
                     <p className="text-[9px] font-black text-slate-900 tracking-wider uppercase m-0">AAGAJ FOUNDATION - REG: 1882 ACT</p>
                     <p className="text-[8px] text-slate-400 font-medium m-0 mt-0.5">This card is a digital health identity. If found, please return to the foundation.</p>
                   </div>
@@ -468,6 +624,124 @@ const VerifyHealthCard = () => {
           </div>
         )}
       </div>
+
+      {/* --- OTP VERIFICATION MODAL OVERLAY --- */}
+      {showOtpModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm p-4 overflow-y-auto font-sans">
+          <div className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 text-left relative my-auto">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 p-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-rose-100 text-rose-600">
+                  <Lock className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-800 tracking-tight">Security OTP Verification</h3>
+                  <p className="text-[11px] text-slate-500 font-semibold">Health ID: <span className="font-mono text-slate-900 font-bold">{healthId}</span></p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowOtpModal(false)}
+                className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer transition-all"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleVerifyOtp} className="p-6 space-y-5">
+              
+              <div className="text-center bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <Smartphone className="h-8 w-8 mx-auto text-rose-600 mb-2 opacity-80" />
+                <p className="text-xs font-semibold text-slate-600">
+                  Enter the verification code sent to your registered mobile number:
+                </p>
+                <div className="mt-1 text-sm font-extrabold text-slate-900 font-mono tracking-wider">
+                  {maskedMobile ? `+91 ${maskedMobile}` : maskedEmail}
+                </div>
+              </div>
+
+              {/* OTP Input */}
+              <div>
+                <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider text-center mb-1.5">
+                  Enter OTP Code
+                </label>
+                <div className="relative max-w-xs mx-auto">
+                  <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                    <KeyRound className="h-5 w-5" />
+                  </span>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={otpInput}
+                    onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
+                    placeholder="1234"
+                    className="w-full text-center text-2xl font-black font-mono tracking-[0.5em] py-3 pl-10 pr-4 rounded-2xl border-2 border-rose-200 text-slate-900 focus:border-rose-600 outline-none transition-all shadow-inner bg-white"
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              {/* Expiry & Attempts Status Bar */}
+              <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-100">
+                <span className="flex items-center gap-1 text-amber-700">
+                  <Clock className="h-3.5 w-3.5" /> Expires in: <strong className="font-mono text-slate-900">{formatTimer(expiryTimer)}</strong>
+                </span>
+                <span className={attemptsLeft <= 2 ? 'text-rose-600 font-extrabold' : 'text-slate-600'}>
+                  Attempts: {attemptsLeft}/5
+                </span>
+              </div>
+
+              {/* Error Alert inside Modal */}
+              {otpError && (
+                <div className="rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs font-bold text-rose-700 flex items-center gap-2">
+                  <ShieldAlert className="h-4 w-4 shrink-0 text-rose-600" />
+                  <span>{otpError}</span>
+                </div>
+              )}
+
+              {/* Submit OTP Button */}
+              <button
+                type="submit"
+                disabled={otpLoading || otpInput.trim().length < 4 || expiryTimer <= 0}
+                className="w-full flex items-center justify-center gap-2 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white py-3.5 text-sm font-black shadow-lg shadow-rose-500/25 tracking-wider uppercase cursor-pointer disabled:opacity-50 transition-all active:scale-95 duration-200"
+              >
+                {otpLoading ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    Verifying OTP...
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="h-4 w-4" />
+                    VERIFY OTP &amp; ACCESS CARD
+                  </>
+                )}
+              </button>
+
+              {/* Resend OTP Action */}
+              <div className="text-center pt-1 border-t border-slate-100">
+                {resendTimer > 0 ? (
+                  <p className="text-xs text-slate-500 font-semibold">
+                    Didn't receive code? Resend available in <strong className="font-mono text-rose-600">{resendTimer}s</strong>
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleResendOtp}
+                    disabled={otpLoading}
+                    className="inline-flex items-center gap-1.5 text-xs font-extrabold text-rose-600 hover:text-rose-700 cursor-pointer underline transition-all"
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" /> Resend OTP via SMS
+                  </button>
+                )}
+              </div>
+
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
