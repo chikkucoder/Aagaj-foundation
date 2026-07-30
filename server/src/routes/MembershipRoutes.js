@@ -12,11 +12,46 @@ const razorpay = new Razorpay({
 
 // Utility to generate unique Membership ID & Certificate No
 const generateMembershipIds = async () => {
-    const count = await Membership.countDocuments();
-    const sequence = String(count + 1).padStart(5, '0');
     const year = new Date().getFullYear();
-    const membershipId = `AF-MBR-${year}-${sequence}`;
-    const certificateNo = `AF/MBR/${year}/${sequence}`;
+    
+    // Find the last membership created in the CURRENT year
+    const lastMember = await Membership.findOne({ 
+        membershipId: new RegExp(`^AF-MBR-${year}-`) 
+    }).sort({ _id: -1 });
+
+    let nextSeq = 1;
+    if (lastMember && lastMember.membershipId) {
+        const parts = lastMember.membershipId.split('-');
+        if (parts.length >= 4) {
+            const lastNum = parseInt(parts[3], 10);
+            if (!isNaN(lastNum)) {
+                nextSeq = lastNum + 1;
+            }
+        }
+    }
+
+    // Safety loop to ensure 100% uniqueness
+    let sequenceNum = nextSeq;
+    let membershipId = '';
+    let certificateNo = '';
+    let isUnique = false;
+
+    while (!isUnique) {
+        const sequence = String(sequenceNum).padStart(5, '0');
+        membershipId = `AF-MBR-${year}-${sequence}`;
+        certificateNo = `AF/MBR/${year}/${sequence}`;
+
+        const existing = await Membership.findOne({
+            $or: [{ membershipId }, { certificateNo }]
+        });
+
+        if (!existing) {
+            isUnique = true;
+        } else {
+            sequenceNum++;
+        }
+    }
+
     return { membershipId, certificateNo };
 };
 
@@ -86,7 +121,16 @@ router.post('/verify-payment', async (req, res) => {
             });
         }
 
-        // Signature valid - Save Member Record
+        // Signature valid - Check if payment already processed (Idempotency check)
+        const existingPayment = await Membership.findOne({ paymentId: razorpay_payment_id });
+        if (existingPayment) {
+            return res.status(200).json({
+                success: true,
+                message: 'Payment already verified and Membership registered successfully!',
+                data: existingPayment
+            });
+        }
+
         const {
             fullName,
             fatherOrHusbandName,
@@ -119,44 +163,60 @@ router.post('/verify-payment', async (req, res) => {
         }
 
         const numericAmount = Number(paymentAmount);
-        const { membershipId, certificateNo } = await generateMembershipIds();
 
-        const newMember = new Membership({
-            membershipId,
-            certificateNo,
-            fullName: fullName.trim(),
-            fatherOrHusbandName: fatherOrHusbandName ? fatherOrHusbandName.trim() : '',
-            dobOrAge: dobOrAge ? dobOrAge.trim() : '',
-            gender: gender || 'Other',
-            photoUrl: photoUrl || '',
-            mobileNumber: mobileNumber.trim(),
-            email: email ? email.trim().toLowerCase() : '',
-            address: address ? address.trim() : '',
-            city: city ? city.trim() : '',
-            district: district ? district.trim() : '',
-            state: state ? state.trim() : '',
-            pincode: pincode ? pincode.trim() : '',
-            aadhaarNumber: aadhaarNumber ? aadhaarNumber.trim() : '',
-            panNumber: panNumber ? panNumber.trim() : '',
-            occupation: occupation ? occupation.trim() : '',
-            organization: organization ? organization.trim() : '',
-            membershipType: membershipType || 'General Member',
-            joiningDate: joiningDate || new Date().toISOString().split('T')[0],
-            interestAreas: Array.isArray(interestAreas) ? interestAreas : [],
-            declarationAccepted: Boolean(declarationAccepted),
-            paymentAmount: numericAmount,
-            paymentStatus: 'Paid',
-            paymentId: razorpay_payment_id,
-            orderId: razorpay_order_id,
-            certificateIssued: true
-        });
+        // Attempt save with retry logic in case of concurrent duplicate key race conditions
+        let savedMember;
+        let attempts = 0;
+        while (attempts < 3) {
+            try {
+                const { membershipId, certificateNo } = await generateMembershipIds();
 
-        await newMember.save();
+                const newMember = new Membership({
+                    membershipId,
+                    certificateNo,
+                    fullName: fullName.trim(),
+                    fatherOrHusbandName: fatherOrHusbandName ? fatherOrHusbandName.trim() : '',
+                    dobOrAge: dobOrAge ? dobOrAge.trim() : '',
+                    gender: gender || 'Other',
+                    photoUrl: photoUrl || '',
+                    mobileNumber: mobileNumber.trim(),
+                    email: email ? email.trim().toLowerCase() : '',
+                    address: address ? address.trim() : '',
+                    city: city ? city.trim() : '',
+                    district: district ? district.trim() : '',
+                    state: state ? state.trim() : '',
+                    pincode: pincode ? pincode.trim() : '',
+                    aadhaarNumber: aadhaarNumber ? aadhaarNumber.trim() : '',
+                    panNumber: panNumber ? panNumber.trim() : '',
+                    occupation: occupation ? occupation.trim() : '',
+                    organization: organization ? organization.trim() : '',
+                    membershipType: membershipType || 'General Member',
+                    joiningDate: joiningDate || new Date().toISOString().split('T')[0],
+                    interestAreas: Array.isArray(interestAreas) ? interestAreas : [],
+                    declarationAccepted: Boolean(declarationAccepted),
+                    paymentAmount: numericAmount,
+                    paymentStatus: 'Paid',
+                    paymentId: razorpay_payment_id,
+                    orderId: razorpay_order_id,
+                    certificateIssued: true
+                });
+
+                savedMember = await newMember.save();
+                break;
+            } catch (saveError) {
+                if (saveError.code === 11000) {
+                    attempts++;
+                    if (attempts >= 3) throw saveError;
+                } else {
+                    throw saveError;
+                }
+            }
+        }
 
         res.status(201).json({
             success: true,
             message: 'Payment verified and Membership registered successfully!',
-            data: newMember
+            data: savedMember
         });
 
     } catch (error) {
