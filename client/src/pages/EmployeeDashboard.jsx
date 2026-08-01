@@ -37,15 +37,25 @@ import {
   Store,
   Grid,
   ExternalLink,
-  CalendarCheck
+  CalendarCheck,
+  Clock,
+  CheckCircle2,
+  Play,
+  Square
 } from 'lucide-react';
+import { 
+  punchInAttendance, 
+  punchOutAttendance, 
+  sendAttendanceHeartbeat, 
+  getMyAttendanceRecords 
+} from '../api/attendanceApi';
 
 const EmployeeDashboard = () => {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
 
   // Navigation Sidebar State
-  const [currentView, setCurrentView] = useState('dashboard'); // dashboard, workLinks, healthcards, silayi, swarojgaar, ngoJobs
+  const [currentView, setCurrentView] = useState('dashboard'); // dashboard, attendance, workLinks, healthcards, silayi, swarojgaar, ngoJobs
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Search and Filter States
@@ -58,6 +68,14 @@ const EmployeeDashboard = () => {
   const [error, setError] = useState('');
   const [profile, setProfile] = useState(null);
   const [stats, setStats] = useState(null);
+
+  // Attendance & Active Software Time Tracking States
+  const [attendanceData, setAttendanceData] = useState({ today: null, history: [] });
+  const [activeSeconds, setActiveSeconds] = useState(0);
+  const [workMode, setWorkMode] = useState('Office');
+  const [punchNotes, setPunchNotes] = useState('');
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const [attendanceMsg, setAttendanceMsg] = useState('');
 
   // Unified Data Stores
   const [allApplicants, setAllApplicants] = useState([]);
@@ -112,9 +130,113 @@ const EmployeeDashboard = () => {
     }
   };
 
+  // Fetch employee attendance history and today status
+  const fetchMyAttendance = async () => {
+    const email = sessionStorage.getItem('loggedInUserEmail');
+    if (!email) return;
+    try {
+      const res = await getMyAttendanceRecords(email);
+      if (res.success) {
+        setAttendanceData({
+          today: res.today || null,
+          history: res.history || []
+        });
+        if (res.today) {
+          setActiveSeconds(res.today.totalActiveSeconds || 0);
+          if (res.today.workMode) setWorkMode(res.today.workMode);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch attendance records', e);
+    }
+  };
+
+  const handlePunchIn = async () => {
+    const email = sessionStorage.getItem('loggedInUserEmail');
+    if (!email) return;
+    setAttendanceLoading(true);
+    setAttendanceMsg('');
+    const res = await punchInAttendance({
+      email,
+      name: profile?.fullName || sessionStorage.getItem('loggedInUser'),
+      designation: profile?.designation || sessionStorage.getItem('loggedInDesignation'),
+      district: profile?.district,
+      state: profile?.state,
+      workMode,
+      notes: punchNotes
+    });
+    if (res.success) {
+      setAttendanceMsg('✅ Punch-In Successful!');
+      fetchMyAttendance();
+    } else {
+      setAttendanceMsg('❌ ' + (res.message || 'Punch-In failed'));
+    }
+    setAttendanceLoading(false);
+  };
+
+  const handlePunchOut = async () => {
+    const email = sessionStorage.getItem('loggedInUserEmail');
+    if (!email) return;
+    setAttendanceLoading(true);
+    setAttendanceMsg('');
+    const res = await punchOutAttendance({
+      email,
+      notes: punchNotes
+    });
+    if (res.success) {
+      setAttendanceMsg('✅ Punch-Out Successful!');
+      fetchMyAttendance();
+    } else {
+      setAttendanceMsg('❌ ' + (res.message || 'Punch-Out failed'));
+    }
+    setAttendanceLoading(false);
+  };
+
+  const formatTimeSpent = (secs) => {
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    return `${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
+  };
+
   useEffect(() => {
     syncDashboardData(true);
+    fetchMyAttendance();
   }, []);
+
+  // Active Software Time Tracker Hook: Ticks active time and dispatches 60s heartbeats when browser window is visible
+  useEffect(() => {
+    const email = sessionStorage.getItem('loggedInUserEmail');
+    if (!email) return;
+
+    // Tick counter locally every 1s when active
+    const tickInterval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        setActiveSeconds(prev => prev + 1);
+      }
+    }, 1000);
+
+    // Heartbeat API ping every 60s
+    const heartbeatInterval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        const name = profile?.fullName || sessionStorage.getItem('loggedInUser') || email.split('@')[0];
+        const desig = profile?.designation || sessionStorage.getItem('loggedInDesignation') || 'Employee';
+        sendAttendanceHeartbeat({
+          email,
+          name,
+          designation: desig,
+          district: profile?.district || '',
+          state: profile?.state || '',
+          activeSeconds: 60
+        });
+      }
+    }, 60000);
+
+    return () => {
+      clearInterval(tickInterval);
+      clearInterval(heartbeatInterval);
+    };
+  }, [profile]);
 
   // Resolve Health Card photo to local blob URL to bypass CORS
   useEffect(() => {
@@ -416,6 +538,16 @@ const EmployeeDashboard = () => {
         <nav className="flex-1 px-4 py-6 space-y-7 overflow-y-auto">
           
           <div className="space-y-1.5">
+            <p className="px-3 text-[10px] font-bold text-[#fdd831] uppercase tracking-widest">Daily Attendance</p>
+            <button
+              onClick={() => { setCurrentView('attendance'); fetchMyAttendance(); setCurrentPage(1); setSearchTerm(''); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${currentView === 'attendance' ? 'bg-[#ED1C24] text-white shadow-lg shadow-rose-900/40 font-black' : 'hover:bg-slate-800 text-slate-300 hover:text-white'}`}
+            >
+              <CalendarCheck className="h-4.5 w-4.5 text-[#fdd831]" /> Attendance & Active Time
+            </button>
+          </div>
+
+          <div className="space-y-1.5">
             <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Main Menu</p>
             <button
               onClick={() => { setCurrentView('dashboard'); setCurrentPage(1); setSearchTerm(''); setIsSidebarOpen(false); }}
@@ -518,6 +650,256 @@ const EmployeeDashboard = () => {
 
         {/* Content Container */}
         <main className="flex-grow p-4 sm:p-6 md:p-8 space-y-6">
+
+          {/* ======================================================== */}
+          {/*   0. DAILY ATTENDANCE & ACTIVE TIME MODULE               */}
+          {/* ======================================================== */}
+          {currentView === 'attendance' && (
+            <div className="space-y-6">
+              
+              {/* Header Banner */}
+              <div className="bg-gradient-to-r from-[#051630] via-[#092854] to-[#051630] rounded-3xl p-6 sm:p-8 text-white shadow-xl border border-slate-800 relative overflow-hidden">
+                <div className="absolute right-0 top-0 translate-x-8 -translate-y-8 w-64 h-64 bg-[#ED1C24]/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10">
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="bg-[#fdd831] text-[#051630] text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full tracking-wider">
+                        Daily Attendance & Active Portal Clock
+                      </span>
+                      <span className="flex items-center gap-1.5 text-xs text-emerald-400 font-bold bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-800/50">
+                        <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" /> Realtime Sync
+                      </span>
+                    </div>
+                    <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">Mark Attendance & Active Duration</h2>
+                    <p className="text-xs text-slate-300 font-medium mt-1">
+                      Today: <strong className="text-[#fdd831]">{new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</strong>
+                    </p>
+                  </div>
+
+                  {/* Active Timer Box */}
+                  <div className="bg-slate-900/80 backdrop-blur border border-slate-700/60 rounded-2xl p-4 flex items-center gap-4 shadow-inner min-w-[240px]">
+                    <div className="h-12 w-12 rounded-xl bg-[#ED1C24]/20 border border-[#ED1C24]/40 flex items-center justify-center text-[#ED1C24]">
+                      <Clock className="h-6 w-6 animate-pulse" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Software Active Time</span>
+                      <span className="text-xl sm:text-2xl font-black text-[#fdd831] tracking-wider font-mono">
+                        {formatTimeSpent(activeSeconds)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Attendance Action & Controls Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                {/* Left Card: Punch In / Punch Out Panel */}
+                <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-200/80 shadow-md p-6 sm:p-8 space-y-6">
+                  
+                  <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+                    <h3 className="text-base font-extrabold text-slate-800 flex items-center gap-2">
+                      <CheckCircle2 className="h-5 w-5 text-[#ED1C24]" /> Today's Attendance Controls
+                    </h3>
+                    <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
+                      attendanceData.today?.status === 'Punched In' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
+                      attendanceData.today?.status === 'Punched Out' ? 'bg-amber-100 text-amber-700 border border-amber-200' :
+                      'bg-slate-100 text-slate-600 border border-slate-200'
+                    }`}>
+                      Status: {attendanceData.today?.status || 'Not Punched In'}
+                    </span>
+                  </div>
+
+                  {attendanceMsg && (
+                    <div className={`p-4 rounded-2xl text-xs font-bold ${attendanceMsg.includes('❌') ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}>
+                      {attendanceMsg}
+                    </div>
+                  )}
+
+                  {/* Punch Info Sub-cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">First Punch-In Time</span>
+                      <span className="text-sm font-black text-slate-800">
+                        {attendanceData.today?.punchIn ? new Date(attendanceData.today.punchIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-- : --'}
+                      </span>
+                    </div>
+
+                    <div className="bg-slate-50 border border-slate-200/60 rounded-2xl p-4">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Punch-Out Time</span>
+                      <span className="text-sm font-black text-slate-800">
+                        {attendanceData.today?.punchOut ? new Date(attendanceData.today.punchOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-- : --'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Work Mode Selection */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-2">Work Mode / Location</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {['Office', 'Work From Home', 'Field Work'].map((mode) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => setWorkMode(mode)}
+                          className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all border ${
+                            workMode === mode 
+                              ? 'bg-[#051630] text-white border-[#051630] shadow-sm' 
+                              : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                          }`}
+                        >
+                          {mode}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Shift Notes */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block mb-2">Shift Notes / Remark (Optional)</label>
+                    <textarea
+                      rows="2"
+                      value={punchNotes}
+                      onChange={(e) => setPunchNotes(e.target.value)}
+                      placeholder="Enter shift notes or field visit summary..."
+                      className="w-full rounded-2xl border border-slate-200 p-3 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-[#ED1C24]/20 focus:border-[#ED1C24]"
+                    />
+                  </div>
+
+                  {/* Punch Actions */}
+                  <div className="flex flex-col sm:flex-row items-center gap-4 pt-2">
+                    {(!attendanceData.today || attendanceData.today.status === 'Punched Out' || !attendanceData.today.punchIn) ? (
+                      <button
+                        onClick={handlePunchIn}
+                        disabled={attendanceLoading}
+                        className="w-full sm:w-auto flex-1 flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black py-4 px-6 text-sm shadow-lg shadow-emerald-600/30 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
+                      >
+                        <Play className="h-5 w-5 fill-current" /> {attendanceLoading ? 'Processing Punch-In...' : 'PUNCH IN / START WORK DAY'}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handlePunchOut}
+                        disabled={attendanceLoading}
+                        className="w-full sm:w-auto flex-1 flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white font-black py-4 px-6 text-sm shadow-lg shadow-rose-600/30 transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
+                      >
+                        <Square className="h-5 w-5 fill-current" /> {attendanceLoading ? 'Processing Punch-Out...' : 'PUNCH OUT / SUBMIT ATTENDANCE'}
+                      </button>
+                    )}
+
+                    <button
+                      onClick={fetchMyAttendance}
+                      className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-4 px-5 text-sm transition-all border border-slate-200 cursor-pointer"
+                    >
+                      <RotateCw className="h-4 w-4" /> Refresh
+                    </button>
+                  </div>
+
+                </div>
+
+                {/* Right Card: Software Active Time Metrics */}
+                <div className="bg-white rounded-3xl border border-slate-200/80 shadow-md p-6 flex flex-col justify-between space-y-6">
+                  <div>
+                    <h3 className="text-base font-extrabold text-slate-800 border-b border-slate-100 pb-3 mb-4">
+                      Active Portal Tracking
+                    </h3>
+                    
+                    <div className="space-y-4">
+                      <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-4">
+                        <div className="flex items-center gap-2 text-amber-800 text-xs font-bold mb-1">
+                          <AlertCircle className="h-4 w-4 text-amber-600" /> Automatic Heartbeat
+                        </div>
+                        <p className="text-[11px] text-amber-900/80 font-medium leading-relaxed">
+                          Your active screen duration is automatically logged while this tab is open & active. Active hours are recorded in admin reports.
+                        </p>
+                      </div>
+
+                      {/* Progress bar towards 8 hours */}
+                      <div>
+                        <div className="flex justify-between items-center text-xs font-bold text-slate-600 mb-1.5">
+                          <span>Today's Target (8.0 Hours)</span>
+                          <span className="text-[#051630]">
+                            {((activeSeconds / 28800) * 100).toFixed(1)}%
+                          </span>
+                        </div>
+                        <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden p-0.5 border border-slate-200">
+                          <div 
+                            className="bg-gradient-to-r from-[#ED1C24] to-[#fdd831] h-full rounded-full transition-all duration-500"
+                            style={{ width: `${Math.min(((activeSeconds / 28800) * 100), 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-900 rounded-2xl p-4 text-white text-xs space-y-2">
+                    <span className="text-slate-400 font-bold uppercase tracking-wider block text-[10px]">Logged Employee Info</span>
+                    <p className="font-bold text-white leading-tight">{profile?.fullName || sessionStorage.getItem('loggedInUser')}</p>
+                    <p className="text-slate-300 font-mono text-[11px]">{profile?.email || sessionStorage.getItem('loggedInUserEmail')}</p>
+                    <span className="inline-block bg-[#fdd831] text-[#051630] font-black text-[9px] px-2 py-0.5 rounded uppercase mt-1">
+                      {profile?.designation || sessionStorage.getItem('loggedInDesignation') || 'Employee'}
+                    </span>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Bottom Table: Personal Attendance Log History */}
+              <div className="bg-white rounded-3xl border border-slate-200/80 shadow-md p-6 sm:p-8 space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-base font-extrabold text-slate-800">My Attendance Log History</h3>
+                  <span className="text-xs font-bold text-slate-400">Showing last 60 work days</span>
+                </div>
+
+                <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-[#051630] text-white uppercase text-[10px] font-extrabold tracking-wider">
+                      <tr>
+                        <th className="p-3.5">Date</th>
+                        <th className="p-3.5">Status</th>
+                        <th className="p-3.5">Work Mode</th>
+                        <th className="p-3.5">First Punch-In</th>
+                        <th className="p-3.5">Punch-Out</th>
+                        <th className="p-3.5">Active Portal Time</th>
+                        <th className="p-3.5">Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                      {attendanceData.history && attendanceData.history.length > 0 ? (
+                        attendanceData.history.map((rec) => (
+                          <tr key={rec._id} className="hover:bg-slate-50 transition-colors">
+                            <td className="p-3.5 font-bold text-slate-900">{rec.date}</td>
+                            <td className="p-3.5">
+                              <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${
+                                rec.status === 'Punched In' || rec.status === 'Present' ? 'bg-emerald-100 text-emerald-800' :
+                                rec.status === 'Punched Out' ? 'bg-amber-100 text-amber-800' :
+                                'bg-rose-100 text-rose-800'
+                              }`}>
+                                {rec.status}
+                              </span>
+                            </td>
+                            <td className="p-3.5">{rec.workMode || 'Office'}</td>
+                            <td className="p-3.5 font-mono">{rec.punchIn ? new Date(rec.punchIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                            <td className="p-3.5 font-mono">{rec.punchOut ? new Date(rec.punchOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                            <td className="p-3.5 font-black text-[#051630]">
+                              {formatTimeSpent(rec.totalActiveSeconds || 0)}
+                            </td>
+                            <td className="p-3.5 text-slate-500 max-w-xs truncate">{rec.notes || '-'}</td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="7" className="p-8 text-center text-slate-400 font-bold">
+                            No attendance history records found yet. Mark your first attendance above!
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+          )}
 
           {/* ======================================================== */}
           {/*   1. MY PROFILE & DASHBOARD MODULE                       */}
