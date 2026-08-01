@@ -660,6 +660,9 @@ app.use('/api/healthcard', healthCardRoutes);
 const membershipRoutes = require('./routes/MembershipRoutes');
 app.use('/api/membership', membershipRoutes);
 
+const attendanceRoutes = require('./routes/AttendanceRoutes');
+app.use('/api/attendance', attendanceRoutes);
+
 // ✅ Cloudinary Image Upload Route
 const uploadRoutes = require('./routes/uploadRoutes');
 app.use('/api/upload', uploadRoutes);
