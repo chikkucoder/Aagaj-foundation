@@ -27,6 +27,7 @@ import {
   editHealthCardDetails,
   deleteMembership
 } from '../api/userApi';
+import { getAdminAttendanceReport, getEmployeeAttendanceDossier } from '../api/attendanceApi';
 import apiClient from '../api/apiClient';
 import {
   Users,
@@ -67,7 +68,8 @@ import {
   AlertCircle,
   Camera,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Clock
 } from 'lucide-react';
 
 const AdminDashboard = () => {
@@ -106,6 +108,15 @@ const AdminDashboard = () => {
   // Search and Filter States
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('All');
+
+  // Employee Attendance Report States
+  const [attendanceReport, setAttendanceReport] = useState({ date: '', stats: {}, report: [] });
+  const [attendanceDate, setAttendanceDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [attendanceReportLoading, setAttendanceReportLoading] = useState(false);
+  const [attendanceStatusFilter, setAttendanceStatusFilter] = useState('All');
+  const [selectedEmployeeDossier, setSelectedEmployeeDossier] = useState(null);
+  const [showAttendanceDossierModal, setShowAttendanceDossierModal] = useState(false);
+  const [dossierLoading, setDossierLoading] = useState(false);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -505,6 +516,57 @@ const AdminDashboard = () => {
   useEffect(() => {
     syncData();
   }, []);
+
+  // Fetch Attendance Report for Admin
+  const fetchAdminAttendanceReport = async (targetDate = attendanceDate) => {
+    setAttendanceReportLoading(true);
+    try {
+      const res = await getAdminAttendanceReport(targetDate);
+      if (res.success) {
+        setAttendanceReport({
+          date: res.date,
+          stats: res.stats || {},
+          report: res.report || []
+        });
+      }
+    } catch (err) {
+      console.error("Failed to fetch admin attendance report", err);
+    } finally {
+      setAttendanceReportLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (currentView === 'employeeAttendance') {
+      fetchAdminAttendanceReport(attendanceDate);
+    }
+  }, [currentView, attendanceDate]);
+
+  // View specific employee attendance dossier modal
+  const handleViewEmployeeAttendance = async (email) => {
+    if (!email) return;
+    setDossierLoading(true);
+    setShowAttendanceDossierModal(true);
+    try {
+      const res = await getEmployeeAttendanceDossier(email);
+      if (res.success) {
+        setSelectedEmployeeDossier(res);
+      } else {
+        alert(res.message || 'Failed to load employee attendance dossier');
+      }
+    } catch (err) {
+      console.error("Failed to fetch employee dossier", err);
+    } finally {
+      setDossierLoading(false);
+    }
+  };
+
+  const formatActiveSecondsToHM = (secs) => {
+    if (!secs || secs <= 0) return '0h 0m';
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    return `${h}h ${m}m`;
+  };
 
   // Carousel manager states
   const [carouselImages, setCarouselImages] = useState([]);
@@ -1470,6 +1532,16 @@ const AdminDashboard = () => {
           </div>
 
           <div className="space-y-1.5">
+            <p className="px-3 text-[10px] font-bold text-[#fdd831] uppercase tracking-widest">HR & Attendance System</p>
+            <button
+              onClick={() => { setCurrentView('employeeAttendance'); fetchAdminAttendanceReport(); setCurrentPage(1); setIsSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${currentView === 'employeeAttendance' ? 'bg-[#ED1C24] text-white font-black shadow-lg shadow-rose-900/40' : 'hover:bg-slate-800 text-slate-300 hover:text-white'}`}
+            >
+              <CalendarCheck className="h-4.5 w-4.5 text-[#fdd831]" /> Employee Attendance Report
+            </button>
+          </div>
+
+          <div className="space-y-1.5">
             <p className="px-3 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Careers System</p>
             <button
               onClick={() => { setCurrentView('ngoJobs'); setCurrentPage(1); setIsSidebarOpen(false); }}
@@ -1675,6 +1747,263 @@ const AdminDashboard = () => {
         {/* Content Container */}
         <main className="flex-grow p-4 sm:p-6 md:p-8 space-y-6">
           
+          {/* ======================================================== */}
+          {/*   0. EMPLOYEE ATTENDANCE REPORT & ACTIVE TIME MODULE     */}
+          {/* ======================================================== */}
+          {currentView === 'employeeAttendance' && (
+            <div className="space-y-6">
+              
+              {/* Header Banner */}
+              <div className="bg-gradient-to-r from-[#051630] via-[#0b2b5c] to-[#051630] rounded-3xl p-6 sm:p-8 text-white shadow-xl border border-slate-800 relative overflow-hidden">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10">
+                  <div>
+                    <span className="bg-[#fdd831] text-[#051630] text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full tracking-wider mb-2 inline-block">
+                      HR Management & Time Audit
+                    </span>
+                    <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">Employee Attendance & Active Software Time Report</h2>
+                    <p className="text-xs text-slate-300 font-medium mt-1">
+                      Monitor daily employee punch records, live online status, and exact active portal hours spent working.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => {
+                        const url = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/attendance/admin/export?date=${attendanceDate}`;
+                        window.open(url, '_blank');
+                      }}
+                      className="flex items-center gap-2 bg-[#ED1C24] hover:bg-[#c4131a] text-white text-xs font-extrabold px-4 py-3 rounded-2xl shadow-lg transition-all cursor-pointer"
+                    >
+                      <Download className="h-4 w-4" /> Export CSV Report
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Attendance Summary Metrics */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm flex justify-between items-center">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Total Employees</span>
+                    <h3 className="mt-1 text-2xl font-black text-slate-900">{attendanceReport.stats?.totalEmployees || 0}</h3>
+                    <span className="text-[9px] text-slate-400 font-semibold uppercase">Registered Agents</span>
+                  </div>
+                  <div className="h-10 w-10 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center">
+                    <Users className="h-5 w-5" />
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm flex justify-between items-center">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Present / Punched In</span>
+                    <h3 className="mt-1 text-2xl font-black text-emerald-600">{attendanceReport.stats?.presentCount || 0}</h3>
+                    <span className="text-[9px] text-emerald-600 font-bold uppercase">Active Shift Today</span>
+                  </div>
+                  <div className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center">
+                    <CheckCircle2 className="h-5 w-5" />
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm flex justify-between items-center">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Absent Employees</span>
+                    <h3 className="mt-1 text-2xl font-black text-rose-600">{attendanceReport.stats?.absentCount || 0}</h3>
+                    <span className="text-[9px] text-rose-500 font-bold uppercase">Not Logged In</span>
+                  </div>
+                  <div className="h-10 w-10 rounded-xl bg-rose-50 text-rose-600 border border-rose-100 flex items-center justify-center">
+                    <AlertCircle className="h-5 w-5" />
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm flex justify-between items-center">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Total Software Active Time</span>
+                    <h3 className="mt-1 text-xl font-black text-[#051630]">
+                      {formatActiveSecondsToHM(attendanceReport.stats?.totalActiveSeconds || 0)}
+                    </h3>
+                    <span className="text-[9px] text-slate-400 font-semibold uppercase">Logged On Software</span>
+                  </div>
+                  <div className="h-10 w-10 rounded-xl bg-amber-50 text-amber-600 border border-amber-100 flex items-center justify-center">
+                    <Clock className="h-5 w-5" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Filter & Controls Bar */}
+              <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-col md:flex-row gap-4 items-center justify-between">
+                
+                <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                  {/* Target Date Picker */}
+                  <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+                    <span className="text-xs font-bold text-slate-500 uppercase">Select Date:</span>
+                    <input
+                      type="date"
+                      value={attendanceDate}
+                      onChange={(e) => setAttendanceDate(e.target.value)}
+                      className="bg-transparent text-xs font-black text-slate-800 focus:outline-none cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Status Filter */}
+                  <select
+                    value={attendanceStatusFilter}
+                    onChange={(e) => setAttendanceStatusFilter(e.target.value)}
+                    className="bg-slate-50 border border-slate-200 text-xs font-bold text-slate-700 rounded-xl px-3 py-2 focus:outline-none"
+                  >
+                    <option value="All">All Statuses</option>
+                    <option value="Punched In">Punched In</option>
+                    <option value="Present">Present</option>
+                    <option value="Punched Out">Punched Out</option>
+                    <option value="Absent">Absent</option>
+                  </select>
+                </div>
+
+                {/* Search Box & Refresh */}
+                <div className="flex items-center gap-3 w-full md:w-auto">
+                  <div className="relative flex-1 md:w-64">
+                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Search employee name, email or ID..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#ED1C24]/20"
+                    />
+                  </div>
+
+                  <button
+                    onClick={() => fetchAdminAttendanceReport(attendanceDate)}
+                    disabled={attendanceReportLoading}
+                    className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 transition-all cursor-pointer"
+                    title="Refresh Report"
+                  >
+                    <RotateCw className={`h-4 w-4 ${attendanceReportLoading ? 'animate-spin' : ''}`} />
+                  </button>
+                </div>
+
+              </div>
+
+              {/* Main Employee Attendance Listing Table */}
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-md overflow-hidden">
+                <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                  <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">
+                    Employee Attendance Register ({attendanceReport.report ? attendanceReport.report.length : 0})
+                  </h3>
+                  <span className="text-xs font-bold text-slate-400">Date: {attendanceReport.date || attendanceDate}</span>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-[#051630] text-white uppercase text-[10px] font-extrabold tracking-wider">
+                      <tr>
+                        <th className="p-4">Employee Details</th>
+                        <th className="p-4">Location</th>
+                        <th className="p-4">Today's Status</th>
+                        <th className="p-4">Live Portal Activity</th>
+                        <th className="p-4">First Punch-In</th>
+                        <th className="p-4">Last Activity</th>
+                        <th className="p-4">Software Active Time</th>
+                        <th className="p-4 text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                      {attendanceReport.report && attendanceReport.report.length > 0 ? (
+                        attendanceReport.report
+                          .filter(emp => {
+                            const term = searchTerm.toLowerCase();
+                            const matchesSearch = emp.fullName?.toLowerCase().includes(term) ||
+                              emp.email?.toLowerCase().includes(term) ||
+                              emp.empId?.toLowerCase().includes(term);
+                            const matchesStatus = attendanceStatusFilter === 'All' || emp.status === attendanceStatusFilter;
+                            return matchesSearch && matchesStatus;
+                          })
+                          .map((emp, idx) => (
+                            <tr key={emp.email || idx} className="hover:bg-slate-50 transition-colors">
+                              
+                              <td className="p-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="h-9 w-9 rounded-full bg-slate-100 border border-slate-200 font-black text-slate-700 flex items-center justify-center text-xs shadow-sm">
+                                    {emp.fullName ? emp.fullName.charAt(0).toUpperCase() : 'E'}
+                                  </div>
+                                  <div>
+                                    <p className="font-bold text-slate-900 leading-tight">{emp.fullName}</p>
+                                    <p className="text-[11px] text-slate-400 font-mono">{emp.email}</p>
+                                    <span className="inline-block bg-slate-100 text-slate-600 text-[9px] font-bold px-1.5 py-0.5 rounded mt-0.5 uppercase">
+                                      {emp.empId || 'EMP'} &bull; {emp.designation || 'Employee'}
+                                    </span>
+                                  </div>
+                                </div>
+                              </td>
+
+                              <td className="p-4">
+                                <span className="font-semibold text-slate-700 block">{emp.district || 'N/A'}</span>
+                                <span className="text-[10px] text-slate-400 block">{emp.state || ''}</span>
+                              </td>
+
+                              <td className="p-4">
+                                <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase inline-flex items-center gap-1 ${
+                                  emp.status === 'Punched In' || emp.status === 'Present' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
+                                  emp.status === 'Punched Out' ? 'bg-amber-100 text-amber-800 border border-amber-200' :
+                                  'bg-rose-100 text-rose-800 border border-rose-200'
+                                }`}>
+                                  {emp.status}
+                                </span>
+                              </td>
+
+                              <td className="p-4">
+                                {emp.isOnline ? (
+                                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+                                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" /> Online Now
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-full">
+                                    <span className="h-2 w-2 rounded-full bg-slate-300" /> Offline
+                                  </span>
+                                )}
+                              </td>
+
+                              <td className="p-4 font-mono font-bold text-slate-700">
+                                {emp.punchIn ? new Date(emp.punchIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+                              </td>
+
+                              <td className="p-4 font-mono text-slate-500">
+                                {emp.lastPingAt ? new Date(emp.lastPingAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}
+                              </td>
+
+                              <td className="p-4">
+                                <span className="font-black text-[#051630] text-sm font-mono block">
+                                  {formatActiveSecondsToHM(emp.totalActiveSeconds || 0)}
+                                </span>
+                                <span className="text-[9px] text-slate-400 block font-semibold">({emp.totalActiveSeconds || 0} secs)</span>
+                              </td>
+
+                              <td className="p-4 text-center">
+                                <button
+                                  onClick={() => handleViewEmployeeAttendance(emp.email)}
+                                  className="inline-flex items-center gap-1.5 bg-[#051630] hover:bg-slate-800 text-white font-bold px-3 py-2 rounded-xl text-xs transition-all shadow-sm cursor-pointer"
+                                  title="View detailed attendance & active duration dossier"
+                                >
+                                  <Eye className="h-3.5 w-3.5 text-[#fdd831]" /> View Attendance
+                                </button>
+                              </td>
+
+                            </tr>
+                          ))
+                      ) : (
+                        <tr>
+                          <td colSpan="8" className="p-8 text-center text-slate-400 font-bold">
+                            No attendance records found for selected date.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+          )}
+
           {/* ======================================================== */}
           {/*   1. DASHBOARD OVERVIEW VIEW                             */}
           {/* ======================================================== */}
@@ -6752,6 +7081,159 @@ const AdminDashboard = () => {
           </div>
         );
       })()}
+
+      {/* ======================================================== */}
+      {/*   EMPLOYEE ATTENDANCE DOSSIER MODAL                      */}
+      {/* ======================================================== */}
+      {showAttendanceDossierModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/75 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            
+            {/* Modal Header */}
+            <div className="bg-[#051630] text-white p-6 flex justify-between items-center shrink-0 border-b border-slate-800">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-2xl bg-[#ED1C24] text-white font-black text-lg flex items-center justify-center shadow-lg">
+                  {selectedEmployeeDossier?.employee?.fullName ? selectedEmployeeDossier.employee.fullName.charAt(0).toUpperCase() : 'E'}
+                </div>
+                <div>
+                  <h3 className="text-lg font-black tracking-tight text-white">
+                    {selectedEmployeeDossier?.employee?.fullName || 'Employee Dossier'}
+                  </h3>
+                  <p className="text-xs text-slate-300 font-mono">
+                    {selectedEmployeeDossier?.employee?.email || ''} &bull; {selectedEmployeeDossier?.employee?.designation || 'Employee'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowAttendanceDossierModal(false);
+                  setSelectedEmployeeDossier(null);
+                }}
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-all cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto space-y-6 flex-1 bg-slate-50/50">
+              {dossierLoading ? (
+                <div className="p-12 text-center flex flex-col items-center gap-3">
+                  <RotateCw className="h-8 w-8 animate-spin text-[#ED1C24]" />
+                  <p className="text-xs font-bold text-slate-600">Loading complete attendance dossier...</p>
+                </div>
+              ) : selectedEmployeeDossier ? (
+                <>
+                  {/* Summary Stats Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm text-center">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Work Days</span>
+                      <span className="text-xl font-black text-slate-800 mt-1 block">
+                        {selectedEmployeeDossier.stats?.totalDaysTracked || 0}
+                      </span>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm text-center">
+                      <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">Present Days</span>
+                      <span className="text-xl font-black text-emerald-600 mt-1 block">
+                        {selectedEmployeeDossier.stats?.presentDays || 0}
+                      </span>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm text-center">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Active Hours</span>
+                      <span className="text-xl font-black text-[#051630] mt-1 block">
+                        {formatActiveSecondsToHM(selectedEmployeeDossier.stats?.totalActiveSeconds || 0)}
+                      </span>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm text-center">
+                      <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider block">Avg Active Daily</span>
+                      <span className="text-xl font-black text-amber-700 mt-1 block">
+                        {formatActiveSecondsToHM(selectedEmployeeDossier.stats?.averageActiveSecondsPerDay || 0)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* History Logs Table */}
+                  <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                    <div className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center">
+                      <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">Date-wise Attendance & Active Time Log</h4>
+                      <span className="text-[11px] font-bold text-slate-400">Total Records: {selectedEmployeeDossier.history?.length || 0}</span>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-100 text-slate-600 uppercase text-[10px] font-bold tracking-wider">
+                          <tr>
+                            <th className="p-3">Date</th>
+                            <th className="p-3">Status</th>
+                            <th className="p-3">Work Mode</th>
+                            <th className="p-3">Punch-In</th>
+                            <th className="p-3">Punch-Out</th>
+                            <th className="p-3">Active Software Duration</th>
+                            <th className="p-3">Shift Notes</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                          {selectedEmployeeDossier.history && selectedEmployeeDossier.history.length > 0 ? (
+                            selectedEmployeeDossier.history.map((log) => (
+                              <tr key={log._id} className="hover:bg-slate-50">
+                                <td className="p-3 font-bold text-slate-900">{log.date}</td>
+                                <td className="p-3">
+                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                                    log.status === 'Punched In' || log.status === 'Present' ? 'bg-emerald-100 text-emerald-800' :
+                                    log.status === 'Punched Out' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'
+                                  }`}>
+                                    {log.status}
+                                  </span>
+                                </td>
+                                <td className="p-3">{log.workMode || 'Office'}</td>
+                                <td className="p-3 font-mono">{log.punchIn ? new Date(log.punchIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                                <td className="p-3 font-mono">{log.punchOut ? new Date(log.punchOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                                <td className="p-3 font-black text-[#051630]">
+                                  {formatActiveSecondsToHM(log.totalActiveSeconds || 0)}
+                                </td>
+                                <td className="p-3 text-slate-500 max-w-xs truncate">{log.notes || '-'}</td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan="7" className="p-6 text-center text-slate-400 font-bold">
+                                No attendance records found for this employee.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              ) : null}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-white border-t border-slate-100 flex justify-between items-center shrink-0">
+              <button
+                onClick={() => window.print()}
+                className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-4 py-2.5 rounded-xl transition-all cursor-pointer"
+              >
+                <Printer className="h-4 w-4" /> Print Attendance Dossier
+              </button>
+              <button
+                onClick={() => {
+                  setShowAttendanceDossierModal(false);
+                  setSelectedEmployeeDossier(null);
+                }}
+                className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-all cursor-pointer"
+              >
+                Close Dossier
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );
