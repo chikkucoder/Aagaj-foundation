@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Briefcase, MapPin, Tag, ArrowRight } from 'lucide-react';
+import SEO from '../components/SEO';
 
 const jobs = [
   { id: 'panchayat', title: 'Panchayat Co-ordinator', fee: 999, location: 'Kolkata / Village Operations' },
@@ -17,6 +18,33 @@ const NGOJobs = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
+      <SEO 
+        title="NGO Careers & Coordinator Jobs - Aagaj Foundation"
+        description="Apply for Panchayat Coordinator, Block Coordinator, and Health Supervisor job openings. Support rural welfare operations and manage local scheme centers."
+        canonicalUrl="https://aagajfoundation.com/careers/ngo-jobs"
+        keywords="NGO jobs Bihar, Panchayat Coordinator vacancy Patna, Block Coordinator applications, trust recruitment"
+        ogTitle="Aagaj Foundation Careers - NGO Job Openings"
+        ogDescription="Become a coordinator or skill trainer and help drive local social welfare projects."
+        ogImage="https://aagajfoundation.com/logo.jpg"
+        schema={{
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://aagajfoundation.com/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "NGO Careers",
+              "item": "https://aagajfoundation.com/careers/ngo-jobs"
+            }
+          ]
+        }}
+      />
       
       {/* Intro Header */}
       <section className="py-16 bg-white text-center space-y-4">

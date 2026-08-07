@@ -1,10 +1,70 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Sparkles, CheckCircle2, Target, Calendar, UserCheck, ShieldCheck, PhoneCall } from 'lucide-react';
+import SEO from '../components/SEO';
 
 const SilayiYojnaDescription = () => {
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
+      <SEO 
+        title="Mahila Silayi Prasikshan Yojana - Aagaj Foundation"
+        description="Learn about our flagship sewing and apparel tailoring training scheme for women in Bihar. Apply for registration online to learn and get certificates."
+        canonicalUrl="https://aagajfoundation.com/schemes/silayi"
+        keywords="Mahila Silayi Yojana, sewing training NGO Bihar, women tailoring classes Patna"
+        ogTitle="Mahila Silayi Prasikshan Yojana - Aagaj Foundation"
+        ogDescription="Free and subsidized tailoring classes and start-up toolkit distribution."
+        ogImage="https://aagajfoundation.com/logo.jpg"
+        schema={[
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://aagajfoundation.com/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Mahila Silayi Yojana",
+                "item": "https://aagajfoundation.com/schemes/silayi"
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Event",
+            "name": "Mahila Silayi Prasikshan Training Camp",
+            "startDate": "2026-08-01T09:00:00+05:30",
+            "endDate": "2026-12-31T18:00:00+05:30",
+            "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
+            "eventStatus": "https://schema.org/EventScheduled",
+            "location": {
+              "@type": "Place",
+              "name": "Aagaj Training Center",
+              "address": {
+                "@type": "PostalAddress",
+                "streetAddress": "Bhupatipur Road, Near Krishi Anusandhan Kendra",
+                "addressLocality": "Patna",
+                "addressRegion": "Bihar",
+                "postalCode": "800020",
+                "addressCountry": "IN"
+              }
+            },
+            "image": [
+              "https://aagajfoundation.com/silai.jpeg"
+            ],
+            "description": "Subsidized vocational tailoring training program for rural women to enable financial self-reliance.",
+            "organizer": {
+              "@type": "Organization",
+              "name": "Aagaj Foundation",
+              "url": "https://aagajfoundation.com"
+            }
+          }
+        ]}
+      />
       {/* 1. HERO HEADER */}
       <header className="relative py-20 bg-gradient-to-r from-slate-900 via-slate-800 to-red-950 text-white overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(237,28,36,0.15),transparent)]"></div>

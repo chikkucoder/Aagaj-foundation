@@ -787,7 +787,7 @@ router.post('/admin/create', verifyAdmin, upload.single('photo'), async (req, re
 });
 
 // ✅ Admin: Edit Health Card Details
-router.put('/admin/edit/:id', verifyAdmin, async (req, res) => {
+router.put('/admin/edit/:id', verifyAdmin, upload.single('photo'), async (req, res) => {
     try {
         const cardId = req.params.id;
         const {
@@ -841,13 +841,16 @@ router.put('/admin/edit/:id', verifyAdmin, async (req, res) => {
         existingCard.age = age;
         existingCard.gender = gender;
         existingCard.bloodGroup = bloodGroup;
-        existingCard.address = address;
+        existingCard.address = typeof address === 'string' ? JSON.parse(address) : address;
         existingCard.cardType = cardType || existingCard.cardType;
         if (familyMembers) {
             existingCard.familyMembers = Array.isArray(familyMembers) ? familyMembers : JSON.parse(familyMembers);
         }
         if (expiryDate) {
             existingCard.expiryDate = new Date(expiryDate);
+        }
+        if (req.file) {
+            existingCard.photoPath = req.file.path;
         }
 
         await existingCard.save();

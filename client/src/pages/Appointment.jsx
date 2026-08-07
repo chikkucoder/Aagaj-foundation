@@ -4,6 +4,7 @@ import { verifyHealthCardId, bookAppointment, verifyAppointmentPayment } from '.
 import apiClient from '../api/apiClient';
 import { Calendar, Stethoscope, Search, FileText, ArrowLeft, Network, ShieldCheck, HeartHandshake, PhoneCall, User, MapPin, Lock, X, Smartphone, KeyRound, Clock, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import SEO from '../components/SEO';
 
 const Appointment = () => {
   // Navigation Tabs: 'registration' or 'network'
@@ -460,6 +461,39 @@ const Appointment = () => {
 
   return (
     <div className="min-h-screen bg-[#f1f5f9] pb-12 px-4 sm:px-6 lg:px-8">
+      <SEO 
+        title="Book Doctor Appointment - Swasthya Suraksha Network"
+        description="Book local doctor appointments and find tie-up hospitals, diagnostic clinics, and labs in Bihar. Receive deep discounts using your Aagaj Health Card."
+        canonicalUrl="https://aagajfoundation.com/medical/appointment"
+        keywords="Book doctor appointment Patna, NGO partner hospitals, medical checkup discounts"
+        ogTitle="Aagaj Foundation - Doctor Appointment & Network Search"
+        ogDescription="Book consulting slots and view partnered healthcare centers."
+        ogImage="https://aagajfoundation.com/logo.jpg"
+        schema={{
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://aagajfoundation.com/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Health Card",
+              "item": "https://aagajfoundation.com/medical/healthcard"
+            },
+            {
+              "@type": "ListItem",
+              "position": 3,
+              "name": "Book Appointment",
+              "item": "https://aagajfoundation.com/medical/appointment"
+            }
+          ]
+        }}
+      />
       {/* Back button (Hide on print) */}
       <div className="print:hidden max-w-3xl mx-auto mb-6 flex flex-col sm:flex-row justify-between items-center mt-6 gap-4">
         <Link

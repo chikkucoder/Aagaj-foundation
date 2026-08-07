@@ -15,7 +15,10 @@ export const verifyHealthCardId = async (healthId) => {
 };
 
 export const editHealthCardDetails = async (id, data) => {
-  const response = await apiClient.put(`/api/healthcard/admin/edit/${id}`, data);
+  const isFormData = data instanceof FormData;
+  const response = await apiClient.put(`/api/healthcard/admin/edit/${id}`, data, {
+    headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : {}
+  });
   return response.data;
 };
 
@@ -57,6 +60,16 @@ export const getEmployeeDetailedStats = async () => {
 
 export const deleteEmployee = async (id) => {
   const response = await apiClient.delete(`/api/admin/delete-employee/${id}`);
+  return response.data;
+};
+
+export const toggleApplicantStatus = async (id) => {
+  const response = await apiClient.patch(`/api/admin/toggle-applicant-status/${id}`);
+  return response.data;
+};
+
+export const getBlogs = async () => {
+  const response = await apiClient.get('/api/blogs');
   return response.data;
 };
 

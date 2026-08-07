@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Eye } from 'lucide-react';
+import SEO from '../components/SEO';
 
 const galleryItems = [
   { src: '/pic1.jpeg', title: 'Empowerment Awareness Rally', category: 'Events' },
@@ -19,6 +20,33 @@ const Gallery = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
+      <SEO 
+        title="Photo Gallery - Aagaj Foundation Programs"
+        description="Browse our photo gallery showing our women tailoring classes (Mahila Silayi), healthcare events, distribution drives, and community coordination workshops in Bihar."
+        canonicalUrl="https://aagajfoundation.com/gallery"
+        keywords="Aagaj Foundation gallery, NGO photos Patna, sewing classes photos, health camps images"
+        ogTitle="Aagaj Foundation - Event Photo Gallery"
+        ogDescription="Visual highlights of our social welfare camps, women tailors, and rural checkups in Patna."
+        ogImage="https://aagajfoundation.com/logo.jpg"
+        schema={{
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://aagajfoundation.com/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Gallery",
+              "item": "https://aagajfoundation.com/gallery"
+            }
+          ]
+        }}
+      />
       
       {/* Header */}
       <section className="relative py-16 bg-slate-900 text-white">
@@ -44,6 +72,7 @@ const Gallery = () => {
                 <img 
                   src={item.src} 
                   alt={item.title} 
+                  loading="lazy"
                   className="w-full h-full object-cover transition-all duration-500 group-hover:scale-105 group-hover:opacity-75"
                 />
                 
