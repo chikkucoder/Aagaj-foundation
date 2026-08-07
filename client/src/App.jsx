@@ -33,6 +33,10 @@ import Card from './pages/Card';
 import Application from './pages/Application';
 import VerifyHealthCard from './pages/VerifyHealthCard';
 import MembershipRegister from './pages/MembershipRegister';
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
+import Blogs from './pages/Blogs';
+import Founder from './pages/Founder';
 
 // Layout component to wrap pages that require standard Navbar and Footer
 const AppLayout = () => {
@@ -71,6 +75,11 @@ function App() {
             <Route path="/swarojgaar/description" element={<SwarojgaarDescription />} />
             <Route path="/membership/register" element={<MembershipRegister />} />
             <Route path="/membership" element={<MembershipRegister />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/blogs" element={<Blogs />} />
+            <Route path="/about/founder" element={<Founder />} />
+            <Route path="/founder" element={<Founder />} />
           </Route>
 
           {/* 2. SPECIAL / PRINT-ORIENTED / CONSOLE PAGES (NO LAYOUT) */}

@@ -18,6 +18,7 @@ import {
   Clock,
   X
 } from 'lucide-react';
+import SEO from '../components/SEO';
 
 const VerifyHealthCard = () => {
   const [healthId, setHealthId] = useState('');
@@ -327,6 +328,39 @@ const VerifyHealthCard = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8 print:min-h-0 print:py-0 print:bg-transparent">
+      <SEO 
+        title="Verify Health Card Online - Aagaj Foundation"
+        description="Verify your Swasthya Suraksha Card and search for candidate details using your unique Health ID or mobile number. Secure OTP verification required."
+        canonicalUrl="https://aagajfoundation.com/medical/verify-healthcard"
+        keywords="Verify health card Patna, Health ID status search, check NGO card validation"
+        ogTitle="Verify Swasthya Suraksha Card - Aagaj Foundation"
+        ogDescription="Verify credentials and download card PDF securely."
+        ogImage="https://aagajfoundation.com/logo.jpg"
+        schema={{
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://aagajfoundation.com/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Health Card",
+              "item": "https://aagajfoundation.com/medical/healthcard"
+            },
+            {
+              "@type": "ListItem",
+              "position": 3,
+              "name": "Verify Health Card",
+              "item": "https://aagajfoundation.com/medical/verify-healthcard"
+            }
+          ]
+        }}
+      />
       {/* Back button */}
       <div className="print:hidden max-w-3xl mx-auto mb-6">
         <Link

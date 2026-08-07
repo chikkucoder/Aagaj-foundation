@@ -1,9 +1,37 @@
 import React from 'react';
 import { ShieldCheck, HeartPulse, GraduationCap, Users } from 'lucide-react';
+import SEO from '../components/SEO';
 
 const About = () => {
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
+      <SEO 
+        title="About Us - Aagaj Foundation Trust Bihar"
+        description="Aagaj Foundation is a registered public charitable trust under the Indian Trust Act 1882. Discover our mission, values, and how we empower women and build local healthcare networks."
+        canonicalUrl="https://aagajfoundation.com/about"
+        keywords="About Aagaj Foundation, Trust Act 1882, Bihar NGO founders, NGO mission Patna"
+        ogTitle="About Us - Aagaj Foundation Trust"
+        ogDescription="Discover our genesis, vision, and how we create sustainable livelihoods for rural communities."
+        ogImage="https://aagajfoundation.com/logo.jpg"
+        schema={{
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://aagajfoundation.com/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "About Us",
+              "item": "https://aagajfoundation.com/about"
+            }
+          ]
+        }}
+      />
       
       {/* Page Header */}
       <section className="relative py-16 bg-slate-900 text-white">

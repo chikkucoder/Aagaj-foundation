@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Check, Heart, Play, Search, Scissors, ShieldCheck, Printer, RefreshCw, AlertTriangle } from 'lucide-react';
+import SEO from '../components/SEO';
 
 const heroImages = [
   { src: '/pic1.jpeg', alt: 'Aagaj Foundation Rally' },
@@ -115,6 +116,135 @@ const Home = () => {
 
   return (
     <div className="flex flex-col min-h-screen">
+      <SEO 
+        title="Aagaj Foundation - Women Empowerment & Livelihood NGO in Bihar"
+        description="Aagaj Foundation is a registered public charitable trust dedicated to women empowerment, healthcare distribution, and livelihood training under Mahila Silayi Yojana and Swasthya Suraksha Yojana in Paliganj, Patna, Bihar."
+        canonicalUrl="https://aagajfoundation.com/"
+        keywords="Aagaj Foundation, NGO Bihar, Women Empowerment Patna, Mahila Silayi Yojana, Swasthya Suraksha Card, Doctor Appointment Bihar, Trust Paliganj, NGO Darpan BR/2020/0260968"
+        ogTitle="Aagaj Foundation - Empowering Women, Uplifting Communities"
+        ogDescription="Providing sewing training, healthcare support, and self-employment initiatives for rural families in Patna and across Bihar."
+        ogImage="https://aagajfoundation.com/logo.jpg"
+        schema={[
+          {
+            "@context": "https://schema.org",
+            "@type": "NGO",
+            "name": "Aagaj Foundation",
+            "alternateName": "Aagaj Foundation Trust",
+            "url": "https://aagajfoundation.com",
+            "logo": "https://aagajfoundation.com/logo.jpg",
+            "founder": [
+              {
+                "@type": "Person",
+                "name": "Bireena Devi"
+              },
+              {
+                "@type": "Person",
+                "name": "Vivek Kumar"
+              }
+            ],
+            "foundingDate": "2020",
+            "email": "aagajfoundationpaliganj@gmail.com",
+            "telephone": "+91-9431430464",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "Paliganj",
+              "addressLocality": "Patna",
+              "addressRegion": "Bihar",
+              "postalCode": "801110",
+              "addressCountry": "IN"
+            },
+            "taxID": "NGO Darpan ID: BR/2020/0260968",
+            "description": "Aagaj Foundation is a registered public charitable trust dedicated to women empowerment, healthcare distribution, and livelihood training in Bihar.",
+            "sameAs": [
+              "https://www.facebook.com/share/19Q9fVQfS3/",
+              "https://www.instagram.com/aagajfoundation?igsh=OGs0Nm5uZjF4eXBn",
+              "https://x.com/AagajFoundation",
+              "https://www.linkedin.com/company/aagaj-foundation/",
+              "https://www.youtube.com/@aagajfoundation6622"
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "LocalBusiness",
+            "name": "Aagaj Foundation Patna Office",
+            "image": [
+              "https://aagajfoundation.com/logo.jpg"
+            ],
+            "telephone": "+91-9431430464",
+            "email": "aagajfoundationpaliganj@gmail.com",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "Bhupatipur Road, Near Krishi Anusandhan Kendra",
+              "addressLocality": "Patna",
+              "addressRegion": "Bihar",
+              "postalCode": "800020",
+              "addressCountry": "IN"
+            },
+            "geo": {
+              "@type": "GeoCoordinates",
+              "latitude": "25.5941",
+              "longitude": "85.1376"
+            },
+            "url": "https://aagajfoundation.com",
+            "openingHoursSpecification": {
+              "@type": "OpeningHoursSpecification",
+              "dayOfWeek": [
+                "Monday",
+                "Tuesday",
+                "Wednesday",
+                "Thursday",
+                "Friday",
+                "Saturday"
+              ],
+              "opens": "09:00",
+              "closes": "18:00"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            "url": "https://aagajfoundation.com",
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": {
+                "@type": "EntryPoint",
+                "urlTemplate": "https://aagajfoundation.com/blogs?search={search_term_string}"
+              },
+              "query-input": "required name=search_term_string"
+            }
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "What is the NGO Darpan Registration ID of Aagaj Foundation?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "The official NGO Darpan Registration ID of Aagaj Foundation is BR/2020/0260968."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Who is the founder of Aagaj Foundation?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Aagaj Foundation was founded by Vivek Kumar and Bireena Devi to support women empowerment and healthcare access in Bihar."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How can I apply for a Swasthya Suraksha Health Card?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "You can register online for the Swasthya Suraksha Health Card on the Aagaj Foundation website under the Medical Services section."
+                }
+              }
+            ]
+          }
+        ]}
+      />
       
       {/* 1. HERO CAROUSEL */}
       <header className="relative w-full h-[60vh] sm:h-[70vh] md:h-[80vh] lg:h-[85vh] overflow-hidden bg-black">
@@ -226,7 +356,7 @@ const Home = () => {
             
             {/* Silayi Training */}
             <div className="flex flex-col bg-white rounded-2xl overflow-hidden shadow-md border-b-4 border-[#fdd831] hover:border-[#ED1C24] hover:-translate-y-2 transition-all duration-300">
-              <img src="/silai.jpeg" alt="Silayi Training" className="h-56 w-full object-cover" />
+              <img src="/silai.jpeg" alt="Silayi Training" loading="lazy" className="h-56 w-full object-cover" />
               <div className="p-6 flex flex-col flex-grow justify-between space-y-4">
                 <div className="space-y-2">
                   <h3 className="text-xl font-bold text-slate-800">Silayi Training</h3>
@@ -242,7 +372,7 @@ const Home = () => {
 
             {/* Women Health */}
             <div className="flex flex-col bg-white rounded-2xl overflow-hidden shadow-md border-b-4 border-[#fdd831] hover:border-[#ED1C24] hover:-translate-y-2 transition-all duration-300">
-              <img src="/women.jpg" alt="Women Health" className="h-56 w-full object-cover" />
+              <img src="/women.jpg" alt="Women Health" loading="lazy" className="h-56 w-full object-cover" />
               <div className="p-6 flex flex-col flex-grow justify-between space-y-4">
                 <div className="space-y-2">
                   <h3 className="text-xl font-bold text-slate-800">Women Health Support</h3>
@@ -258,7 +388,7 @@ const Home = () => {
 
             {/* Community Welfare */}
             <div className="flex flex-col bg-white rounded-2xl overflow-hidden shadow-md border-b-4 border-[#fdd831] hover:border-[#ED1C24] hover:-translate-y-2 transition-all duration-300">
-              <img src="/community.jpg" alt="Community Welfare" className="h-56 w-full object-cover" />
+              <img src="/community.jpg" alt="Community Welfare" loading="lazy" className="h-56 w-full object-cover" />
               <div className="p-6 flex flex-col flex-grow justify-between space-y-4">
                 <div className="space-y-2">
                   <h3 className="text-xl font-bold text-slate-800">Community Welfare</h3>
@@ -274,7 +404,7 @@ const Home = () => {
 
             {/* Membership Registration */}
             <div className="flex flex-col bg-white rounded-2xl overflow-hidden shadow-md border-b-4 border-rose-600 hover:border-pink-600 hover:-translate-y-2 transition-all duration-300">
-              <img src="/pic5.jpg" alt="Join as Member" className="h-56 w-full object-cover" />
+              <img src="/pic5.jpg" alt="Join as Member" loading="lazy" className="h-56 w-full object-cover" />
               <div className="p-6 flex flex-col flex-grow justify-between space-y-4">
                 <div className="space-y-2">
                   <h3 className="text-xl font-bold text-slate-800">Become a Member</h3>

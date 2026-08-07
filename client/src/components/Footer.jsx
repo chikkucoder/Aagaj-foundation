@@ -111,6 +111,16 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
+                <Link to="/about/founder" className="flex items-center gap-1.5 text-slate-400 hover:text-[#fdd831] hover:translate-x-1 transition-all duration-200">
+                  <ArrowRight className="h-3 w-3 opacity-0 group-hover:opacity-100" /> Founder Biography
+                </Link>
+              </li>
+              <li>
+                <Link to="/blogs" className="flex items-center gap-1.5 text-slate-400 hover:text-[#fdd831] hover:translate-x-1 transition-all duration-200">
+                  <ArrowRight className="h-3 w-3 opacity-0 group-hover:opacity-100" /> Blog & Insights
+                </Link>
+              </li>
+              <li>
                 <Link to="/gallery" className="flex items-center gap-1.5 text-slate-400 hover:text-[#fdd831] hover:translate-x-1 transition-all duration-200">
                   <ArrowRight className="h-3 w-3 opacity-0 group-hover:opacity-100" /> Gallery
                 </Link>
@@ -228,6 +238,10 @@ const Footer = () => {
       <div className="bg-slate-950 py-5 border-t border-slate-800">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-slate-500">
           <p>© {new Date().getFullYear()} Aagaj Foundation Trust. All Rights Reserved.</p>
+          <div className="flex items-center gap-4">
+            <Link to="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link>
+            <Link to="/terms" className="hover:text-white transition-colors">Terms of Service</Link>
+          </div>
           <p className="flex items-center gap-1">
             Made with <Heart className="h-3 w-3 text-red-500 fill-red-500 animate-pulse" /> for community empowerment
           </p>

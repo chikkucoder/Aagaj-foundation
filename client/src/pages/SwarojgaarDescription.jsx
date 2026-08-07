@@ -1,10 +1,70 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Sparkles, CheckCircle2, Users, Coins, HelpCircle, UserCheck, PhoneCall, ArrowRight } from 'lucide-react';
+import SEO from '../components/SEO';
 
 const SwarojgaarDescription = () => {
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
+      <SEO 
+        title="Mahila Swarojgaar Yojana - Aagaj Foundation"
+        description="Learn about Aagaj Foundation's Self-Help Groups (SHGs) under the Mahila Swarojgaar Yojana. We support micro-enterprise finance and local marketing for women in Bihar."
+        canonicalUrl="https://aagajfoundation.com/schemes/swarojgaar"
+        keywords="Mahila Swarojgaar Yojana, Self-Help Groups Bihar, women micro finance Patna, rural enterprises"
+        ogTitle="Mahila Swarojgaar Yojana - Aagaj Foundation SHGs"
+        ogDescription="Providing business training and group funding opportunities for village cooperatives."
+        ogImage="https://aagajfoundation.com/logo.jpg"
+        schema={[
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://aagajfoundation.com/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Mahila Swarojgaar Yojana",
+                "item": "https://aagajfoundation.com/schemes/swarojgaar"
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Event",
+            "name": "Mahila Swarojgaar SHG Workshop",
+            "startDate": "2026-08-01T10:00:00+05:30",
+            "endDate": "2026-12-31T17:00:00+05:30",
+            "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
+            "eventStatus": "https://schema.org/EventScheduled",
+            "location": {
+              "@type": "Place",
+              "name": "Aagaj Training Center",
+              "address": {
+                "@type": "PostalAddress",
+                "streetAddress": "Bhupatipur Road, Near Krishi Anusandhan Kendra",
+                "addressLocality": "Patna",
+                "addressRegion": "Bihar",
+                "postalCode": "800020",
+                "addressCountry": "IN"
+              }
+            },
+            "image": [
+              "https://aagajfoundation.com/swarojgaar.png"
+            ],
+            "description": "Livelihood enterprise financial literacy workshop and Self-Help Group microfinance coordination camps.",
+            "organizer": {
+              "@type": "Organization",
+              "name": "Aagaj Foundation",
+              "url": "https://aagajfoundation.com"
+            }
+          }
+        ]}
+      />
       {/* 1. HERO HEADER */}
       <header className="relative py-20 bg-gradient-to-r from-slate-900 via-slate-800 to-red-950 text-white overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(237,28,36,0.15),transparent)]"></div>

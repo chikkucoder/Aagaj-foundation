@@ -398,6 +398,33 @@ const HealthCard = () => {
 
   return (
     <div className="min-h-screen bg-[#f1f5f9] py-12 px-4 sm:px-6 lg:px-8 print:min-h-0 print:py-0 print:bg-transparent">
+      <SEO 
+        title="Get Swasthya Suraksha Health Card - Aagaj Foundation"
+        description="Apply for your digital Swasthya Suraksha Card online. Get huge discounts at our partner hospitals, labs, and pharmacies across Bihar."
+        canonicalUrl="https://aagajfoundation.com/medical/healthcard"
+        keywords="health card Bihar, Swasthya Suraksha Card apply, medical discount card Patna"
+        ogTitle="Aagaj Foundation - Swasthya Suraksha Card Application"
+        ogDescription="Connect with partner hospitals and chemists. Save on diagnostic services and OPD fees."
+        ogImage="https://aagajfoundation.com/logo.jpg"
+        schema={{
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://aagajfoundation.com/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Health Card",
+              "item": "https://aagajfoundation.com/medical/healthcard"
+            }
+          ]
+        }}
+      />
       {/* Hide on print */}
       <div className="print:hidden max-w-3xl mx-auto mb-6">
         <Link

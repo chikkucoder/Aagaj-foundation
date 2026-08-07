@@ -241,6 +241,47 @@ mongoose.connect(process.env.MONGO_URI, {
         } catch (seedErr) {
             console.error("Carousel Seeding Error:", seedErr);
         }
+
+        // ✅ Seed default blog articles if collection is empty
+        try {
+            const Blog = require('./models/BlogSchema');
+            const defaultBlogsCount = await Blog.countDocuments();
+            if (defaultBlogsCount === 0) {
+                const defaultBlogs = [
+                    {
+                        title: 'Empowering Women Through Skill Development and Training',
+                        slug: 'empowering-women-through-skill-development',
+                        description: 'How Mahila Silayi Prasikshan Yojana is transforming rural lives in Bihar by creating self-reliance and local employment.',
+                        content: 'Empowerment of women is essential for the sustainable development of any society. Aagaj Foundation is proud to run the Mahila Silayi Prasikshan Yojana, which equips women in rural parts of Patna and Paliganj with expert tailoring skills. By providing professional sewing training and access to startup toolkits, we enable women to earn from home, support their children education, and gain financial autonomy. Over 500 women have successfully graduated and are now operating micro-ventures in their local villages.',
+                        image: '/silai.jpeg',
+                        category: 'Women Empowerment',
+                        author: 'Bireena Devi'
+                    },
+                    {
+                        title: 'Creating Sustainable Livelihoods: Women Self-Help Groups',
+                        slug: 'creating-sustainable-livelihoods-self-help-groups',
+                        description: 'An in-depth look at Mahila Swarojgaar Yojana and how collective savings and enterprise financing solve rural unemployment.',
+                        content: 'Unemployment is a key challenge in rural India, but women have the power to create jobs collectively. Under the Mahila Swarojgaar Yojana, Aagaj Foundation organizes women into Self-Help Groups (SHGs) and provides training in micro-business management, packaging, and digital payments. This collective framework enables them to raise credit easily and start local manufacturing units (e.g., for garments, local crafts, and packaging items). This blog discusses our model and how local trust drives financial progress.',
+                        image: '/swarojgaar.png',
+                        category: 'Livelihoods',
+                        author: 'Vivek Kumar'
+                    },
+                    {
+                        title: 'Access to Quality Healthcare: Swasthya Suraksha Yojana',
+                        slug: 'access-quality-healthcare-swasthya-suraksha',
+                        description: 'Understanding our community health card system and how partnered networks of clinics bring affordable treatments to local villages.',
+                        content: 'Rural healthcare suffers from lack of infrastructure and high outpatient costs. Aagaj Foundation\'s Swasthya Suraksha Yojana bridges this gap. By issuing digital Health Cards, we connect beneficiaries directly to partnered clinics, blood banks, and chemists. Cardholders receive flat discounts of 10% to 50% on doctors consultations, lab tests, and life-saving medicines. This ensures no family goes into debt due to unexpected medical emergencies. We currently have over 30 partnered clinics across Bihar.',
+                        image: '/health.jpg',
+                        category: 'Healthcare',
+                        author: 'Vivek Kumar'
+                    }
+                ];
+                await Blog.insertMany(defaultBlogs);
+                console.log("📝 Default blog articles seeded successfully.");
+            }
+        } catch (seedErr) {
+            console.error("Blog Seeding Error:", seedErr);
+        }
     })
     .catch(err => console.log("❌ DB Error:", err));
 
@@ -252,6 +293,7 @@ const Beneficiary = require('./models/SilayiPrasikshanSchema'); // ✅ Import Co
 const SwarojgaarGroup = require('./models/SwarojgaarRegisterSchema'); // ✅ Import Swarojgaar Schema
 const HealthPartner = require('./models/SwasthyaSurkshaSchema'); // ✅ Import Swasthya Surksha Schema
 const HealthCard = require('./models/HealthCardSchema');
+const Blog = require('./models/BlogSchema');
 
 // --- Multer Setup ---
 // On Vercel, filesystem is read-only so we wrap in try/catch
@@ -672,6 +714,37 @@ const carouselRoutes = require('./routes/carouselRoutes');
 app.use('/api/carousel', carouselRoutes);
 
 
+// ✅ Toggle Applicant (Employee) Status (Active/Inactive)
+app.patch('/api/admin/toggle-applicant-status/:id', verifyAdmin, async (req, res) => {
+    try {
+        const { id } = req.params;
+        let user = await Applicant.findById(id);
+        let Model = Applicant;
+
+        if (!user) {
+            user = await NormalApplicant.findById(id);
+            Model = NormalApplicant;
+        }
+
+        if (!user) {
+            return res.status(404).json({ success: false, message: "Employee not found." });
+        }
+
+        user.isActive = user.isActive === false ? true : false;
+        await user.save();
+
+        res.json({
+            success: true,
+            message: `Employee account ${user.isActive ? 'activated' : 'deactivated'} successfully!`,
+            isActive: user.isActive
+        });
+    } catch (error) {
+        console.error("Toggle Status Error:", error);
+        res.status(500).json({ success: false, message: "Server error: " + error.message });
+    }
+});
+
+
 // 6. Login
 app.post('/api/employee/login', authLimiter, async (req, res) => {
     try {
@@ -691,6 +764,11 @@ app.post('/api/employee/login', authLimiter, async (req, res) => {
             return res.json({ success: false, message: "Invalid Credentials" });
         }
 
+        // ✅ Block login if account is deactivated
+        if (user.isActive === false) {
+            return res.json({ success: false, message: "Your account has been deactivated. Please contact the administrator." });
+        }
+
         const passwordToCompare = user.emp_password || user.password;
         const isMatch = await bcrypt.compare(password, passwordToCompare);
 
@@ -707,6 +785,94 @@ app.post('/api/employee/login', authLimiter, async (req, res) => {
 
     } catch (error) { console.error("Login Error:", error); res.status(500).json({ success: false, message: "Server error during login." }); }
 });
+
+// ✅ GET ALL BLOGS
+app.get('/api/blogs', async (req, res) => {
+    try {
+        const blogs = await Blog.find().sort({ createdAt: -1 });
+        res.json({ success: true, data: blogs });
+    } catch (err) {
+        console.error("Get Blogs Error:", err);
+        res.status(500).json({ success: false, message: "Error fetching blogs" });
+    }
+});
+
+// ✅ DYNAMIC XML SITEMAP GENERATOR
+app.get('/sitemap.xml', async (req, res) => {
+    try {
+        const baseUrl = 'https://aagajfoundation.com';
+        
+        // Static routes
+        const staticRoutes = [
+            '/',
+            '/about',
+            '/about/founder',
+            '/founder',
+            '/gallery',
+            '/contact',
+            '/donate',
+            '/careers/ngo-jobs',
+            '/careers/general-jobs',
+            '/medical/healthcard',
+            '/medical/verify-healthcard',
+            '/medical/appointment',
+            '/schemes/silayi',
+            '/schemes/swarojgaar',
+            '/membership',
+            '/privacy',
+            '/terms',
+            '/blogs'
+        ];
+
+        // Fetch dynamic items from DB
+        const CarouselImage = require('./models/CarouselImageSchema');
+        const [blogs, carouselImages] = await Promise.all([
+            Blog.find({}).select('slug createdAt').lean(),
+            CarouselImage.find({ active: true }).select('createdAt').lean()
+        ]);
+
+        let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+        xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+
+        // 1. Add static routes
+        staticRoutes.forEach(route => {
+            xml += `  <url>\n`;
+            xml += `    <loc>${baseUrl}${route}</loc>\n`;
+            xml += `    <changefreq>weekly</changefreq>\n`;
+            xml += `    <priority>${route === '/' ? '1.0' : '0.8'}</priority>\n`;
+            xml += `  </url>\n`;
+        });
+
+        // 2. Add dynamic blog routes
+        blogs.forEach(blog => {
+            const date = blog.createdAt ? new Date(blog.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+            xml += `  <url>\n`;
+            xml += `    <loc>${baseUrl}/blogs?post=${blog.slug}</loc>\n`;
+            xml += `    <lastmod>${date}</lastmod>\n`;
+            xml += `    <changefreq>monthly</changefreq>\n`;
+            xml += `    <priority>0.7</priority>\n`;
+            xml += `  </url>\n`;
+        });
+
+        // 3. Add dynamic gallery image items (if they have active records)
+        if (carouselImages.length > 0) {
+            xml += `  <url>\n`;
+            xml += `    <loc>${baseUrl}/gallery</loc>\n`;
+            xml += `    <changefreq>weekly</changefreq>\n`;
+            xml += `    <priority>0.6</priority>\n`;
+            xml += `  </url>\n`;
+        }
+
+        xml += `</urlset>`;
+
+        res.header('Content-Type', 'application/xml');
+        res.status(200).send(xml);
+    } catch (err) {
+        console.error("Sitemap generation error:", err);
+        res.status(500).send("Error generating sitemap");
+    }
+});
+
 
 // ✅ 404 for unknown APIs
 app.use((req, res, next) => {

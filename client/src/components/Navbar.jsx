@@ -785,6 +785,15 @@ const Navbar = () => {
               About
             </NavLink>
 
+            <NavLink 
+              to="/about/founder" 
+              className={({ isActive }) => 
+                `px-4 py-2 text-sm font-bold text-slate-800 rounded-md transition-all duration-300 hover:text-[#ED1C24] hover:bg-rose-50 ${isActive ? 'text-[#ED1C24] bg-rose-50' : ''}`
+              }
+            >
+              Founder
+            </NavLink>
+
             {/* Services Dropdown */}
             <div 
               className="relative"
@@ -873,6 +882,15 @@ const Navbar = () => {
               }
             >
               Gallery
+            </NavLink>
+
+            <NavLink 
+              to="/blogs" 
+              className={({ isActive }) => 
+                `px-4 py-2 text-sm font-bold text-slate-800 rounded-md transition-all duration-300 hover:text-[#ED1C24] hover:bg-rose-50 ${isActive ? 'text-[#ED1C24] bg-rose-50' : ''}`
+              }
+            >
+              Blog
             </NavLink>
 
             {/* Careers Dropdown */}
@@ -1046,6 +1064,14 @@ const Navbar = () => {
             About
           </Link>
 
+          <Link 
+            to="/about/founder" 
+            onClick={() => setIsOpen(false)}
+            className="block rounded-md px-3 py-2 text-base font-bold text-slate-800 hover:bg-rose-50 hover:text-[#ED1C24]"
+          >
+            Founder Biography
+          </Link>
+
           {/* Mobile Services */}
           <div>
             <p className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-400">Services</p>
@@ -1112,6 +1138,14 @@ const Navbar = () => {
             className="block rounded-md px-3 py-2 text-base font-bold text-slate-800 hover:bg-rose-50 hover:text-[#ED1C24]"
           >
             Gallery
+          </Link>
+
+          <Link 
+            to="/blogs" 
+            onClick={() => setIsOpen(false)}
+            className="block rounded-md px-3 py-2 text-base font-bold text-slate-800 hover:bg-rose-50 hover:text-[#ED1C24]"
+          >
+            Blog
           </Link>
 
           {/* Mobile Careers */}
