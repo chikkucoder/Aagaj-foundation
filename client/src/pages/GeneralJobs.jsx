@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Briefcase, MapPin, Tag, ArrowRight } from 'lucide-react';
+import SEO from '../components/SEO';
 
 const GeneralJobs = () => {
   const navigate = useNavigate();
@@ -8,6 +9,33 @@ const GeneralJobs = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
+      <SEO 
+        title="General Vacancies & Livelihood Jobs - Aagaj Foundation"
+        description="Explore open vacancies for administrative and skill development roles at Aagaj Foundation. Find general employment and career options in Bihar."
+        canonicalUrl="https://aagajfoundation.com/careers/general-jobs"
+        keywords="General NGO careers, NGO vacancies Patna, Bihar skill trainer jobs"
+        ogTitle="Careers - General Job Vacancies - Aagaj Foundation"
+        ogDescription="Apply for local administrative and vocational center supervisor roles."
+        ogImage="https://aagajfoundation.com/logo.jpg"
+        schema={{
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://aagajfoundation.com/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "General Careers",
+              "item": "https://aagajfoundation.com/careers/general-jobs"
+            }
+          ]
+        }}
+      />
       
       {/* Header */}
       <section className="py-16 bg-white text-center space-y-4">

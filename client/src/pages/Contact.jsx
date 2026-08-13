@@ -1,6 +1,7 @@
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { Mail, Phone, MapPin, Send, HelpCircle } from 'lucide-react';
+import SEO from '../components/SEO';
 
 const Contact = () => {
   const { register, handleSubmit, formState: { errors }, reset } = useForm();
@@ -13,6 +14,33 @@ const Contact = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
+      <SEO 
+        title="Contact Us - Aagaj Foundation Trust Offices"
+        description="Get in touch with Aagaj Foundation. Find office phone numbers, email addresses, office locations, and submit support forms for NGO schemes in Bihar."
+        canonicalUrl="https://aagajfoundation.com/contact"
+        keywords="Aagaj Foundation office phone, Patna NGO contact email, Paliganj trust helpline"
+        ogTitle="Contact Us - Aagaj Foundation Helpdesk"
+        ogDescription="Connect with us for partnerships, donations, or registrations under women schemes."
+        ogImage="https://aagajfoundation.com/logo.jpg"
+        schema={{
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://aagajfoundation.com/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Contact Us",
+              "item": "https://aagajfoundation.com/contact"
+            }
+          ]
+        }}
+      />
       
       {/* Header */}
       <section className="relative py-16 bg-slate-900 text-white">

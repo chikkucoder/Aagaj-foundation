@@ -7,6 +7,7 @@ import {
 import html2canvas from 'html2canvas-pro';
 import MembershipCertificate from '../components/MembershipCertificate';
 import apiClient from '../api/apiClient';
+import SEO from '../components/SEO';
 
 const INTEREST_OPTIONS = [
   'Education',
@@ -22,6 +23,9 @@ const PRESET_AMOUNTS = [100, 250, 500, 1000, 2100];
 
 const MembershipRegister = () => {
   const [activeTab, setActiveTab] = useState('register'); // 'register' | 'certificate' | 'verify'
+
+  // ... (Rest of states/logic unchanged)
+
 
   // OTP Verification Modal States
   const [showOtpModal, setShowOtpModal] = useState(false);
@@ -447,6 +451,33 @@ const MembershipRegister = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8 font-sans text-slate-800">
+      <SEO 
+        title="NGO Membership Registration Portal - Aagaj Foundation"
+        description="Become an official member of Aagaj Foundation. Register online, make payments securely, download your official certificate, and verify active memberships."
+        canonicalUrl="https://aagajfoundation.com/membership"
+        keywords="NGO membership Bihar, register trust member Patna, download membership certificate, verify NGO certificate"
+        ogTitle="Aagaj Foundation - Membership & Partner Portal"
+        ogDescription="Complete registrations and instantly generate official printable member certificates."
+        ogImage="https://aagajfoundation.com/logo.jpg"
+        schema={{
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://aagajfoundation.com/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Membership",
+              "item": "https://aagajfoundation.com/membership"
+            }
+          ]
+        }}
+      />
       
       {/* Top Banner */}
       <div className="max-w-5xl mx-auto mb-8 text-center">

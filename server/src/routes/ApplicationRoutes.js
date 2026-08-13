@@ -815,8 +815,28 @@ router.post('/admin/create', verifyAdmin, handlePhotoUpload, async (req, res) =>
     }
 });
 
-// ⚠️ COMMENTED OUT: Unused test routes (old API detection logic removed)
-// router.get('/test-getepay', (req, res) => { ... });
-// router.get('/health', (req, res) => { ... });
+// Public status verification route
+router.get('/status/:uniqueId', async (req, res) => {
+    try {
+        const { uniqueId } = req.params;
+        // Search in both NGO jobs and normal jobs applicants
+        let applicant = await Applicant.findOne({ uniqueId: uniqueId });
+        if (!applicant) {
+            applicant = await NormalApplicant.findOne({ uniqueId: uniqueId });
+        }
+        
+        if (!applicant) {
+            return res.status(404).json({ success: false, message: "Employee not found" });
+        }
+
+        res.json({ 
+            success: true, 
+            isActive: applicant.isActive !== false // defaults to true
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: "Internal server error" });
+    }
+});
 
 module.exports = router;

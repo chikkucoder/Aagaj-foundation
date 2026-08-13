@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { createDonationOrder, verifyDonationPayment } from '../api/paymentApi';
 import { Heart, Landmark, ShieldCheck, HeartHandshake, Loader2, ArrowLeft } from 'lucide-react';
+import SEO from '../components/SEO';
 
 const presetAmounts = [500, 1000, 2000, 5000, 10000];
 
@@ -163,6 +164,33 @@ const Donate = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
+      <SEO 
+        title="Donate Online - Support Aagaj Foundation Trust"
+        description="Support women tailoring centers, health card distribution, and child education by donating online. We accept Razorpay and provide 80G tax exemption receipts."
+        canonicalUrl="https://aagajfoundation.com/donate"
+        keywords="Donate NGO Patna, online trust donation, tax exemption 80G trust Bihar, women support funds"
+        ogTitle="Donate to Aagaj Foundation - Change a Life Today"
+        ogDescription="Help rural families in Bihar by supporting tailoring machines and medicine camps."
+        ogImage="https://aagajfoundation.com/logo.jpg"
+        schema={{
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://aagajfoundation.com/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Donate Us",
+              "item": "https://aagajfoundation.com/donate"
+            }
+          ]
+        }}
+      />
       
       {/* Visual Header Banner */}
       <section className="relative py-20 bg-slate-900 text-white text-center">

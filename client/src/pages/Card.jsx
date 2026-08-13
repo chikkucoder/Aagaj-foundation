@@ -21,6 +21,21 @@ const Card = () => {
   const doj = searchParams.get('doj') || new Date().toLocaleDateString('en-GB');
 
   const [photoUrl, setPhotoUrl] = useState('https://via.placeholder.com/120?text=Photo');
+  const [isActive, setIsActive] = useState(true);
+
+  useEffect(() => {
+    if (uniqueId && uniqueId !== '0000') {
+      const cleanId = uniqueId.replace(/^AF-/, '');
+      fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/application/status/${cleanId}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            setIsActive(data.isActive);
+          }
+        })
+        .catch(err => console.error("Error verifying active status:", err));
+    }
+  }, [uniqueId]);
 
   useEffect(() => {
     let active = true;
@@ -127,6 +142,14 @@ const Card = () => {
         id="employeeIdCard"
         className="w-[350px] h-[520px] bg-white rounded-3xl shadow-xl overflow-hidden relative border border-slate-200 flex flex-col justify-between"
       >
+        {/* Inactive Overlay Watermark */}
+        {!isActive && (
+          <div className="absolute inset-0 bg-red-600/10 backdrop-blur-[0.5px] z-20 pointer-events-none flex items-center justify-center overflow-hidden">
+            <div className="rotate-[-35deg] text-red-600 border-8 border-red-600 rounded-2xl px-6 py-3 text-3xl font-black uppercase tracking-widest bg-white/95 shadow-2xl opacity-90 select-none">
+              INACTIVE
+            </div>
+          </div>
+        )}
         {/* Header */}
         <div className="bg-[#000080] text-white text-center py-4 px-2 border-b-[5px] border-[#ED1C24] shrink-0">
           <h3 className="text-lg font-black tracking-wider leading-none uppercase">Aagaj Foundation</h3>
@@ -177,10 +200,17 @@ const Card = () => {
       </div>
 
       {/* Note box */}
-      <div className="max-w-[350px] w-full bg-rose-50 border border-dashed border-[#ED1C24] text-[#ED1C24] rounded-xl p-3 text-xs font-black text-center flex items-center gap-2">
-        <ShieldAlert className="h-5 w-5 shrink-0" />
-        <span>NOTE: Your User ID and Password will be generated after 24 hours.</span>
-      </div>
+      {!isActive ? (
+        <div className="max-w-[350px] w-full bg-red-50 border border-solid border-red-600 text-red-600 rounded-xl p-3 text-xs font-black text-center flex items-center gap-2">
+          <ShieldAlert className="h-5 w-5 shrink-0" />
+          <span>WARNING: This ID card has been deactivated. The employee is no longer authorized.</span>
+        </div>
+      ) : (
+        <div className="max-w-[350px] w-full bg-rose-50 border border-dashed border-[#ED1C24] text-[#ED1C24] rounded-xl p-3 text-xs font-black text-center flex items-center gap-2">
+          <ShieldAlert className="h-5 w-5 shrink-0" />
+          <span>NOTE: Your User ID and Password will be generated after 24 hours.</span>
+        </div>
+      )}
 
       {/* Download action button */}
       <button
