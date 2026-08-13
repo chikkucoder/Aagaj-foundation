@@ -216,6 +216,7 @@ const MembershipCertificate = ({ member, onClose }) => {
                     <p><span className="text-slate-500 font-bold">Membership ID:</span> <strong className="text-slate-900 font-mono text-xs">{member.membershipId || 'AF-MBR-2026-00001'}</strong></p>
                     <p><span className="text-slate-500 font-bold">Mobile:</span> <strong className="text-slate-900">{member.mobileNumber || 'N/A'}</strong></p>
                     <p><span className="text-slate-500 font-bold">Joining Date:</span> <strong className="text-slate-900">{member.joiningDate || 'N/A'}</strong></p>
+                    <p><span className="text-slate-500 font-bold">Validity:</span> <strong className="text-slate-900">1 Year (1 वर्ष)</strong></p>
                     <p><span className="text-slate-500 font-bold">Aadhaar No:</span> <strong className="text-slate-900 font-mono">{member.aadhaarNumber ? `XXXX-XXXX-${member.aadhaarNumber.slice(-4)}` : 'N/A'}</strong></p>
                   </div>
                 </div>
