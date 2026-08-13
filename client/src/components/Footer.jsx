@@ -227,7 +227,7 @@ const Footer = () => {
       <div className="border-t border-slate-800 bg-slate-900/80">
         <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex flex-wrap justify-center gap-x-8 gap-y-2 text-xs text-slate-500">
-            <span>📋 NGO Darpan: <strong className="text-slate-400">BR/2020/026096</strong></span>
+            <span>📋 NGO Darpan: <strong className="text-slate-400">BR/2020/0260968</strong></span>
             <span>📝 Reg. No: <strong className="text-slate-400">759445</strong></span>
             <span>🏛️ Income Tax 12A & 80G Certified</span>
           </div>
