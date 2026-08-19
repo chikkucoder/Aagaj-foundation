@@ -1,5 +1,6 @@
 # Aagaj Foundation Web Portal
 
+A production-grade, full-stack digital web portal built for **Aagaj Foundation**, a registered non-profit trust dedicated to empowering women, providing healthcare accessibility, and creating self-employment opportunities across communities
 A production-grade, full-stack digital web portal built for **Aagaj Foundation**, a registered non-profit trust dedicated to community empowerment, women's training (Silayi Prasikshan), healthcare accessibility (Swasthya Suraksha Network), and self-employment (Swarojgaar groups).
 
 This repository comprises a modern React-based single-page application (frontend) and a Node.js/Express application (REST API server) powered by MongoDB.
