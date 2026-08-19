@@ -5,6 +5,7 @@ import { Camera, RefreshCw, Printer, ShieldAlert, Award, HeartHandshake, User, M
 import { Link } from 'react-router-dom';
 import apiClient from '../api/apiClient';
 import html2canvas from 'html2canvas-pro';
+import SEO from '../components/SEO';
 
 const HealthCard = () => {
   // Page States
