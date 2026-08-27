@@ -29,7 +29,7 @@ import {
 } from '../utils/cardDownloadUtils';
 
 const HealthCard = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Page States
   const [loading, setLoading] = useState(false);
@@ -377,8 +377,7 @@ const HealthCard = () => {
             if (verifyRes.card) {
               setSuccessCard(verifyRes.card);
               sessionStorage.setItem('lastGeneratedHealthCard', JSON.stringify(verifyRes.card));
-              // Update URL without full refresh
-              window.history.replaceState(null, '', `?status=success&orderId=${encodeURIComponent(orderRes.pendingOrderId)}&paymentId=${encodeURIComponent(response.razorpay_payment_id)}`);
+              setSearchParams({ status: 'success', orderId: orderRes.pendingOrderId, paymentId: response.razorpay_payment_id }, { replace: true });
             } else {
               // Fallback: Fetch via orderId with retry
               await fetchCardWithRetry(orderRes.pendingOrderId, response.razorpay_payment_id, 3);
@@ -455,12 +454,42 @@ const HealthCard = () => {
   };
 
   const handleCreateAnother = () => {
-    sessionStorage.removeItem('lastGeneratedHealthCard');
-    window.history.replaceState(null, '', window.location.pathname);
+    try {
+      sessionStorage.removeItem('lastGeneratedHealthCard');
+    } catch (e) {}
+    setSearchParams({}, { replace: true });
     setSuccessCard(null);
     setPhotoBlob(null);
     setPhotoPreview(null);
-    reset();
+    setMobileExists(false);
+    setAadharExists(false);
+    setErrorMsg('');
+    setSuccessMsg('');
+    setLoading(false);
+    setCardType('Single');
+    setFamilyMembers([
+      { relationship: 'Father', fullName: '', age: '', gender: 'Male', aadhar: '' },
+      { relationship: 'Mother', fullName: '', age: '', gender: 'Female', aadhar: '' },
+      { relationship: 'Child 1', fullName: '', age: '', gender: 'Male', aadhar: '' },
+      { relationship: 'Child 2', fullName: '', age: '', gender: 'Male', aadhar: '' }
+    ]);
+    const fileInput = document.getElementById('photoUpload');
+    if (fileInput) fileInput.value = '';
+    reset({
+      fullName: '',
+      mobile: '',
+      email: '',
+      aadhar: '',
+      age: '',
+      gender: 'Male',
+      bloodGroup: 'A+',
+      village: '',
+      panchayat: '',
+      block: '',
+      district: '',
+      state: 'Bihar',
+      pincode: ''
+    });
   };
 
   return (
