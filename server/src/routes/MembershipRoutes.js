@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
+const upload = require('../middleware/upload');
 const Membership = require('../models/MembershipSchema');
 
 const Razorpay = require('razorpay');
@@ -9,6 +11,29 @@ const razorpay = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID,
     key_secret: process.env.RAZORPAY_KEY_SECRET
 });
+
+// Middleware to verify session (allows either Admin JWT or employee token/session)
+const verifyAdminOrEmployee = (req, res, next) => {
+    const token = req.header('Authorization');
+    if (!token) return res.status(401).json({ success: false, message: "Access Denied. No Token Provided." });
+
+    const tokenVal = token.replace("Bearer ", "");
+    if (tokenVal === 'employee-session') {
+        req.user = { role: 'employee' };
+        return next();
+    }
+
+    try {
+        const verified = jwt.verify(tokenVal, process.env.JWT_SECRET);
+        req.user = verified;
+        if (verified.role !== 'admin' && verified.role !== 'employee') {
+            return res.status(403).json({ success: false, message: "Access Denied. Unauthorized Role." });
+        }
+        next();
+    } catch (err) {
+        res.status(400).json({ success: false, message: "Invalid Token" });
+    }
+};
 
 // Utility to generate unique Membership ID & Certificate No
 const generateMembershipIds = async () => {
@@ -369,6 +394,94 @@ router.get('/all', async (req, res) => {
             success: false,
             message: 'Server error fetching members.'
         });
+    }
+});
+
+// PUT /api/membership/admin/edit/:id - Edit membership record & photo
+router.put('/admin/edit/:id', verifyAdminOrEmployee, upload.single('photo'), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const member = await Membership.findById(id);
+        if (!member) {
+            return res.status(404).json({ success: false, message: "Membership record not found!" });
+        }
+
+        const {
+            fullName,
+            fatherOrHusbandName,
+            dobOrAge,
+            gender,
+            mobileNumber,
+            email,
+            address,
+            city,
+            district,
+            state,
+            pincode,
+            aadhaarNumber,
+            panNumber,
+            occupation,
+            organization,
+            membershipType,
+            joiningDate,
+            interestAreas,
+            paymentAmount,
+            paymentStatus,
+            certificateNo
+        } = req.body;
+
+        if (fullName) member.fullName = fullName.trim();
+        if (fatherOrHusbandName !== undefined) member.fatherOrHusbandName = fatherOrHusbandName.trim();
+        if (dobOrAge !== undefined) member.dobOrAge = dobOrAge.trim();
+        if (gender !== undefined) member.gender = gender.trim();
+
+        if (mobileNumber) member.mobileNumber = mobileNumber.trim();
+        if (email !== undefined) member.email = email.trim().toLowerCase();
+
+        if (address !== undefined) member.address = address.trim();
+        if (city !== undefined) member.city = city.trim();
+        if (district !== undefined) member.district = district.trim();
+        if (state !== undefined) member.state = state.trim();
+        if (pincode !== undefined) member.pincode = pincode.trim();
+
+        if (aadhaarNumber !== undefined) member.aadhaarNumber = aadhaarNumber.trim();
+        if (panNumber !== undefined) member.panNumber = panNumber.trim().toUpperCase();
+
+        if (occupation !== undefined) member.occupation = occupation.trim();
+        if (organization !== undefined) member.organization = organization.trim();
+        if (membershipType !== undefined) member.membershipType = membershipType;
+        if (joiningDate !== undefined) member.joiningDate = joiningDate;
+
+        if (interestAreas !== undefined) {
+            try {
+                member.interestAreas = Array.isArray(interestAreas) ? interestAreas : JSON.parse(interestAreas);
+            } catch (e) {
+                if (typeof interestAreas === 'string') {
+                    member.interestAreas = interestAreas.split(',').map(s => s.trim()).filter(Boolean);
+                }
+            }
+        }
+
+        if (paymentAmount !== undefined && !isNaN(paymentAmount)) {
+            member.paymentAmount = Number(paymentAmount);
+        }
+        if (paymentStatus !== undefined) member.paymentStatus = paymentStatus;
+        if (certificateNo !== undefined && certificateNo.trim()) member.certificateNo = certificateNo.trim();
+
+        if (req.file) {
+            member.photoUrl = req.file.path;
+        }
+
+        await member.save();
+
+        res.json({
+            success: true,
+            message: "Membership details updated successfully!",
+            data: member
+        });
+    } catch (error) {
+        console.error("Admin Edit Membership Error:", error);
+        res.status(500).json({ success: false, message: error.message || "Failed to update membership record." });
     }
 });
 

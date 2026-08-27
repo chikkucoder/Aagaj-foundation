@@ -439,6 +439,24 @@ const AdminDashboard = () => {
   } = useForm();
   const editCardTypeWatch = watchEditHealthCard('cardType', 'Single');
 
+  // Membership Full Details & Edit Modal States
+  const [selectedMemberDetails, setSelectedMemberDetails] = useState(null);
+  const [showMemberDetailsModal, setShowMemberDetailsModal] = useState(false);
+  const [selectedEditMemberPhoto, setSelectedEditMemberPhoto] = useState(null);
+  const [editMemberPhotoPreview, setEditMemberPhotoPreview] = useState(null);
+  const [editMemberError, setEditMemberError] = useState('');
+  const [editMemberSuccess, setEditMemberSuccess] = useState('');
+  const [editMemberSubmitting, setEditMemberSubmitting] = useState(false);
+
+  const { 
+    register: regEditMember, 
+    handleSubmit: handleEditMemberSubmit, 
+    formState: { errors: editMemberErrors }, 
+    reset: resetEditMemberForm, 
+    setValue: setEditMemberValue,
+    watch: watchEditMember
+  } = useForm();
+
 
   const { register: regCustomCard, handleSubmit: handleCustomCardSubmit, formState: { errors: customCardErrors }, reset: resetCustomCardForm, setValue: setCustomCardValue, watch: watchCustomCard } = useForm({
     defaultValues: {
@@ -682,6 +700,98 @@ const AdminDashboard = () => {
     } catch (err) {
       console.error("Error deleting member record:", err);
       alert(err.response?.data?.message || "सदस्यता रिकॉर्ड हटाने में त्रुटि हुई।");
+    }
+  };
+
+  // --- UNIFIED MEMBERSHIP DETAILS & EDIT HANDLERS ---
+  const handleOpenMemberDetails = (member) => {
+    setSelectedMemberDetails(member);
+    setSelectedEditMemberPhoto(null);
+    setEditMemberPhotoPreview(member.photoUrl ? resolveAssetUrl(member.photoUrl) : '/logo.jpg');
+    setEditMemberError('');
+    setEditMemberSuccess('');
+
+    resetEditMemberForm({
+      fullName: member.fullName || '',
+      fatherOrHusbandName: member.fatherOrHusbandName || '',
+      dobOrAge: member.dobOrAge || '',
+      gender: member.gender || 'Female',
+      mobileNumber: member.mobileNumber || '',
+      email: member.email || '',
+      aadhaarNumber: member.aadhaarNumber || '',
+      panNumber: member.panNumber || '',
+      address: member.address || '',
+      city: member.city || '',
+      district: member.district || '',
+      state: member.state || 'Bihar',
+      pincode: member.pincode || '',
+      occupation: member.occupation || '',
+      organization: member.organization || '',
+      membershipType: member.membershipType || 'General Member',
+      joiningDate: member.joiningDate || new Date().toISOString().split('T')[0],
+      interestAreas: Array.isArray(member.interestAreas) ? member.interestAreas.join(', ') : (member.interestAreas || ''),
+      paymentAmount: member.paymentAmount || 100,
+      paymentStatus: member.paymentStatus || 'Paid',
+      certificateNo: member.certificateNo || ''
+    });
+
+    setShowMemberDetailsModal(true);
+  };
+
+  const handleEditMemberPhotoChange = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      try {
+        const { file: compressedFile, dataUrl } = await compressImageFile(file, 800, 0.85);
+        setSelectedEditMemberPhoto(compressedFile);
+        setEditMemberPhotoPreview(dataUrl);
+      } catch (err) {
+        setSelectedEditMemberPhoto(file);
+        const reader = new FileReader();
+        reader.onload = (ev) => setEditMemberPhotoPreview(ev.target.result);
+        reader.readAsDataURL(file);
+      }
+    }
+  };
+
+  const onSubmitEditMember = async (data) => {
+    setEditMemberSubmitting(true);
+    setEditMemberError('');
+    setEditMemberSuccess('');
+
+    try {
+      const formData = new FormData();
+      Object.keys(data).forEach(key => {
+        if (data[key] !== undefined && data[key] !== null) {
+          formData.append(key, data[key]);
+        }
+      });
+
+      if (selectedEditMemberPhoto) {
+        formData.append('photo', selectedEditMemberPhoto);
+      }
+
+      const res = await apiClient.put(`/api/membership/admin/edit/${selectedMemberDetails._id}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      if (res.data?.success) {
+        setEditMemberSuccess("सदस्यता का विवरण सफलतापूर्वक अपडेट हो गया!");
+        const updated = res.data.data;
+        setSelectedMemberDetails(updated);
+        setMemberships(prev => prev.map(m => m._id === updated._id ? updated : m));
+        syncData();
+        setTimeout(() => {
+          setEditMemberSuccess('');
+        }, 3500);
+      } else {
+        setEditMemberError(res.data?.message || "विवरण अपडेट करने में विफलता हुई।");
+      }
+    } catch (err) {
+      console.error("Admin Edit Member Error:", err);
+      setEditMemberError(err.response?.data?.message || "सर्वर त्रुटि: विवरण अपडेट नहीं हो सका।");
+    } finally {
+      setEditMemberSubmitting(false);
     }
   };
 
@@ -3093,7 +3203,12 @@ const AdminDashboard = () => {
                             <tr key={m._id} className="hover:bg-slate-50/50 transition-all">
                               <td className="py-3 px-4">
                                 {m.photoUrl ? (
-                                  <img src={m.photoUrl} alt="Member" className="h-9 w-9 rounded-full object-cover border border-slate-200" />
+                                  <img 
+                                    src={resolveAssetUrl(m.photoUrl)} 
+                                    alt="Member" 
+                                    className="h-9 w-9 rounded-full object-cover border border-slate-200"
+                                    onError={handleImageError}
+                                  />
                                 ) : (
                                   <div className="h-9 w-9 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-[10px]">
                                     AF
@@ -3122,15 +3237,23 @@ const AdminDashboard = () => {
                                 </div>
                               </td>
                               <td className="py-3 px-4 text-right font-semibold">
-                                <div className="flex justify-end gap-1.5">
+                                <div className="flex items-center justify-end gap-1.5">
                                   <button
                                     onClick={() => {
                                       setSelectedMembershipCert(m);
                                       setShowMembershipCertModal(true);
                                     }}
                                     className="inline-flex items-center gap-1 rounded-xl bg-rose-800 text-white px-2.5 py-1.5 text-[10px] font-bold hover:bg-rose-900 transition-all cursor-pointer shadow-sm"
+                                    title="View Official Membership Certificate"
                                   >
-                                    <Award className="h-3.5 w-3.5" /> View Certificate
+                                    <Award className="h-3.5 w-3.5" /> Certificate
+                                  </button>
+                                  <button
+                                    onClick={() => handleOpenMemberDetails(m)}
+                                    className="inline-flex items-center gap-1 rounded-xl border border-rose-200 bg-rose-50 text-rose-900 hover:bg-rose-100 px-2.5 py-1.5 text-[10px] font-bold transition-all cursor-pointer shadow-xs"
+                                    title="View & Edit All Membership Details"
+                                  >
+                                    <FileText className="h-3.5 w-3.5 text-rose-600" /> View &amp; Edit Details
                                   </button>
                                   <button
                                     onClick={() => handleDeleteMember(m._id)}
@@ -7188,17 +7311,408 @@ const AdminDashboard = () => {
                 <Award className="h-4.5 w-4.5 text-rose-700" />
                 <span>Official Membership Certificate - {selectedMembershipCert.fullName} ({selectedMembershipCert.membershipId})</span>
               </div>
-              <button
-                onClick={() => setShowMembershipCertModal(false)}
-                className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-200 cursor-pointer"
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMembershipCertModal(false);
+                    handleOpenMemberDetails(selectedMembershipCert);
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-rose-800 hover:bg-rose-900 text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-xs"
+                  title="View and Edit Full Member Details"
+                >
+                  <FileText className="h-3.5 w-3.5" /> Details &amp; Edit
+                </button>
+                <button
+                  onClick={() => setShowMembershipCertModal(false)}
+                  className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-200 cursor-pointer"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
             <MembershipCertificate
               member={selectedMembershipCert}
               onClose={() => setShowMembershipCertModal(false)}
             />
+          </div>
+        </div>
+      )}
+
+      {/* ========================================== */}
+      {/*  MODAL 13.1: MEMBERSHIP UNIFIED DOSSIER & EDITOR */}
+      {/* ========================================== */}
+      {showMemberDetailsModal && selectedMemberDetails && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/75 p-2 sm:p-4 md:p-6 flex items-start sm:items-center justify-center font-sans animate-fade-in text-left">
+          <div className="relative w-full max-w-3xl max-h-[95vh] sm:max-h-[90vh] flex flex-col overflow-hidden rounded-2xl sm:rounded-3xl bg-white shadow-2xl border border-slate-100 my-auto">
+            {/* Modal Header */}
+            <div className="shrink-0 flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-rose-900 via-[#8B1E4B] to-rose-950 px-4 py-3 sm:px-6 sm:py-4 text-white">
+              <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                <div className="rounded-xl bg-white/10 p-1.5 sm:p-2 border border-white/20 shrink-0">
+                  <Award className="h-4 w-4 sm:h-5 sm:w-5 text-[#fdd831]" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-xs sm:text-sm font-black uppercase tracking-wider text-white truncate">
+                    Official Membership Dossier &amp; Management
+                  </h3>
+                  <p className="text-[10px] sm:text-[11px] text-rose-200 font-mono font-bold mt-0.5 truncate">
+                    Member ID: <span className="text-[#fdd831] font-black">{selectedMemberDetails.membershipId}</span> &bull; {selectedMemberDetails.fullName}
+                  </p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setShowMemberDetailsModal(false)} 
+                className="rounded-xl p-1.5 sm:p-2 text-rose-200 hover:bg-white/10 hover:text-white transition-all cursor-pointer shrink-0"
+                title="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Unified Form (View all details + Edit in place) */}
+            <form onSubmit={handleEditMemberSubmit(onSubmitEditMember)} className="flex flex-col flex-1 overflow-hidden min-h-0">
+              <div className="flex-1 overflow-y-auto p-3.5 sm:p-6 space-y-3.5 sm:space-y-5 text-xs bg-slate-50/50 overscroll-contain">
+                
+                {/* Alert Messages */}
+                {editMemberError && (
+                  <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-bold rounded-xl sm:rounded-2xl flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
+                    <span>{editMemberError}</span>
+                  </div>
+                )}
+                {editMemberSuccess && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold rounded-xl sm:rounded-2xl flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                    <span>{editMemberSuccess}</span>
+                  </div>
+                )}
+
+                {/* Section 0: Payment & Registration Tracking Metadata (Audit View) */}
+                <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2.5 sm:space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <h5 className="font-black text-rose-900 text-[10px] sm:text-[11px] uppercase tracking-wider flex items-center gap-1.5">
+                      <CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#ed1c24]" /> Payment &amp; Enrollment Tracking
+                    </h5>
+                    <span className="inline-flex rounded-full bg-emerald-100 text-emerald-800 text-[8px] sm:text-[9px] font-black px-2 py-0.5 uppercase border border-emerald-200">
+                      {selectedMemberDetails.paymentStatus || 'Paid'} Success
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
+                    <div className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-slate-50 border border-slate-100">
+                      <span className="text-[8px] sm:text-[9px] font-bold text-slate-400 uppercase block">Order ID</span>
+                      <span className="font-bold text-slate-800 font-mono text-[9px] sm:text-[10px] break-all block">{selectedMemberDetails.orderId || 'N/A'}</span>
+                    </div>
+                    <div className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-slate-50 border border-slate-100">
+                      <span className="text-[8px] sm:text-[9px] font-bold text-slate-400 uppercase block">Payment ID</span>
+                      <span className="font-bold text-slate-800 font-mono text-[9px] sm:text-[10px] break-all block">{selectedMemberDetails.paymentId || 'N/A'}</span>
+                    </div>
+                    <div className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-slate-50 border border-slate-100">
+                      <span className="text-[8px] sm:text-[9px] font-bold text-slate-400 uppercase block">Amount Paid</span>
+                      <span className="font-extrabold text-emerald-700 text-xs block">₹{selectedMemberDetails.paymentAmount || 100}.00</span>
+                    </div>
+                    <div className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-slate-50 border border-slate-100">
+                      <span className="text-[8px] sm:text-[9px] font-bold text-slate-400 uppercase block">Registration Date</span>
+                      <span className="font-bold text-slate-700 text-[9px] sm:text-[10px] block">
+                        {selectedMemberDetails.createdAt ? new Date(selectedMemberDetails.createdAt).toLocaleString('en-IN') : selectedMemberDetails.joiningDate || 'N/A'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 1: Passport Photo & Membership Configuration */}
+                <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center gap-4 sm:gap-5">
+                  <div className="relative group shrink-0 flex flex-col items-center">
+                    <img
+                      src={editMemberPhotoPreview || '/logo.jpg'}
+                      alt="Member Photo"
+                      className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl border-2 border-rose-800 object-cover shadow-sm bg-slate-50 p-0.5"
+                      onError={handleImageError}
+                    />
+                    <label 
+                      htmlFor="editMemberPhotoInput" 
+                      className="absolute inset-0 bg-slate-900/60 rounded-2xl flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all cursor-pointer text-[10px] font-bold gap-1"
+                    >
+                      <Camera className="h-5 w-5" /> Change
+                    </label>
+                  </div>
+
+                  <div className="flex-grow space-y-2.5 text-center sm:text-left w-full">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <h5 className="font-extrabold text-slate-800 text-xs">Member Passport Photo (सदस्य का फोटो)</h5>
+                        <p className="text-[10px] text-slate-500">
+                          Clear portrait for official NGO Certificate. Auto-compressed &amp; optimized.
+                        </p>
+                      </div>
+                      <div>
+                        <input
+                          type="file"
+                          id="editMemberPhotoInput"
+                          accept="image/*"
+                          onChange={handleEditMemberPhotoChange}
+                          className="hidden"
+                        />
+                        <label
+                          htmlFor="editMemberPhotoInput"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer shadow-xs transition-all"
+                        >
+                          <Camera className="h-3.5 w-3.5 text-rose-700" /> Choose New Image
+                        </label>
+                        {selectedEditMemberPhoto && (
+                          <span className="ml-2 text-[10px] font-bold text-emerald-600 block sm:inline mt-1 sm:mt-0">
+                            &bull; Selected ({Math.round(selectedEditMemberPhoto.size / 1024)} KB)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-2.5 pt-1 text-left">
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-slate-500 uppercase block">Membership Type</label>
+                        <select
+                          {...regEditMember('membershipType')}
+                          className="w-full border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold bg-white focus:border-rose-700 focus:outline-none text-rose-900"
+                        >
+                          <option value="General Member">General Member (₹100)</option>
+                          <option value="Volunteer">Volunteer (₹100)</option>
+                          <option value="Active Member">Active Member (₹500)</option>
+                          <option value="Life Member">Life Member (₹1000)</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-slate-500 uppercase block">Joining Date</label>
+                        <input
+                          type="date"
+                          {...regEditMember('joiningDate')}
+                          className="w-full border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold focus:border-rose-700 focus:outline-none"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-slate-500 uppercase block">Certificate No</label>
+                        <input
+                          type="text"
+                          {...regEditMember('certificateNo')}
+                          placeholder="e.g. AF/MBR/2026/0101"
+                          className="w-full border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold font-mono focus:border-rose-700 focus:outline-none uppercase"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 2: Personal Details */}
+                <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                  <h5 className="font-black text-rose-900 text-[10px] sm:text-[11px] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                    <UserCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#ed1c24]" /> 1. Personal &amp; Identity Details (व्यक्तिगत विवरण)
+                  </h5>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-3">
+                    <div className="space-y-1 sm:col-span-2 md:col-span-1">
+                      <label className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase">Member Full Name (पूरा नाम) *</label>
+                      <input
+                        type="text"
+                        {...regEditMember('fullName', { required: 'Full Name is required' })}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:border-rose-700 focus:outline-none uppercase"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase">Father / Husband's Name (पिता/पति का नाम)</label>
+                      <input
+                        type="text"
+                        {...regEditMember('fatherOrHusbandName')}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:border-rose-700 focus:outline-none uppercase"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase">DOB / Age (जन्म तिथि / आयु)</label>
+                      <input
+                        type="text"
+                        {...regEditMember('dobOrAge')}
+                        placeholder="e.g. 15/08/1995 or 28 Years"
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:border-rose-700 focus:outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase">Gender (लिंग) *</label>
+                      <select
+                        {...regEditMember('gender')}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold bg-white focus:border-rose-700 focus:outline-none"
+                      >
+                        <option value="Female">Female (महिला)</option>
+                        <option value="Male">Male (पुरुष)</option>
+                        <option value="Other">Other (अन्य)</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase">Mobile Number (10 Digits) *</label>
+                      <input
+                        type="text"
+                        maxLength={10}
+                        {...regEditMember('mobileNumber', { required: 'Mobile is required', pattern: /^\d{10}$/ })}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold focus:border-rose-700 focus:outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase">Email Address</label>
+                      <input
+                        type="email"
+                        {...regEditMember('email')}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:border-rose-700 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 3: Identity Cards (Aadhaar & PAN) */}
+                <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                  <h5 className="font-black text-rose-900 text-[10px] sm:text-[11px] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                    <ShieldCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#ed1c24]" /> 2. Identification Documents (पहचान पत्र)
+                  </h5>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase">Aadhaar Card (12 Digits)</label>
+                      <input
+                        type="text"
+                        maxLength={12}
+                        {...regEditMember('aadhaarNumber')}
+                        placeholder="12 digit Aadhaar number"
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold focus:border-rose-700 focus:outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase">PAN Card Number (10 Characters)</label>
+                      <input
+                        type="text"
+                        maxLength={10}
+                        {...regEditMember('panNumber')}
+                        placeholder="e.g. ABCDE1234F"
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold focus:border-rose-700 focus:outline-none uppercase"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 4: Residential Address */}
+                <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                  <h5 className="font-black text-rose-900 text-[10px] sm:text-[11px] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                    <Home className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#ed1c24]" /> 3. Residential Address (पूरा पता)
+                  </h5>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-3">
+                    <div className="space-y-1 sm:col-span-2 md:col-span-3">
+                      <label className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase">Street / Village Address (ग्राम / मोहल्ला)</label>
+                      <input
+                        type="text"
+                        {...regEditMember('address')}
+                        placeholder="Full street / village address"
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:border-rose-700 focus:outline-none uppercase"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase">City / Town (शहर / कस्बा)</label>
+                      <input
+                        type="text"
+                        {...regEditMember('city')}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:border-rose-700 focus:outline-none uppercase"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase">District (जिला)</label>
+                      <input
+                        type="text"
+                        {...regEditMember('district')}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:border-rose-700 focus:outline-none uppercase"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase">State (राज्य)</label>
+                      <input
+                        type="text"
+                        {...regEditMember('state')}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:border-rose-700 focus:outline-none uppercase"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase">Pin Code (पिन कोड)</label>
+                      <input
+                        type="text"
+                        maxLength={6}
+                        {...regEditMember('pincode')}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold focus:border-rose-700 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 5: Professional & Background Info */}
+                <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                  <h5 className="font-black text-rose-900 text-[10px] sm:text-[11px] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                    <Activity className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#ed1c24]" /> 4. Professional Background &amp; Interests
+                  </h5>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase">Occupation (व्यवसाय)</label>
+                      <input
+                        type="text"
+                        {...regEditMember('occupation')}
+                        placeholder="e.g. Social Worker, Teacher, Student"
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:border-rose-700 focus:outline-none uppercase"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase">Organization / Institution</label>
+                      <input
+                        type="text"
+                        {...regEditMember('organization')}
+                        placeholder="e.g. Aagaj Foundation / Self"
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:border-rose-700 focus:outline-none uppercase"
+                      />
+                    </div>
+                    <div className="space-y-1 sm:col-span-2">
+                      <label className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase">Interest Areas (रुचि के क्षेत्र)</label>
+                      <input
+                        type="text"
+                        {...regEditMember('interestAreas')}
+                        placeholder="e.g. Women Empowerment, Health Care, Child Education"
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:border-rose-700 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Form Footer (Responsive & Sticky) */}
+              <div className="shrink-0 flex flex-col sm:flex-row gap-2 p-3 sm:p-4 border-t border-slate-200 bg-white shadow-lg">
+                <div className="grid grid-cols-2 gap-2 w-full sm:w-auto sm:flex-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowMemberDetailsModal(false)}
+                    className="w-full rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 py-2.5 px-3 text-xs font-bold text-slate-700 cursor-pointer text-center transition-all"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowMemberDetailsModal(false);
+                      setSelectedMembershipCert(selectedMemberDetails);
+                      setShowMembershipCertModal(true);
+                    }}
+                    className="w-full flex items-center justify-center gap-1 rounded-xl bg-rose-800 hover:bg-rose-900 text-white py-2.5 px-3 text-xs font-bold shadow-xs cursor-pointer text-center transition-all"
+                  >
+                    <Award className="h-4 w-4 shrink-0" /> <span className="truncate">View Certificate</span>
+                  </button>
+                </div>
+                <button
+                  type="submit"
+                  disabled={editMemberSubmitting}
+                  className="w-full sm:flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 px-4 text-xs font-bold shadow-md cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5 text-center transition-all"
+                >
+                  <CheckCircle2 className="h-4 w-4 shrink-0" />
+                  <span>{editMemberSubmitting ? 'Saving Changes...' : 'Save & Update Details'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
