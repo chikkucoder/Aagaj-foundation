@@ -685,13 +685,9 @@ const AdminDashboard = () => {
     }
   };
 
-  // --- HEALTH CARD DETAILS & EDIT HANDLERS ---
+  // --- UNIFIED HEALTH CARD DETAILS & EDIT HANDLERS ---
   const handleOpenHealthCardDetails = (card) => {
     setSelectedHealthCardDetails(card);
-    setShowHealthCardDetailsModal(true);
-  };
-
-  const handleOpenEditHealthCard = (card) => {
     setSelectedEditHealthCard(card);
     setSelectedEditHealthCardPhoto(null);
     setEditHealthCardPhotoPreview(card.photoPath ? resolveAssetUrl(card.photoPath) : '/logo.jpg');
@@ -728,7 +724,7 @@ const AdminDashboard = () => {
       expiryDate: card.expiryDate ? new Date(card.expiryDate).toISOString().split('T')[0] : ''
     });
 
-    setShowEditHealthCardModal(true);
+    setShowHealthCardDetailsModal(true);
   };
 
   const handleEditPhotoChange = async (e) => {
@@ -803,13 +799,14 @@ const AdminDashboard = () => {
 
       if (res.data && res.data.success) {
         setEditHealthCardSuccess('Health Card details and photo updated successfully!');
+        setSelectedHealthCardDetails(res.data.data);
+        setSelectedEditHealthCard(res.data.data);
         setHealthCards(prev => prev.map(c => c._id === selectedEditHealthCard._id ? res.data.data : c));
         
         setTimeout(() => {
-          setShowEditHealthCardModal(false);
           setEditHealthCardSuccess('');
           syncData();
-        }, 1200);
+        }, 1500);
       } else {
         setEditHealthCardError(res.data?.message || 'Failed to update health card.');
       }
@@ -2677,27 +2674,20 @@ const AdminDashboard = () => {
                                 <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-black text-emerald-800 uppercase">Paid Success</span>
                               </td>
                               <td className="py-3 px-4 text-right">
-                                <div className="flex items-center justify-end gap-1.5">
+                                <div className="flex items-center justify-end gap-2">
                                   <button
                                     onClick={() => { setSelectedHealthCard(card); setShowHealthCardModal(true); }}
-                                    className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:text-[#ED1C24] hover:bg-red-50 transition-all cursor-pointer flex items-center justify-center gap-1 text-[11px] font-bold shadow-xs"
-                                    title="View Printable Health Card"
+                                    className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-slate-600 hover:text-[#ED1C24] hover:bg-red-50 transition-all cursor-pointer flex items-center justify-center gap-1.5 text-[11px] font-bold shadow-xs"
+                                    title="View Printable Health Card (Front & Back)"
                                   >
                                     <Eye className="h-3.5 w-3.5" /> View Card
                                   </button>
                                   <button
                                     onClick={() => handleOpenHealthCardDetails(card)}
-                                    className="rounded-lg border border-indigo-200 bg-indigo-50/70 p-1.5 text-indigo-700 hover:text-indigo-900 hover:bg-indigo-100 transition-all cursor-pointer flex items-center justify-center gap-1 text-[11px] font-bold shadow-xs"
-                                    title="View All Enrollment Details"
+                                    className="rounded-lg border border-indigo-200 bg-indigo-50/80 px-2.5 py-1.5 text-indigo-700 hover:text-indigo-950 hover:bg-indigo-100 transition-all cursor-pointer flex items-center justify-center gap-1.5 text-[11px] font-bold shadow-xs"
+                                    title="View All Details & Edit Health Card"
                                   >
-                                    <FileText className="h-3.5 w-3.5 text-indigo-600" /> Details
-                                  </button>
-                                  <button
-                                    onClick={() => handleOpenEditHealthCard(card)}
-                                    className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 transition-all cursor-pointer flex items-center justify-center gap-1 text-[11px] font-bold shadow-xs"
-                                    title="Edit Health Card Data & Photo"
-                                  >
-                                    <Edit className="h-3.5 w-3.5" /> Edit
+                                    <FileText className="h-3.5 w-3.5 text-indigo-600" /> View &amp; Edit Details
                                   </button>
                                 </div>
                               </td>
@@ -5838,11 +5828,11 @@ const AdminDashboard = () => {
       )}
 
       {/* ========================================== */}
-      {/*  MODAL 9.1: HEALTH CARD COMPLETE DETAILS   */}
+      {/*  MODAL 9.1: HEALTH CARD UNIFIED DOSSIER & EDITOR */}
       {/* ========================================== */}
       {showHealthCardDetailsModal && selectedHealthCardDetails && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 overflow-y-auto font-sans animate-fade-in">
-          <div className="w-full max-w-2xl overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 text-left my-8">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 overflow-y-auto font-sans animate-fade-in text-left">
+          <div className="w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 my-8">
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-[#2e3192] to-[#1a1c54] p-5 text-white">
               <div className="flex items-center gap-3">
@@ -5851,10 +5841,10 @@ const AdminDashboard = () => {
                 </div>
                 <div>
                   <h3 className="text-sm font-black uppercase tracking-wider text-white">
-                    Health Card Complete Enrollment Dossier
+                    Health Card Details &amp; Management Dossier
                   </h3>
                   <p className="text-[11px] text-slate-300 font-mono font-bold mt-0.5">
-                    Health ID: <span className="text-yellow-400 font-black">{selectedHealthCardDetails.healthId}</span> &bull; {selectedHealthCardDetails.cardType || 'Single'} Card
+                    Health ID: <span className="text-yellow-400 font-black">{selectedHealthCardDetails.healthId}</span> &bull; Cardholder: {selectedHealthCardDetails.fullName}
                   </p>
                 </div>
               </div>
@@ -5866,261 +5856,9 @@ const AdminDashboard = () => {
               </button>
             </div>
 
-            {/* Modal Body */}
-            <div className="p-6 max-h-[75vh] overflow-y-auto space-y-6 text-xs bg-slate-50/50">
-              
-              {/* Profile Card Header */}
-              <div className="flex flex-col sm:flex-row items-center gap-5 p-4 rounded-2xl bg-white border border-slate-200 shadow-xs">
-                <div className="relative">
-                  <img
-                    src={selectedHealthCardDetails.photoPath ? resolveAssetUrl(selectedHealthCardDetails.photoPath) : '/logo.jpg'}
-                    alt={selectedHealthCardDetails.fullName}
-                    className="h-20 w-20 rounded-2xl border-2 border-[#2e3192] object-cover shadow-sm p-0.5 bg-white"
-                    onError={handleImageError}
-                  />
-                  <span className="absolute -bottom-2 -right-1 bg-[#ed1c24] text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-xs uppercase">
-                    {selectedHealthCardDetails.bloodGroup || 'A+'}
-                  </span>
-                </div>
-
-                <div className="flex-grow text-center sm:text-left space-y-1">
-                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                    <h4 className="text-base font-extrabold text-slate-900 uppercase">{selectedHealthCardDetails.fullName}</h4>
-                    <span className="inline-flex rounded-full bg-emerald-100 text-emerald-800 text-[9px] font-black px-2 py-0.5 uppercase border border-emerald-200">
-                      Paid Success
-                    </span>
-                    <span className={`inline-flex rounded-full text-[9px] font-black px-2 py-0.5 uppercase border ${
-                      selectedHealthCardDetails.cardType === 'Family' 
-                        ? 'bg-indigo-50 text-indigo-700 border-indigo-200' 
-                        : 'bg-slate-100 text-slate-700 border-slate-200'
-                    }`}>
-                      {selectedHealthCardDetails.cardType || 'Single'} Health Card
-                    </span>
-                  </div>
-                  <p className="text-slate-500 text-[11px] font-medium">
-                    Age &amp; Gender: <strong className="text-slate-700">{selectedHealthCardDetails.age} Years / {selectedHealthCardDetails.gender}</strong>
-                  </p>
-                  <p className="text-slate-500 text-[11px] font-medium">
-                    Registered By: <strong className="text-indigo-700 font-bold">{selectedHealthCardDetails.registeredBy || 'Self (Online Portal)'}</strong>
-                  </p>
-                </div>
-              </div>
-
-              {/* Section 1: Contact & Identity Info */}
-              <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
-                <h5 className="font-black text-[#2e3192] text-[11px] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
-                  <UserCheck className="h-4 w-4 text-[#ed1c24]" /> Personal &amp; Identity Details
-                </h5>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Mobile Number</span>
-                    <span className="font-extrabold text-slate-800 text-xs font-mono">+91 {selectedHealthCardDetails.mobile}</span>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Aadhar Card Number</span>
-                    <span className="font-extrabold text-slate-800 text-xs font-mono">
-                      {selectedHealthCardDetails.aadhar ? selectedHealthCardDetails.aadhar.replace(/(\d{4})/g, '$1 ').trim() : 'N/A'}
-                    </span>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Email Address</span>
-                    <span className="font-bold text-slate-700 text-xs truncate block">{selectedHealthCardDetails.email || 'N/A'}</span>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Blood Group</span>
-                    <span className="font-extrabold text-rose-600 text-xs">{selectedHealthCardDetails.bloodGroup || 'N/A'}</span>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Age / Gender</span>
-                    <span className="font-bold text-slate-800 text-xs">{selectedHealthCardDetails.age} Yrs / {selectedHealthCardDetails.gender}</span>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Card Expiry Date</span>
-                    <span className="font-extrabold text-red-600 text-xs">
-                      {new Date(selectedHealthCardDetails.expiryDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Section 2: Residential Address */}
-              <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
-                <h5 className="font-black text-[#2e3192] text-[11px] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
-                  <Home className="h-4 w-4 text-[#ed1c24]" /> Complete Residential Address
-                </h5>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Village / Ward</span>
-                    <span className="font-bold text-slate-800 uppercase">{selectedHealthCardDetails.address?.village || selectedHealthCardDetails.village || 'N/A'}</span>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Panchayat</span>
-                    <span className="font-bold text-slate-800 uppercase">{selectedHealthCardDetails.address?.panchayat || selectedHealthCardDetails.panchayat || 'N/A'}</span>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Block</span>
-                    <span className="font-bold text-slate-800 uppercase">{selectedHealthCardDetails.address?.block || selectedHealthCardDetails.block || 'N/A'}</span>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase block">District</span>
-                    <span className="font-bold text-slate-800 uppercase">{selectedHealthCardDetails.address?.district || selectedHealthCardDetails.district || 'N/A'}</span>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase block">State</span>
-                    <span className="font-bold text-slate-800 uppercase">{selectedHealthCardDetails.address?.state || selectedHealthCardDetails.state || 'N/A'}</span>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Pin Code</span>
-                    <span className="font-bold text-slate-800 font-mono">{selectedHealthCardDetails.address?.pincode || selectedHealthCardDetails.pincode || 'N/A'}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Section 3: Family Members (If Family Card) */}
-              {selectedHealthCardDetails.cardType === 'Family' && (
-                <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                    <h5 className="font-black text-[#2e3192] text-[11px] uppercase tracking-wider flex items-center gap-1.5">
-                      <Users className="h-4 w-4 text-[#ed1c24]" /> Registered Family Members
-                    </h5>
-                    <span className="text-[10px] font-bold text-slate-400">
-                      {selectedHealthCardDetails.familyMembers?.length || 0} Members Registered
-                    </span>
-                  </div>
-
-                  <div className="border border-slate-200 rounded-xl overflow-hidden">
-                    <table className="w-full text-left border-collapse text-[11px]">
-                      <thead>
-                        <tr className="bg-indigo-50/70 text-[#2e3192] font-black uppercase text-[9px] border-b border-slate-200">
-                          <th className="py-2 px-3">#</th>
-                          <th className="py-2 px-3">Relationship</th>
-                          <th className="py-2 px-3">Full Name</th>
-                          <th className="py-2 px-3 text-center">Age / Sex</th>
-                          <th className="py-2 px-3">Aadhar Number</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {selectedHealthCardDetails.familyMembers && selectedHealthCardDetails.familyMembers.length > 0 ? (
-                          selectedHealthCardDetails.familyMembers.map((member, idx) => (
-                            <tr key={idx} className="hover:bg-slate-50/50">
-                              <td className="py-2 px-3 font-bold text-slate-400">{idx + 1}</td>
-                              <td className="py-2 px-3 font-black text-indigo-700 uppercase">{member.relationship}</td>
-                              <td className="py-2 px-3 font-extrabold text-slate-900 uppercase">{member.fullName || '-'}</td>
-                              <td className="py-2 px-3 font-bold text-slate-700 text-center">{member.age || '-'} / {member.gender?.[0] || '-'}</td>
-                              <td className="py-2 px-3 font-mono font-semibold text-slate-600">
-                                {member.aadhar ? member.aadhar.replace(/(\d{4})/g, '$1 ').trim() : '-'}
-                              </td>
-                            </tr>
-                          ))
-                        ) : (
-                          <tr>
-                            <td colSpan="5" className="py-4 text-center text-slate-400 font-semibold">
-                              No family members data recorded.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              {/* Section 4: Payment & Transaction Info */}
-              <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
-                <h5 className="font-black text-[#2e3192] text-[11px] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
-                  <CreditCard className="h-4 w-4 text-[#ed1c24]" /> Payment &amp; System Tracking Info
-                </h5>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Order ID</span>
-                    <span className="font-bold text-slate-800 font-mono text-[10px] break-all">{selectedHealthCardDetails.orderId || 'N/A'}</span>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Payment ID</span>
-                    <span className="font-bold text-slate-800 font-mono text-[10px] break-all">{selectedHealthCardDetails.paymentId || 'N/A'}</span>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Amount Paid</span>
-                    <span className="font-extrabold text-emerald-700 text-xs">₹{selectedHealthCardDetails.amount || (selectedHealthCardDetails.cardType === 'Family' ? 499 : 201)}.00</span>
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Enrollment Date</span>
-                    <span className="font-bold text-slate-700 text-[10px]">
-                      {selectedHealthCardDetails.createdAt ? new Date(selectedHealthCardDetails.createdAt).toLocaleString('en-IN') : 'N/A'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-
-            {/* Modal Footer */}
-            <div className="flex flex-wrap gap-2 p-4 border-t border-slate-100 bg-slate-50">
-              <button
-                type="button"
-                onClick={() => setShowHealthCardDetailsModal(false)}
-                className="flex-1 rounded-xl bg-white border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
-              >
-                Close Dossier
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowHealthCardDetailsModal(false);
-                  handleOpenEditHealthCard(selectedHealthCardDetails);
-                }}
-                className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 text-xs font-bold shadow-sm cursor-pointer"
-              >
-                <Edit className="h-4 w-4" /> Edit All Details
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowHealthCardDetailsModal(false);
-                  setSelectedHealthCard(selectedHealthCardDetails);
-                  setShowHealthCardModal(true);
-                }}
-                className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-[#2e3192] hover:bg-[#1a1c54] text-white px-4 py-2.5 text-xs font-bold shadow-sm cursor-pointer"
-              >
-                <Eye className="h-4 w-4" /> View Printable Card
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================== */}
-      {/*  MODAL 9.2: EDIT HEALTH CARD FULL DETAILS  */}
-      {/* ========================================== */}
-      {showEditHealthCardModal && selectedEditHealthCard && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 overflow-y-auto font-sans animate-fade-in text-left">
-          <div className="w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 my-8">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-900 p-5 text-white">
-              <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-emerald-500/20 p-2 border border-emerald-500/30">
-                  <Edit className="h-5 w-5 text-emerald-400" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black uppercase tracking-wider text-white">
-                    Edit Health Card Details &amp; Photo
-                  </h3>
-                  <p className="text-[11px] text-slate-300 font-mono font-bold mt-0.5">
-                    Health ID: <span className="text-emerald-400 font-black">{selectedEditHealthCard.healthId}</span> &bull; Cardholder: {selectedEditHealthCard.fullName}
-                  </p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setShowEditHealthCardModal(false)} 
-                className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white transition-all cursor-pointer"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {/* Form */}
+            {/* Unified Form (View all details + Edit in place) */}
             <form onSubmit={handleEditHealthCardSubmit(onSubmitEditHealthCard)}>
-              <div className="p-6 max-h-[75vh] overflow-y-auto space-y-6 text-xs bg-slate-50/50">
+              <div className="p-6 max-h-[75vh] overflow-y-auto space-y-5 text-xs bg-slate-50/50">
                 
                 {/* Alert Messages */}
                 {editHealthCardError && (
@@ -6136,52 +5874,117 @@ const AdminDashboard = () => {
                   </div>
                 )}
 
-                {/* Patient Photo Editor */}
+                {/* Section 0: Payment & Registration Tracking Metadata (Audit View) */}
+                <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <h5 className="font-black text-[#2e3192] text-[11px] uppercase tracking-wider flex items-center gap-1.5">
+                      <CreditCard className="h-4 w-4 text-[#ed1c24]" /> Payment &amp; Enrollment Tracking Metadata
+                    </h5>
+                    <span className="inline-flex rounded-full bg-emerald-100 text-emerald-800 text-[9px] font-black px-2.5 py-0.5 uppercase border border-emerald-200">
+                      Paid Success
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase block">Order ID</span>
+                      <span className="font-bold text-slate-800 font-mono text-[10px] break-all">{selectedHealthCardDetails.orderId || 'N/A'}</span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase block">Payment ID</span>
+                      <span className="font-bold text-slate-800 font-mono text-[10px] break-all">{selectedHealthCardDetails.paymentId || 'N/A'}</span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase block">Amount Paid</span>
+                      <span className="font-extrabold text-emerald-700 text-xs">₹{selectedHealthCardDetails.amount || (selectedHealthCardDetails.cardType === 'Family' ? 499 : 201)}.00</span>
+                    </div>
+                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                      <span className="text-[9px] font-bold text-slate-400 uppercase block">Enrollment Date</span>
+                      <span className="font-bold text-slate-700 text-[10px]">
+                        {selectedHealthCardDetails.createdAt ? new Date(selectedHealthCardDetails.createdAt).toLocaleString('en-IN') : 'N/A'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 1: Patient Photo & Card Settings */}
                 <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center gap-5">
                   <div className="relative group shrink-0">
                     <img
                       src={editHealthCardPhotoPreview || '/logo.jpg'}
-                      alt="Preview"
+                      alt="Cardholder Photo"
                       className="h-24 w-24 rounded-2xl border-2 border-[#2e3192] object-cover shadow-sm bg-slate-50 p-0.5"
                       onError={handleImageError}
                     />
                     <label 
-                      htmlFor="editHealthPhotoInput" 
+                      htmlFor="editUnifiedPhotoInput" 
                       className="absolute inset-0 bg-slate-900/60 rounded-2xl flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all cursor-pointer text-[10px] font-bold gap-1"
                     >
                       <Camera className="h-5 w-5" /> Change
                     </label>
                   </div>
 
-                  <div className="flex-grow space-y-1.5 text-center sm:text-left">
-                    <h5 className="font-extrabold text-slate-800 text-xs">Patient Passport Photo (मरीज की फोटो)</h5>
-                    <p className="text-[11px] text-slate-500">
-                      Upload a clear front-facing portrait. The photo will be automatically resized and optimized for HD card rendering.
-                    </p>
-                    <div>
-                      <input
-                        type="file"
-                        id="editHealthPhotoInput"
-                        accept="image/*"
-                        onChange={handleEditPhotoChange}
-                        className="hidden"
-                      />
-                      <label
-                        htmlFor="editHealthPhotoInput"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer shadow-xs transition-all"
-                      >
-                        <Camera className="h-3.5 w-3.5 text-[#2e3192]" /> Choose New Image
-                      </label>
-                      {selectedEditHealthCardPhoto && (
-                        <span className="ml-2 text-[10px] font-bold text-emerald-600">
-                          &bull; New photo selected ({Math.round(selectedEditHealthCardPhoto.size / 1024)} KB)
-                        </span>
-                      )}
+                  <div className="flex-grow space-y-2 text-center sm:text-left w-full">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <h5 className="font-extrabold text-slate-800 text-xs">Patient Passport Photo (मरीज की फोटो)</h5>
+                        <p className="text-[10px] text-slate-500">
+                          Click to upload new front-facing portrait. Automatically resized &amp; optimized.
+                        </p>
+                      </div>
+                      <div>
+                        <input
+                          type="file"
+                          id="editUnifiedPhotoInput"
+                          accept="image/*"
+                          onChange={handleEditPhotoChange}
+                          className="hidden"
+                        />
+                        <label
+                          htmlFor="editUnifiedPhotoInput"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer shadow-xs transition-all"
+                        >
+                          <Camera className="h-3.5 w-3.5 text-[#2e3192]" /> Choose New Image
+                        </label>
+                        {selectedEditHealthCardPhoto && (
+                          <span className="ml-2 text-[10px] font-bold text-emerald-600">
+                            &bull; New photo selected ({Math.round(selectedEditHealthCardPhoto.size / 1024)} KB)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-slate-500 uppercase block">Card Type</label>
+                        <select
+                          {...regEditHealthCard('cardType')}
+                          className="w-full border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold bg-white focus:border-[#2e3192] focus:outline-none text-indigo-700"
+                        >
+                          <option value="Single">Single Health Card (₹201)</option>
+                          <option value="Family">Family Health Card (₹499)</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-slate-500 uppercase block">Expiry Date</label>
+                        <input
+                          type="date"
+                          {...regEditHealthCard('expiryDate')}
+                          className="w-full border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold focus:border-[#2e3192] focus:outline-none"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-slate-500 uppercase block">Registered By</label>
+                        <input
+                          type="text"
+                          {...regEditHealthCard('registeredBy')}
+                          className="w-full border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold focus:border-[#2e3192] focus:outline-none"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Section 1: Personal Details */}
+                {/* Section 2: Personal Details */}
                 <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
                   <h5 className="font-black text-[#2e3192] text-[11px] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
                     <UserCheck className="h-4 w-4 text-[#ed1c24]" /> 1. Personal &amp; Identification Details
@@ -6258,36 +6061,10 @@ const AdminDashboard = () => {
                         <option value="AB-">AB-</option>
                       </select>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-600 uppercase">Card Type</label>
-                      <select
-                        {...regEditHealthCard('cardType')}
-                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold bg-white focus:border-[#2e3192] focus:outline-none text-indigo-700"
-                      >
-                        <option value="Single">Single Health Card (₹201)</option>
-                        <option value="Family">Family Health Card (₹499)</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-600 uppercase">Expiry Date</label>
-                      <input
-                        type="date"
-                        {...regEditHealthCard('expiryDate')}
-                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:border-[#2e3192] focus:outline-none"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-600 uppercase">Registered By</label>
-                      <input
-                        type="text"
-                        {...regEditHealthCard('registeredBy')}
-                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:border-[#2e3192] focus:outline-none"
-                      />
-                    </div>
                   </div>
                 </div>
 
-                {/* Section 2: Residential Address */}
+                {/* Section 3: Residential Address */}
                 <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
                   <h5 className="font-black text-[#2e3192] text-[11px] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
                     <Home className="h-4 w-4 text-[#ed1c24]" /> 2. Residential Address Details
@@ -6345,7 +6122,7 @@ const AdminDashboard = () => {
                   </div>
                 </div>
 
-                {/* Section 3: Family Members Dynamic Editor (If Family Card) */}
+                {/* Section 4: Family Members Dynamic Editor (If Family Card) */}
                 {editCardTypeWatch === 'Family' && (
                   <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
                     <div className="flex items-center justify-between border-b border-slate-100 pb-2">
@@ -6424,18 +6201,29 @@ const AdminDashboard = () => {
               </div>
 
               {/* Form Footer */}
-              <div className="flex gap-2 p-4 border-t border-slate-100 bg-slate-50">
+              <div className="flex flex-wrap gap-2 p-4 border-t border-slate-100 bg-slate-50">
                 <button
                   type="button"
-                  onClick={() => setShowEditHealthCardModal(false)}
-                  className="flex-1 rounded-xl bg-white border border-slate-200 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                  onClick={() => setShowHealthCardDetailsModal(false)}
+                  className="flex-1 rounded-xl bg-white border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
                 >
-                  Cancel
+                  Close Dossier
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowHealthCardDetailsModal(false);
+                    setSelectedHealthCard(selectedHealthCardDetails);
+                    setShowHealthCardModal(true);
+                  }}
+                  className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-[#2e3192] hover:bg-[#1a1c54] text-white px-4 py-2.5 text-xs font-bold shadow-sm cursor-pointer"
+                >
+                  <Eye className="h-4 w-4" /> View Printable Card
                 </button>
                 <button
                   type="submit"
                   disabled={editHealthCardSubmitting}
-                  className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 text-xs font-bold shadow-md cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 text-xs font-bold shadow-md cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
                 >
                   <CheckCircle2 className="h-4 w-4" />
                   {editHealthCardSubmitting ? 'Saving Changes...' : 'Save & Update Details'}
