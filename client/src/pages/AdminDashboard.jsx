@@ -5831,75 +5831,77 @@ const AdminDashboard = () => {
       {/*  MODAL 9.1: HEALTH CARD UNIFIED DOSSIER & EDITOR */}
       {/* ========================================== */}
       {showHealthCardDetailsModal && selectedHealthCardDetails && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 overflow-y-auto font-sans animate-fade-in text-left">
-          <div className="w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 my-8">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/75 p-2 sm:p-4 md:p-6 flex items-start sm:items-center justify-center font-sans animate-fade-in text-left">
+          <div className="relative w-full max-w-3xl max-h-[95vh] sm:max-h-[90vh] flex flex-col overflow-hidden rounded-2xl sm:rounded-3xl bg-white shadow-2xl border border-slate-100 my-auto">
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-[#2e3192] to-[#1a1c54] p-5 text-white">
-              <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-white/10 p-2 border border-white/20">
-                  <FileText className="h-5 w-5 text-red-400" />
+            <div className="shrink-0 flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-[#2e3192] to-[#1a1c54] px-4 py-3 sm:px-6 sm:py-4 text-white">
+              <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                <div className="rounded-xl bg-white/10 p-1.5 sm:p-2 border border-white/20 shrink-0">
+                  <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-red-400" />
                 </div>
-                <div>
-                  <h3 className="text-sm font-black uppercase tracking-wider text-white">
-                    Health Card Details &amp; Management Dossier
+                <div className="min-w-0">
+                  <h3 className="text-xs sm:text-sm font-black uppercase tracking-wider text-white truncate">
+                    Health Card Details &amp; Management
                   </h3>
-                  <p className="text-[11px] text-slate-300 font-mono font-bold mt-0.5">
-                    Health ID: <span className="text-yellow-400 font-black">{selectedHealthCardDetails.healthId}</span> &bull; Cardholder: {selectedHealthCardDetails.fullName}
+                  <p className="text-[10px] sm:text-[11px] text-slate-300 font-mono font-bold mt-0.5 truncate">
+                    Health ID: <span className="text-yellow-400 font-black">{selectedHealthCardDetails.healthId}</span> &bull; {selectedHealthCardDetails.fullName}
                   </p>
                 </div>
               </div>
               <button 
+                type="button"
                 onClick={() => setShowHealthCardDetailsModal(false)} 
-                className="rounded-xl p-1.5 text-slate-300 hover:bg-white/10 hover:text-white transition-all cursor-pointer"
+                className="rounded-xl p-1.5 sm:p-2 text-slate-300 hover:bg-white/10 hover:text-white transition-all cursor-pointer shrink-0"
+                title="Close"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             {/* Unified Form (View all details + Edit in place) */}
-            <form onSubmit={handleEditHealthCardSubmit(onSubmitEditHealthCard)}>
-              <div className="p-6 max-h-[75vh] overflow-y-auto space-y-5 text-xs bg-slate-50/50">
+            <form onSubmit={handleEditHealthCardSubmit(onSubmitEditHealthCard)} className="flex flex-col flex-1 overflow-hidden min-h-0">
+              <div className="flex-1 overflow-y-auto p-3.5 sm:p-6 space-y-3.5 sm:space-y-5 text-xs bg-slate-50/50 overscroll-contain">
                 
                 {/* Alert Messages */}
                 {editHealthCardError && (
-                  <div className="p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs font-bold rounded-2xl flex items-center gap-2">
+                  <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-bold rounded-xl sm:rounded-2xl flex items-center gap-2">
                     <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
                     <span>{editHealthCardError}</span>
                   </div>
                 )}
                 {editHealthCardSuccess && (
-                  <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold rounded-2xl flex items-center gap-2">
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold rounded-xl sm:rounded-2xl flex items-center gap-2">
                     <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
                     <span>{editHealthCardSuccess}</span>
                   </div>
                 )}
 
                 {/* Section 0: Payment & Registration Tracking Metadata (Audit View) */}
-                <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white border border-slate-200 shadow-xs space-y-2.5 sm:space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                    <h5 className="font-black text-[#2e3192] text-[11px] uppercase tracking-wider flex items-center gap-1.5">
-                      <CreditCard className="h-4 w-4 text-[#ed1c24]" /> Payment &amp; Enrollment Tracking Metadata
+                    <h5 className="font-black text-[#2e3192] text-[10px] sm:text-[11px] uppercase tracking-wider flex items-center gap-1.5">
+                      <CreditCard className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#ed1c24]" /> Payment &amp; Enrollment Tracking
                     </h5>
-                    <span className="inline-flex rounded-full bg-emerald-100 text-emerald-800 text-[9px] font-black px-2.5 py-0.5 uppercase border border-emerald-200">
+                    <span className="inline-flex rounded-full bg-emerald-100 text-emerald-800 text-[8px] sm:text-[9px] font-black px-2 py-0.5 uppercase border border-emerald-200">
                       Paid Success
                     </span>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                      <span className="text-[9px] font-bold text-slate-400 uppercase block">Order ID</span>
-                      <span className="font-bold text-slate-800 font-mono text-[10px] break-all">{selectedHealthCardDetails.orderId || 'N/A'}</span>
+                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3">
+                    <div className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-slate-50 border border-slate-100">
+                      <span className="text-[8px] sm:text-[9px] font-bold text-slate-400 uppercase block">Order ID</span>
+                      <span className="font-bold text-slate-800 font-mono text-[9px] sm:text-[10px] break-all block">{selectedHealthCardDetails.orderId || 'N/A'}</span>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                      <span className="text-[9px] font-bold text-slate-400 uppercase block">Payment ID</span>
-                      <span className="font-bold text-slate-800 font-mono text-[10px] break-all">{selectedHealthCardDetails.paymentId || 'N/A'}</span>
+                    <div className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-slate-50 border border-slate-100">
+                      <span className="text-[8px] sm:text-[9px] font-bold text-slate-400 uppercase block">Payment ID</span>
+                      <span className="font-bold text-slate-800 font-mono text-[9px] sm:text-[10px] break-all block">{selectedHealthCardDetails.paymentId || 'N/A'}</span>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                      <span className="text-[9px] font-bold text-slate-400 uppercase block">Amount Paid</span>
-                      <span className="font-extrabold text-emerald-700 text-xs">₹{selectedHealthCardDetails.amount || (selectedHealthCardDetails.cardType === 'Family' ? 499 : 201)}.00</span>
+                    <div className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-slate-50 border border-slate-100">
+                      <span className="text-[8px] sm:text-[9px] font-bold text-slate-400 uppercase block">Amount Paid</span>
+                      <span className="font-extrabold text-emerald-700 text-xs block">₹{selectedHealthCardDetails.amount || (selectedHealthCardDetails.cardType === 'Family' ? 499 : 201)}.00</span>
                     </div>
-                    <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                      <span className="text-[9px] font-bold text-slate-400 uppercase block">Enrollment Date</span>
-                      <span className="font-bold text-slate-700 text-[10px]">
+                    <div className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-slate-50 border border-slate-100">
+                      <span className="text-[8px] sm:text-[9px] font-bold text-slate-400 uppercase block">Enrollment Date</span>
+                      <span className="font-bold text-slate-700 text-[9px] sm:text-[10px] block">
                         {selectedHealthCardDetails.createdAt ? new Date(selectedHealthCardDetails.createdAt).toLocaleString('en-IN') : 'N/A'}
                       </span>
                     </div>
@@ -5907,12 +5909,12 @@ const AdminDashboard = () => {
                 </div>
 
                 {/* Section 1: Patient Photo & Card Settings */}
-                <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center gap-5">
-                  <div className="relative group shrink-0">
+                <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center gap-4 sm:gap-5">
+                  <div className="relative group shrink-0 flex flex-col items-center">
                     <img
                       src={editHealthCardPhotoPreview || '/logo.jpg'}
                       alt="Cardholder Photo"
-                      className="h-24 w-24 rounded-2xl border-2 border-[#2e3192] object-cover shadow-sm bg-slate-50 p-0.5"
+                      className="h-20 w-20 sm:h-24 sm:w-24 rounded-2xl border-2 border-[#2e3192] object-cover shadow-sm bg-slate-50 p-0.5"
                       onError={handleImageError}
                     />
                     <label 
@@ -5923,12 +5925,12 @@ const AdminDashboard = () => {
                     </label>
                   </div>
 
-                  <div className="flex-grow space-y-2 text-center sm:text-left w-full">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex-grow space-y-2.5 text-center sm:text-left w-full">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div>
                         <h5 className="font-extrabold text-slate-800 text-xs">Patient Passport Photo (मरीज की फोटो)</h5>
                         <p className="text-[10px] text-slate-500">
-                          Click to upload new front-facing portrait. Automatically resized &amp; optimized.
+                          Clear front-facing portrait. Auto-compressed &amp; optimized.
                         </p>
                       </div>
                       <div>
@@ -5946,14 +5948,14 @@ const AdminDashboard = () => {
                           <Camera className="h-3.5 w-3.5 text-[#2e3192]" /> Choose New Image
                         </label>
                         {selectedEditHealthCardPhoto && (
-                          <span className="ml-2 text-[10px] font-bold text-emerald-600">
-                            &bull; New photo selected ({Math.round(selectedEditHealthCardPhoto.size / 1024)} KB)
+                          <span className="ml-2 text-[10px] font-bold text-emerald-600 block sm:inline mt-1 sm:mt-0">
+                            &bull; Selected ({Math.round(selectedEditHealthCardPhoto.size / 1024)} KB)
                           </span>
                         )}
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-2.5 pt-1 text-left">
                       <div className="space-y-1">
                         <label className="text-[9px] font-bold text-slate-500 uppercase block">Card Type</label>
                         <select
@@ -5985,13 +5987,13 @@ const AdminDashboard = () => {
                 </div>
 
                 {/* Section 2: Personal Details */}
-                <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
-                  <h5 className="font-black text-[#2e3192] text-[11px] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
-                    <UserCheck className="h-4 w-4 text-[#ed1c24]" /> 1. Personal &amp; Identification Details
+                <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                  <h5 className="font-black text-[#2e3192] text-[10px] sm:text-[11px] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                    <UserCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#ed1c24]" /> 1. Personal &amp; Identification Details
                   </h5>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-3">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-600 uppercase">Patient Full Name *</label>
+                      <label className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase">Patient Full Name *</label>
                       <input
                         type="text"
                         {...regEditHealthCard('fullName', { required: 'Name is required' })}
@@ -5999,7 +6001,7 @@ const AdminDashboard = () => {
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-600 uppercase">Mobile Number (10 Digits) *</label>
+                      <label className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase">Mobile Number (10 Digits) *</label>
                       <input
                         type="text"
                         maxLength={10}
@@ -6008,7 +6010,7 @@ const AdminDashboard = () => {
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-600 uppercase">Aadhar Card (12 Digits) *</label>
+                      <label className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase">Aadhar Card (12 Digits) *</label>
                       <input
                         type="text"
                         maxLength={12}
@@ -6017,7 +6019,7 @@ const AdminDashboard = () => {
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-600 uppercase">Email Address</label>
+                      <label className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase">Email Address</label>
                       <input
                         type="email"
                         {...regEditHealthCard('email')}
@@ -6025,7 +6027,7 @@ const AdminDashboard = () => {
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-600 uppercase">Age (Years) *</label>
+                      <label className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase">Age (Years) *</label>
                       <input
                         type="number"
                         min={1}
@@ -6035,7 +6037,7 @@ const AdminDashboard = () => {
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-600 uppercase">Gender *</label>
+                      <label className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase">Gender *</label>
                       <select
                         {...regEditHealthCard('gender')}
                         className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold bg-white focus:border-[#2e3192] focus:outline-none"
@@ -6045,8 +6047,8 @@ const AdminDashboard = () => {
                         <option value="Other">Other (अन्य)</option>
                       </select>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-600 uppercase">Blood Group *</label>
+                    <div className="space-y-1 sm:col-span-2 md:col-span-1">
+                      <label className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase">Blood Group *</label>
                       <select
                         {...regEditHealthCard('bloodGroup')}
                         className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold bg-white focus:border-[#2e3192] focus:outline-none text-rose-600"
@@ -6065,13 +6067,13 @@ const AdminDashboard = () => {
                 </div>
 
                 {/* Section 3: Residential Address */}
-                <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
-                  <h5 className="font-black text-[#2e3192] text-[11px] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
-                    <Home className="h-4 w-4 text-[#ed1c24]" /> 2. Residential Address Details
+                <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                  <h5 className="font-black text-[#2e3192] text-[10px] sm:text-[11px] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                    <Home className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#ed1c24]" /> 2. Residential Address Details
                   </h5>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-3">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-600 uppercase">Village / Ward</label>
+                      <label className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase">Village / Ward</label>
                       <input
                         type="text"
                         {...regEditHealthCard('village')}
@@ -6079,7 +6081,7 @@ const AdminDashboard = () => {
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-600 uppercase">Panchayat</label>
+                      <label className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase">Panchayat</label>
                       <input
                         type="text"
                         {...regEditHealthCard('panchayat')}
@@ -6087,7 +6089,7 @@ const AdminDashboard = () => {
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-600 uppercase">Block</label>
+                      <label className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase">Block</label>
                       <input
                         type="text"
                         {...regEditHealthCard('block')}
@@ -6095,7 +6097,7 @@ const AdminDashboard = () => {
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-600 uppercase">District *</label>
+                      <label className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase">District *</label>
                       <input
                         type="text"
                         {...regEditHealthCard('district', { required: 'District is required' })}
@@ -6103,7 +6105,7 @@ const AdminDashboard = () => {
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-600 uppercase">State *</label>
+                      <label className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase">State *</label>
                       <input
                         type="text"
                         {...regEditHealthCard('state', { required: 'State is required' })}
@@ -6111,7 +6113,7 @@ const AdminDashboard = () => {
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-600 uppercase">Pin Code</label>
+                      <label className="text-[9px] sm:text-[10px] font-bold text-slate-600 uppercase">Pin Code</label>
                       <input
                         type="text"
                         maxLength={6}
@@ -6124,10 +6126,10 @@ const AdminDashboard = () => {
 
                 {/* Section 4: Family Members Dynamic Editor (If Family Card) */}
                 {editCardTypeWatch === 'Family' && (
-                  <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                  <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
                     <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                      <h5 className="font-black text-[#2e3192] text-[11px] uppercase tracking-wider flex items-center gap-1.5">
-                        <Users className="h-4 w-4 text-[#ed1c24]" /> 3. Family Members ({editFamilyMembers.length} Members)
+                      <h5 className="font-black text-[#2e3192] text-[10px] sm:text-[11px] uppercase tracking-wider flex items-center gap-1.5">
+                        <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#ed1c24]" /> 3. Family Members ({editFamilyMembers.length})
                       </h5>
                       <button
                         type="button"
@@ -6140,9 +6142,9 @@ const AdminDashboard = () => {
 
                     <div className="space-y-2.5">
                       {editFamilyMembers.map((member, idx) => (
-                        <div key={idx} className="p-3 rounded-xl bg-slate-50 border border-slate-200 grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
-                          <div className="sm:col-span-3">
-                            <label className="text-[9px] font-bold text-slate-500 uppercase block mb-0.5">Relation</label>
+                        <div key={idx} className="p-2.5 sm:p-3 rounded-xl bg-slate-50 border border-slate-200 grid grid-cols-2 sm:grid-cols-12 gap-2 items-center text-left">
+                          <div className="col-span-1 sm:col-span-3">
+                            <label className="text-[8px] sm:text-[9px] font-bold text-slate-500 uppercase block mb-0.5">Relation</label>
                             <input
                               type="text"
                               value={member.relationship || ''}
@@ -6151,8 +6153,8 @@ const AdminDashboard = () => {
                               className="w-full border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-bold bg-white focus:outline-none uppercase"
                             />
                           </div>
-                          <div className="sm:col-span-3">
-                            <label className="text-[9px] font-bold text-slate-500 uppercase block mb-0.5">Full Name</label>
+                          <div className="col-span-1 sm:col-span-3">
+                            <label className="text-[8px] sm:text-[9px] font-bold text-slate-500 uppercase block mb-0.5">Full Name</label>
                             <input
                               type="text"
                               value={member.fullName || ''}
@@ -6161,8 +6163,8 @@ const AdminDashboard = () => {
                               className="w-full border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-bold bg-white focus:outline-none uppercase"
                             />
                           </div>
-                          <div className="sm:col-span-2">
-                            <label className="text-[9px] font-bold text-slate-500 uppercase block mb-0.5">Age</label>
+                          <div className="col-span-1 sm:col-span-2">
+                            <label className="text-[8px] sm:text-[9px] font-bold text-slate-500 uppercase block mb-0.5">Age</label>
                             <input
                               type="number"
                               value={member.age || ''}
@@ -6171,25 +6173,25 @@ const AdminDashboard = () => {
                               className="w-full border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-bold bg-white focus:outline-none"
                             />
                           </div>
-                          <div className="sm:col-span-3">
-                            <label className="text-[9px] font-bold text-slate-500 uppercase block mb-0.5">Aadhar (12 Digits)</label>
+                          <div className="col-span-1 sm:col-span-3">
+                            <label className="text-[8px] sm:text-[9px] font-bold text-slate-500 uppercase block mb-0.5">Aadhar (12 Digits)</label>
                             <input
                               type="text"
                               maxLength={12}
                               value={member.aadhar || ''}
                               onChange={(e) => handleEditFamilyMemberChange(idx, 'aadhar', e.target.value)}
-                              placeholder="Aadhar Number"
+                              placeholder="Aadhar No."
                               className="w-full border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-mono font-bold bg-white focus:outline-none"
                             />
                           </div>
-                          <div className="sm:col-span-1 flex justify-end">
+                          <div className="col-span-2 sm:col-span-1 flex justify-end">
                             <button
                               type="button"
                               onClick={() => handleRemoveEditFamilyMember(idx)}
-                              className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
+                              className="p-1 text-rose-500 hover:bg-rose-50 rounded-lg transition-all cursor-pointer flex items-center gap-1 text-[10px] font-bold"
                               title="Remove Member"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Trash2 className="h-4 w-4" /> <span className="sm:hidden">Delete</span>
                             </button>
                           </div>
                         </div>
@@ -6200,33 +6202,35 @@ const AdminDashboard = () => {
 
               </div>
 
-              {/* Form Footer */}
-              <div className="flex flex-wrap gap-2 p-4 border-t border-slate-100 bg-slate-50">
-                <button
-                  type="button"
-                  onClick={() => setShowHealthCardDetailsModal(false)}
-                  className="flex-1 rounded-xl bg-white border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
-                >
-                  Close Dossier
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowHealthCardDetailsModal(false);
-                    setSelectedHealthCard(selectedHealthCardDetails);
-                    setShowHealthCardModal(true);
-                  }}
-                  className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-[#2e3192] hover:bg-[#1a1c54] text-white px-4 py-2.5 text-xs font-bold shadow-sm cursor-pointer"
-                >
-                  <Eye className="h-4 w-4" /> View Printable Card
-                </button>
+              {/* Form Footer (Responsive & Sticky) */}
+              <div className="shrink-0 flex flex-col sm:flex-row gap-2 p-3 sm:p-4 border-t border-slate-200 bg-white shadow-lg">
+                <div className="grid grid-cols-2 gap-2 w-full sm:w-auto sm:flex-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowHealthCardDetailsModal(false)}
+                    className="w-full rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 py-2.5 px-3 text-xs font-bold text-slate-700 cursor-pointer text-center transition-all"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowHealthCardDetailsModal(false);
+                      setSelectedHealthCard(selectedHealthCardDetails);
+                      setShowHealthCardModal(true);
+                    }}
+                    className="w-full flex items-center justify-center gap-1 rounded-xl bg-[#2e3192] hover:bg-[#1a1c54] text-white py-2.5 px-3 text-xs font-bold shadow-xs cursor-pointer text-center transition-all"
+                  >
+                    <Eye className="h-4 w-4 shrink-0" /> <span className="truncate">View Card</span>
+                  </button>
+                </div>
                 <button
                   type="submit"
                   disabled={editHealthCardSubmitting}
-                  className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 text-xs font-bold shadow-md cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  className="w-full sm:flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 px-4 text-xs font-bold shadow-md cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5 text-center transition-all"
                 >
-                  <CheckCircle2 className="h-4 w-4" />
-                  {editHealthCardSubmitting ? 'Saving Changes...' : 'Save & Update Details'}
+                  <CheckCircle2 className="h-4 w-4 shrink-0" />
+                  <span>{editHealthCardSubmitting ? 'Saving Changes...' : 'Save & Update Details'}</span>
                 </button>
               </div>
             </form>
