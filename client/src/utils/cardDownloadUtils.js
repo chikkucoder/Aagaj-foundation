@@ -255,3 +255,60 @@ export const downloadCombinedCardImage = async (frontElement, backElement, filen
 
   await saveOrShareCanvas(combinedCanvas, filename);
 };
+
+/**
+ * Fast client-side image compression.
+ * Downscales multi-megabyte mobile photos to crisp, lightweight portrait images (~100-200KB) in milliseconds before uploading.
+ * @param {File|Blob} file 
+ * @param {number} maxDim - Maximum width or height in pixels
+ * @param {number} quality - JPEG compression quality (0.1 - 1.0)
+ * @returns {Promise<{ file: File, dataUrl: string }>}
+ */
+export const compressImageFile = async (file, maxDim = 800, quality = 0.85) => {
+  if (!file) throw new Error('No file provided');
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        let width = img.naturalWidth || img.width;
+        let height = img.naturalHeight || img.height;
+
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            resolve({ file, dataUrl });
+            return;
+          }
+          const compressedFile = new File([blob], file.name ? file.name.replace(/\.[^/.]+$/, ".jpg") : `photo-${Date.now()}.jpg`, {
+            type: 'image/jpeg',
+            lastModified: Date.now()
+          });
+          resolve({ file: compressedFile, dataUrl });
+        }, 'image/jpeg', quality);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+};

@@ -269,54 +269,7 @@ router.post('/verify-payment', validateRequest({ body: healthCardVerifyPaymentSc
 
         await newCard.save();
 
-        try {
-            if (newCard.email) {
-                await sendHealthCardConfirmation(newCard);
-            }
-        } catch (mailError) {
-            console.warn('Health card confirmation email failed:', mailError.message);
-        }
-
-        // 🟢 Send SMS & WhatsApp Notification for Health Card
-        let notificationResults = null;
-        const cardTypeTitle = (pendingCardData.cardType || 'Single') === 'Family' ? 'Family Health Card' : 'Health Card';
-        const healthCardMsg = `Dear ${pendingCardData.fullName}, your payment was successful! Your ${cardTypeTitle} ID is ${healthId}. It is valid until ${expiryDate.toLocaleDateString('en-IN')}. Thank you!`;
-        if (pendingCardData.mobile) {
-            const [smsResult, waResult] = await Promise.all([
-                sendSMS(pendingCardData.mobile, healthCardMsg),
-                sendWhatsApp(pendingCardData.mobile, healthCardMsg)
-            ]);
-            notificationResults = {
-                sms: smsResult,
-                whatsapp: waResult
-            };
-            console.log('Health card notification results:', {
-                phone: pendingCardData.mobile,
-                sms: smsResult,
-                whatsapp: waResult
-            });
-        }
-
-        try {
-            await PaymentLog.create({
-                orderId: pendingOrderId,
-                amount: pendingCardData.amount || 201,
-                status: 'success',
-                paymentId: razorpay_payment_id,
-                transactionId: razorpay_order_id,
-                schemeType: 'healthcard',
-                ipAddress: req.ip || req.connection.remoteAddress,
-                userAgent: req.get('User-Agent'),
-                rawResponse: req.body,
-                verificationStatus: 'verified',
-                amountVerified: true,
-                signatureVerified: true
-            });
-        } catch (logError) {
-            console.warn('PaymentLog write failed (healthcard):', logError.message);
-        }
-
-        // 7. Clean up pending record from MongoDB
+        // 7. Clean up pending record from MongoDB immediately
         await PendingPayment.deleteOne({ orderId: pendingOrderId });
 
         const frontendUrl = process.env.FRONTEND_URL || 'https://aagajfoundation.com';
@@ -328,9 +281,48 @@ router.post('/verify-payment', validateRequest({ body: healthCardVerifyPaymentSc
             redirectUrl: `${frontendUrl}/medical/healthcard?status=success&orderId=${encodeURIComponent(pendingOrderId)}&paymentId=${encodeURIComponent(razorpay_payment_id)}`
         };
 
-        if (process.env.NODE_ENV !== 'production') {
-            responsePayload.notificationResults = notificationResults;
-        }
+        // 🟢 Execute Email, SMS, WhatsApp, and PaymentLog asynchronously in background (Non-blocking)
+        setImmediate(async () => {
+            try {
+                if (newCard.email) {
+                    await sendHealthCardConfirmation(newCard);
+                }
+            } catch (mailError) {
+                console.warn('Health card confirmation email background failed:', mailError.message);
+            }
+
+            if (pendingCardData.mobile) {
+                try {
+                    const cardTypeTitle = (pendingCardData.cardType || 'Single') === 'Family' ? 'Family Health Card' : 'Health Card';
+                    const healthCardMsg = `Dear ${pendingCardData.fullName}, your payment was successful! Your ${cardTypeTitle} ID is ${healthId}. It is valid until ${expiryDate.toLocaleDateString('en-IN')}. Thank you!`;
+                    await Promise.all([
+                        sendSMS(pendingCardData.mobile, healthCardMsg),
+                        sendWhatsApp(pendingCardData.mobile, healthCardMsg)
+                    ]);
+                } catch (notifyErr) {
+                    console.warn('Health card SMS/WA notification background error:', notifyErr.message);
+                }
+            }
+
+            try {
+                await PaymentLog.create({
+                    orderId: pendingOrderId,
+                    amount: pendingCardData.amount || 201,
+                    status: 'success',
+                    paymentId: razorpay_payment_id,
+                    transactionId: razorpay_order_id,
+                    schemeType: 'healthcard',
+                    ipAddress: req.ip || req.connection?.remoteAddress,
+                    userAgent: req.get('User-Agent'),
+                    rawResponse: req.body,
+                    verificationStatus: 'verified',
+                    amountVerified: true,
+                    signatureVerified: true
+                });
+            } catch (logError) {
+                console.warn('PaymentLog write failed (healthcard):', logError.message);
+            }
+        });
 
         return res.json(responsePayload);
 
