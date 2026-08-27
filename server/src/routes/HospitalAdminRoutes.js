@@ -513,12 +513,16 @@ router.post('/hospital/login', hospitalAuthLimiter, validateRequest({ body: hosp
             return res.status(400).json({ success: false, message: "Login ID/Email and password are required" });
         }
 
+        const safeInput = loginInput.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const hospital = await HealthPartner.findOne({
             category: 'Hospital',
             $or: [
                 { email: loginInput.toLowerCase() },
                 { loginId: loginInput.toUpperCase() },
-                { uniqueId: loginInput }
+                { uniqueId: loginInput },
+                { email: new RegExp(`^${safeInput}$`, 'i') },
+                { loginId: new RegExp(`^${safeInput}$`, 'i') },
+                { uniqueId: new RegExp(`^${safeInput}$`, 'i') }
             ]
         });
 
