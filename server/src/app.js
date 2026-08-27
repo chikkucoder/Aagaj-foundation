@@ -749,15 +749,35 @@ app.patch('/api/admin/toggle-applicant-status/:id', verifyAdmin, async (req, res
 app.post('/api/employee/login', authLimiter, async (req, res) => {
     try {
         const { username, password } = req.body;
+        const cleanUsername = String(username || '').trim();
 
-        let user = await Applicant.findOne({ $or: [{ email: username }, { emp_username: username }] });
+        if (!cleanUsername || !password) {
+            return res.json({ success: false, message: "Username and password are required" });
+        }
+
+        const safeUsername = cleanUsername.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const userQuery = {
+            $or: [
+                { email: cleanUsername },
+                { emp_username: cleanUsername },
+                { email: new RegExp(`^${safeUsername}$`, 'i') },
+                { emp_username: new RegExp(`^${safeUsername}$`, 'i') }
+            ]
+        };
+
+        let user = await Applicant.findOne(userQuery);
 
         if (!user) {
-            user = await NormalApplicant.findOne({ $or: [{ email: username }, { emp_username: username }] });
+            user = await NormalApplicant.findOne(userQuery);
         }
 
         if (!user) {
-            user = await Employee.findOne({ email: username });
+            user = await Employee.findOne({
+                $or: [
+                    { email: cleanUsername },
+                    { email: new RegExp(`^${safeUsername}$`, 'i') }
+                ]
+            });
         }
 
         if (!user || (!user.emp_password && !user.password)) {

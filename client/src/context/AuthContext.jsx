@@ -62,7 +62,6 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (username, password, selectedRole) => {
-    setLoading(true);
     try {
       let data;
       if (selectedRole === 'admin') {
@@ -123,14 +122,11 @@ export const AuthProvider = ({ children }) => {
           setRole('employee');
         }
 
-        setLoading(false);
         return { success: true, role: userRole };
       } else {
-        setLoading(false);
         return { success: false, message: data.message || 'Invalid Credentials' };
       }
     } catch (error) {
-      setLoading(false);
       return { 
         success: false, 
         message: error.response?.data?.message || error.message || 'Connection server error.' 

@@ -64,9 +64,25 @@ const EmployeeDashboard = () => {
   const itemsPerPage = 10;
 
   // Data Loading States
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => !sessionStorage.getItem('loggedInUserEmail'));
   const [error, setError] = useState('');
-  const [profile, setProfile] = useState(null);
+  const [profile, setProfile] = useState(() => {
+    const cachedName = sessionStorage.getItem('loggedInUser');
+    const cachedEmail = sessionStorage.getItem('loggedInUserEmail');
+    const cachedRole = sessionStorage.getItem('loggedInDesignation') || sessionStorage.getItem('loggedInRole');
+    if (cachedName || cachedEmail) {
+      return {
+        fullName: cachedName || 'Employee',
+        email: cachedEmail || '',
+        mobile: '',
+        role: cachedRole || 'Employee',
+        district: '',
+        state: '',
+        photoPath: ''
+      };
+    }
+    return null;
+  });
   const [stats, setStats] = useState(null);
 
   // Attendance & Active Software Time Tracking States
@@ -93,7 +109,7 @@ const EmployeeDashboard = () => {
 
   // Fetch all employee profile information and tables
   const syncDashboardData = async (showLoader = false) => {
-    if (showLoader) setLoading(true);
+    if (showLoader && !profile) setLoading(true);
     setError('');
 
     const email = sessionStorage.getItem('loggedInUserEmail');
@@ -104,27 +120,33 @@ const EmployeeDashboard = () => {
     }
 
     try {
-      const [profRes, appRes, benRes, hcRes] = await Promise.all([
-        getEmployeeProfile(email).catch(err => ({ success: false, message: 'Profile load failed' })),
-        getAllApplicants().catch(err => []),
-        getAllBeneficiaries().catch(err => []),
-        apiClient.get('/api/healthcard/all').catch(err => ({ data: { success: false, data: [] } }))
-      ]);
+      // 1. Fetch Profile & Stats first (fast priority)
+      const profRes = await getEmployeeProfile(email).catch(err => ({ success: false, message: 'Profile load failed' }));
 
       if (profRes.success) {
         setProfile(profRes.profile);
         setStats(profRes.stats);
-      } else {
+      } else if (!profile) {
         setError(profRes.message || 'Unable to retrieve employee profile.');
       }
+      setLoading(false);
 
-      setAllApplicants(Array.isArray(appRes) ? appRes : []);
-      setAllBeneficiaries(Array.isArray(benRes) ? benRes : []);
-      setAllHealthCards(hcRes.data?.success ? hcRes.data.data : []);
+      // 2. Fetch full table lists asynchronously in the background without blocking the view
+      Promise.all([
+        getAllApplicants().catch(() => []),
+        getAllBeneficiaries().catch(() => []),
+        apiClient.get('/api/healthcard/all').catch(() => ({ data: { success: false, data: [] } }))
+      ]).then(([appRes, benRes, hcRes]) => {
+        setAllApplicants(Array.isArray(appRes) ? appRes : []);
+        setAllBeneficiaries(Array.isArray(benRes) ? benRes : []);
+        setAllHealthCards(hcRes.data?.success ? hcRes.data.data : []);
+      }).catch(err => {
+        console.error('Background table sync notice:', err);
+      });
 
     } catch (err) {
       console.error('Failed to synchronize employee data', err);
-      setError('Server connection error. Failed to refresh logs.');
+      if (!profile) setError('Server connection error. Failed to refresh logs.');
     } finally {
       setLoading(false);
     }
