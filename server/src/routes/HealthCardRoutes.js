@@ -802,8 +802,8 @@ router.post('/admin/create', verifyAdmin, upload.single('photo'), async (req, re
     }
 });
 
-// ✅ Admin: Edit Health Card Details
-router.put('/admin/edit/:id', verifyAdmin, upload.single('photo'), async (req, res) => {
+// ✅ Admin & Authorized Staff: Edit Health Card Details
+router.put('/admin/edit/:id', verifyAdminOrEmployee, upload.single('photo'), async (req, res) => {
     try {
         const cardId = req.params.id;
         const {
@@ -815,14 +815,21 @@ router.put('/admin/edit/:id', verifyAdmin, upload.single('photo'), async (req, r
             gender,
             bloodGroup,
             address,
+            village,
+            panchayat,
+            block,
+            district,
+            state,
+            pincode,
             cardType,
             familyMembers,
-            expiryDate
+            expiryDate,
+            registeredBy
         } = req.body;
 
         // Validation
         if (!fullName || !mobile || !aadhar || !age || !gender || !bloodGroup) {
-            return res.status(400).json({ success: false, message: "Required fields cannot be empty" });
+            return res.status(400).json({ success: false, message: "Required fields (Name, Mobile, Aadhar, Age, Gender, Blood Group) cannot be empty" });
         }
 
         // Check if card exists
@@ -852,15 +859,43 @@ router.put('/admin/edit/:id', verifyAdmin, upload.single('photo'), async (req, r
         // Update fields
         existingCard.fullName = fullName;
         existingCard.mobile = mobile;
-        existingCard.email = email;
+        existingCard.email = email || '';
         existingCard.aadhar = aadhar;
-        existingCard.age = age;
+        existingCard.age = parseInt(age, 10) || existingCard.age;
         existingCard.gender = gender;
         existingCard.bloodGroup = bloodGroup;
-        existingCard.address = typeof address === 'string' ? JSON.parse(address) : address;
+
+        // Parse Address
+        let parsedAddress = existingCard.address || {};
+        if (address) {
+            try {
+                parsedAddress = typeof address === 'string' ? JSON.parse(address) : address;
+            } catch (e) {
+                parsedAddress = { village, panchayat, block, district, state, pincode };
+            }
+        } else {
+            parsedAddress = {
+                village: village !== undefined ? village : parsedAddress.village,
+                panchayat: panchayat !== undefined ? panchayat : parsedAddress.panchayat,
+                block: block !== undefined ? block : parsedAddress.block,
+                district: district !== undefined ? district : parsedAddress.district,
+                state: state !== undefined ? state : parsedAddress.state,
+                pincode: pincode !== undefined ? pincode : parsedAddress.pincode
+            };
+        }
+        existingCard.address = parsedAddress;
+
         existingCard.cardType = cardType || existingCard.cardType;
+        if (registeredBy) {
+            existingCard.registeredBy = registeredBy;
+        }
+
         if (familyMembers) {
-            existingCard.familyMembers = Array.isArray(familyMembers) ? familyMembers : JSON.parse(familyMembers);
+            try {
+                existingCard.familyMembers = Array.isArray(familyMembers) ? familyMembers : JSON.parse(familyMembers);
+            } catch (e) {
+                console.error("Family members parse error on edit:", e.message);
+            }
         }
         if (expiryDate) {
             existingCard.expiryDate = new Date(expiryDate);
@@ -873,7 +908,7 @@ router.put('/admin/edit/:id', verifyAdmin, upload.single('photo'), async (req, r
 
         res.json({
             success: true,
-            message: "Health card updated successfully!",
+            message: "Health card details updated successfully!",
             data: existingCard
         });
     } catch (error) {

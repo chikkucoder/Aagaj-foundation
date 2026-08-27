@@ -30,6 +30,7 @@ import {
 } from '../api/userApi';
 import { getAdminAttendanceReport, getEmployeeAttendanceDossier } from '../api/attendanceApi';
 import apiClient from '../api/apiClient';
+import { resolveAssetUrl, compressImageFile } from '../utils/cardDownloadUtils';
 import {
   Users,
   Handshake,
@@ -414,14 +415,29 @@ const AdminDashboard = () => {
   const [empActivityLoading, setEmpActivityLoading] = useState(false);
   const [empActivityError, setEmpActivityError] = useState('');
 
+  // Health Card Full Details View Modal
+  const [selectedHealthCardDetails, setSelectedHealthCardDetails] = useState(null);
+  const [showHealthCardDetailsModal, setShowHealthCardDetailsModal] = useState(false);
+
   // Edit Health Card Modal States
   const [showEditHealthCardModal, setShowEditHealthCardModal] = useState(false);
   const [selectedEditHealthCard, setSelectedEditHealthCard] = useState(null);
   const [selectedEditHealthCardPhoto, setSelectedEditHealthCardPhoto] = useState(null);
+  const [editHealthCardPhotoPreview, setEditHealthCardPhotoPreview] = useState(null);
   const [editHealthCardError, setEditHealthCardError] = useState('');
+  const [editHealthCardSuccess, setEditHealthCardSuccess] = useState('');
   const [editHealthCardSubmitting, setEditHealthCardSubmitting] = useState(false);
+  const [editFamilyMembers, setEditFamilyMembers] = useState([]);
   
-  const { register: regEditHealthCard, handleSubmit: handleEditHealthCardSubmit, formState: { errors: editHealthCardErrors }, reset: resetEditHealthCardForm, setValue: setEditHealthCardValue } = useForm();
+  const { 
+    register: regEditHealthCard, 
+    handleSubmit: handleEditHealthCardSubmit, 
+    formState: { errors: editHealthCardErrors }, 
+    reset: resetEditHealthCardForm, 
+    setValue: setEditHealthCardValue,
+    watch: watchEditHealthCard
+  } = useForm();
+  const editCardTypeWatch = watchEditHealthCard('cardType', 'Single');
 
 
   const { register: regCustomCard, handleSubmit: handleCustomCardSubmit, formState: { errors: customCardErrors }, reset: resetCustomCardForm, setValue: setCustomCardValue, watch: watchCustomCard } = useForm({
@@ -666,6 +682,142 @@ const AdminDashboard = () => {
     } catch (err) {
       console.error("Error deleting member record:", err);
       alert(err.response?.data?.message || "सदस्यता रिकॉर्ड हटाने में त्रुटि हुई।");
+    }
+  };
+
+  // --- HEALTH CARD DETAILS & EDIT HANDLERS ---
+  const handleOpenHealthCardDetails = (card) => {
+    setSelectedHealthCardDetails(card);
+    setShowHealthCardDetailsModal(true);
+  };
+
+  const handleOpenEditHealthCard = (card) => {
+    setSelectedEditHealthCard(card);
+    setSelectedEditHealthCardPhoto(null);
+    setEditHealthCardPhotoPreview(card.photoPath ? resolveAssetUrl(card.photoPath) : '/logo.jpg');
+    setEditHealthCardError('');
+    setEditHealthCardSuccess('');
+
+    if (Array.isArray(card.familyMembers) && card.familyMembers.length > 0) {
+      setEditFamilyMembers(card.familyMembers);
+    } else {
+      setEditFamilyMembers([
+        { relationship: 'Father', fullName: '', age: '', gender: 'Male', aadhar: '' },
+        { relationship: 'Mother', fullName: '', age: '', gender: 'Female', aadhar: '' },
+        { relationship: 'Child 1', fullName: '', age: '', gender: 'Male', aadhar: '' },
+        { relationship: 'Child 2', fullName: '', age: '', gender: 'Male', aadhar: '' }
+      ]);
+    }
+
+    resetEditHealthCardForm({
+      fullName: card.fullName || '',
+      mobile: card.mobile || '',
+      email: card.email || '',
+      aadhar: card.aadhar || '',
+      age: card.age || '',
+      gender: card.gender || 'Male',
+      bloodGroup: card.bloodGroup || 'A+',
+      village: card.address?.village || card.village || '',
+      panchayat: card.address?.panchayat || card.panchayat || '',
+      block: card.address?.block || card.block || '',
+      district: card.address?.district || card.district || '',
+      state: card.address?.state || card.state || 'Bihar',
+      pincode: card.address?.pincode || card.pincode || '',
+      cardType: card.cardType || 'Single',
+      registeredBy: card.registeredBy || 'Self',
+      expiryDate: card.expiryDate ? new Date(card.expiryDate).toISOString().split('T')[0] : ''
+    });
+
+    setShowEditHealthCardModal(true);
+  };
+
+  const handleEditPhotoChange = async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      try {
+        const { file: compressedFile, dataUrl } = await compressImageFile(file, 800, 0.85);
+        setSelectedEditHealthCardPhoto(compressedFile);
+        setEditHealthCardPhotoPreview(dataUrl);
+      } catch (err) {
+        setSelectedEditHealthCardPhoto(file);
+        const reader = new FileReader();
+        reader.onload = (ev) => setEditHealthCardPhotoPreview(ev.target.result);
+        reader.readAsDataURL(file);
+      }
+    }
+  };
+
+  const handleEditFamilyMemberChange = (index, field, value) => {
+    const updated = [...editFamilyMembers];
+    updated[index] = { ...updated[index], [field]: value };
+    setEditFamilyMembers(updated);
+  };
+
+  const handleAddEditFamilyMember = () => {
+    setEditFamilyMembers(prev => [
+      ...prev,
+      { relationship: 'Member', fullName: '', age: '', gender: 'Male', aadhar: '' }
+    ]);
+  };
+
+  const handleRemoveEditFamilyMember = (index) => {
+    setEditFamilyMembers(prev => prev.filter((_, idx) => idx !== index));
+  };
+
+  const onSubmitEditHealthCard = async (formDataValues) => {
+    if (!selectedEditHealthCard) return;
+    setEditHealthCardSubmitting(true);
+    setEditHealthCardError('');
+    setEditHealthCardSuccess('');
+
+    try {
+      const data = new FormData();
+      data.append('fullName', formDataValues.fullName);
+      data.append('mobile', formDataValues.mobile);
+      data.append('email', formDataValues.email || '');
+      data.append('aadhar', formDataValues.aadhar);
+      data.append('age', formDataValues.age);
+      data.append('gender', formDataValues.gender);
+      data.append('bloodGroup', formDataValues.bloodGroup);
+      data.append('village', formDataValues.village || '');
+      data.append('panchayat', formDataValues.panchayat || '');
+      data.append('block', formDataValues.block || '');
+      data.append('district', formDataValues.district || '');
+      data.append('state', formDataValues.state || 'Bihar');
+      data.append('pincode', formDataValues.pincode || '');
+      data.append('cardType', formDataValues.cardType || 'Single');
+      data.append('registeredBy', formDataValues.registeredBy || 'Self');
+      data.append('expiryDate', formDataValues.expiryDate || '');
+
+      if (formDataValues.cardType === 'Family') {
+        data.append('familyMembers', JSON.stringify(editFamilyMembers));
+      }
+
+      if (selectedEditHealthCardPhoto) {
+        data.append('photo', selectedEditHealthCardPhoto);
+      }
+
+      const res = await apiClient.put(`/api/healthcard/admin/edit/${selectedEditHealthCard._id}`, data, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      if (res.data && res.data.success) {
+        setEditHealthCardSuccess('Health Card details and photo updated successfully!');
+        setHealthCards(prev => prev.map(c => c._id === selectedEditHealthCard._id ? res.data.data : c));
+        
+        setTimeout(() => {
+          setShowEditHealthCardModal(false);
+          setEditHealthCardSuccess('');
+          syncData();
+        }, 1200);
+      } else {
+        setEditHealthCardError(res.data?.message || 'Failed to update health card.');
+      }
+    } catch (err) {
+      console.error(err);
+      setEditHealthCardError(err.response?.data?.message || 'Server error updating health card.');
+    } finally {
+      setEditHealthCardSubmitting(false);
     }
   };
 
@@ -1179,76 +1331,6 @@ const AdminDashboard = () => {
       setEmpActivityError(err.response?.data?.message || 'Server connection error.');
     } finally {
       setEmpActivityLoading(false);
-    }
-  };
-
-  // Open Edit Health Card Form
-  const handleOpenEditHealthCard = (card) => {
-    setSelectedEditHealthCard(card);
-    setEditHealthCardError('');
-    setShowEditHealthCardModal(true);
-    
-    // Populate form values
-    setEditHealthCardValue('fullName', card.fullName || '');
-    setEditHealthCardValue('mobile', card.mobile || '');
-    setEditHealthCardValue('email', card.email || '');
-    setEditHealthCardValue('aadhar', card.aadhar || '');
-    setEditHealthCardValue('age', card.age || '');
-    setEditHealthCardValue('gender', card.gender || 'Male');
-    setEditHealthCardValue('bloodGroup', card.bloodGroup || 'NOT KNOWN');
-    setEditHealthCardValue('village', card.address?.village || '');
-    setEditHealthCardValue('panchayat', card.address?.panchayat || '');
-    setEditHealthCardValue('block', card.address?.block || '');
-    setEditHealthCardValue('district', card.address?.district || '');
-    setEditHealthCardValue('state', card.address?.state || '');
-    setEditHealthCardValue('pincode', card.address?.pincode || '');
-    
-    if (card.expiryDate) {
-      const formattedExpiry = new Date(card.expiryDate).toISOString().split('T')[0];
-      setEditHealthCardValue('expiryDate', formattedExpiry);
-    }
-  };
-
-  const onEditHealthCardSubmitHandler = async (data) => {
-    setEditHealthCardError('');
-    setEditHealthCardSubmitting(true);
-    try {
-      const formData = new FormData();
-      formData.append('fullName', data.fullName);
-      formData.append('mobile', data.mobile);
-      if (data.email) formData.append('email', data.email);
-      formData.append('aadhar', data.aadhar);
-      formData.append('age', Number(data.age));
-      formData.append('gender', data.gender);
-      formData.append('bloodGroup', data.bloodGroup);
-      formData.append('address', JSON.stringify({
-        village: data.village,
-        panchayat: data.panchayat,
-        block: data.block,
-        district: data.district,
-        state: data.state,
-        pincode: data.pincode
-      }));
-      formData.append('expiryDate', data.expiryDate);
-      if (selectedEditHealthCardPhoto) {
-        formData.append('photo', selectedEditHealthCardPhoto);
-      }
-      
-      const res = await editHealthCardDetails(selectedEditHealthCard._id, formData);
-      if (res.success) {
-        alert('Health card details updated successfully!');
-        setShowEditHealthCardModal(false);
-        setSelectedEditHealthCard(null);
-        setSelectedEditHealthCardPhoto(null);
-        syncData();
-      } else {
-        setEditHealthCardError(res.message || 'Failed to update details');
-      }
-    } catch (err) {
-      console.error(err);
-      setEditHealthCardError(err.response?.data?.message || 'Server connection error');
-    } finally {
-      setEditHealthCardSubmitting(false);
     }
   };
 
@@ -2595,18 +2677,25 @@ const AdminDashboard = () => {
                                 <span className="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-black text-emerald-800 uppercase">Paid Success</span>
                               </td>
                               <td className="py-3 px-4 text-right">
-                                <div className="flex items-center justify-end gap-2">
+                                <div className="flex items-center justify-end gap-1.5">
                                   <button
                                     onClick={() => { setSelectedHealthCard(card); setShowHealthCardModal(true); }}
-                                    className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:text-[#ED1C24] hover:bg-red-50 transition-all cursor-pointer flex items-center justify-center gap-1"
-                                    title="View Health Card"
+                                    className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:text-[#ED1C24] hover:bg-red-50 transition-all cursor-pointer flex items-center justify-center gap-1 text-[11px] font-bold shadow-xs"
+                                    title="View Printable Health Card"
                                   >
                                     <Eye className="h-3.5 w-3.5" /> View Card
                                   </button>
                                   <button
+                                    onClick={() => handleOpenHealthCardDetails(card)}
+                                    className="rounded-lg border border-indigo-200 bg-indigo-50/70 p-1.5 text-indigo-700 hover:text-indigo-900 hover:bg-indigo-100 transition-all cursor-pointer flex items-center justify-center gap-1 text-[11px] font-bold shadow-xs"
+                                    title="View All Enrollment Details"
+                                  >
+                                    <FileText className="h-3.5 w-3.5 text-indigo-600" /> Details
+                                  </button>
+                                  <button
                                     onClick={() => handleOpenEditHealthCard(card)}
-                                    className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:text-[#ED1C24] hover:bg-red-50 transition-all cursor-pointer flex items-center justify-center gap-1"
-                                    title="Edit Health Card"
+                                    className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 transition-all cursor-pointer flex items-center justify-center gap-1 text-[11px] font-bold shadow-xs"
+                                    title="Edit Health Card Data & Photo"
                                   >
                                     <Edit className="h-3.5 w-3.5" /> Edit
                                   </button>
@@ -5744,6 +5833,615 @@ const AdminDashboard = () => {
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* ========================================== */}
+      {/*  MODAL 9.1: HEALTH CARD COMPLETE DETAILS   */}
+      {/* ========================================== */}
+      {showHealthCardDetailsModal && selectedHealthCardDetails && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 overflow-y-auto font-sans animate-fade-in">
+          <div className="w-full max-w-2xl overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 text-left my-8">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-[#2e3192] to-[#1a1c54] p-5 text-white">
+              <div className="flex items-center gap-3">
+                <div className="rounded-xl bg-white/10 p-2 border border-white/20">
+                  <FileText className="h-5 w-5 text-red-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-wider text-white">
+                    Health Card Complete Enrollment Dossier
+                  </h3>
+                  <p className="text-[11px] text-slate-300 font-mono font-bold mt-0.5">
+                    Health ID: <span className="text-yellow-400 font-black">{selectedHealthCardDetails.healthId}</span> &bull; {selectedHealthCardDetails.cardType || 'Single'} Card
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowHealthCardDetailsModal(false)} 
+                className="rounded-xl p-1.5 text-slate-300 hover:bg-white/10 hover:text-white transition-all cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 max-h-[75vh] overflow-y-auto space-y-6 text-xs bg-slate-50/50">
+              
+              {/* Profile Card Header */}
+              <div className="flex flex-col sm:flex-row items-center gap-5 p-4 rounded-2xl bg-white border border-slate-200 shadow-xs">
+                <div className="relative">
+                  <img
+                    src={selectedHealthCardDetails.photoPath ? resolveAssetUrl(selectedHealthCardDetails.photoPath) : '/logo.jpg'}
+                    alt={selectedHealthCardDetails.fullName}
+                    className="h-20 w-20 rounded-2xl border-2 border-[#2e3192] object-cover shadow-sm p-0.5 bg-white"
+                    onError={handleImageError}
+                  />
+                  <span className="absolute -bottom-2 -right-1 bg-[#ed1c24] text-white text-[8px] font-black px-2 py-0.5 rounded-full shadow-xs uppercase">
+                    {selectedHealthCardDetails.bloodGroup || 'A+'}
+                  </span>
+                </div>
+
+                <div className="flex-grow text-center sm:text-left space-y-1">
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                    <h4 className="text-base font-extrabold text-slate-900 uppercase">{selectedHealthCardDetails.fullName}</h4>
+                    <span className="inline-flex rounded-full bg-emerald-100 text-emerald-800 text-[9px] font-black px-2 py-0.5 uppercase border border-emerald-200">
+                      Paid Success
+                    </span>
+                    <span className={`inline-flex rounded-full text-[9px] font-black px-2 py-0.5 uppercase border ${
+                      selectedHealthCardDetails.cardType === 'Family' 
+                        ? 'bg-indigo-50 text-indigo-700 border-indigo-200' 
+                        : 'bg-slate-100 text-slate-700 border-slate-200'
+                    }`}>
+                      {selectedHealthCardDetails.cardType || 'Single'} Health Card
+                    </span>
+                  </div>
+                  <p className="text-slate-500 text-[11px] font-medium">
+                    Age &amp; Gender: <strong className="text-slate-700">{selectedHealthCardDetails.age} Years / {selectedHealthCardDetails.gender}</strong>
+                  </p>
+                  <p className="text-slate-500 text-[11px] font-medium">
+                    Registered By: <strong className="text-indigo-700 font-bold">{selectedHealthCardDetails.registeredBy || 'Self (Online Portal)'}</strong>
+                  </p>
+                </div>
+              </div>
+
+              {/* Section 1: Contact & Identity Info */}
+              <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                <h5 className="font-black text-[#2e3192] text-[11px] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                  <UserCheck className="h-4 w-4 text-[#ed1c24]" /> Personal &amp; Identity Details
+                </h5>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Mobile Number</span>
+                    <span className="font-extrabold text-slate-800 text-xs font-mono">+91 {selectedHealthCardDetails.mobile}</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Aadhar Card Number</span>
+                    <span className="font-extrabold text-slate-800 text-xs font-mono">
+                      {selectedHealthCardDetails.aadhar ? selectedHealthCardDetails.aadhar.replace(/(\d{4})/g, '$1 ').trim() : 'N/A'}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Email Address</span>
+                    <span className="font-bold text-slate-700 text-xs truncate block">{selectedHealthCardDetails.email || 'N/A'}</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Blood Group</span>
+                    <span className="font-extrabold text-rose-600 text-xs">{selectedHealthCardDetails.bloodGroup || 'N/A'}</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Age / Gender</span>
+                    <span className="font-bold text-slate-800 text-xs">{selectedHealthCardDetails.age} Yrs / {selectedHealthCardDetails.gender}</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Card Expiry Date</span>
+                    <span className="font-extrabold text-red-600 text-xs">
+                      {new Date(selectedHealthCardDetails.expiryDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Residential Address */}
+              <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                <h5 className="font-black text-[#2e3192] text-[11px] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                  <Home className="h-4 w-4 text-[#ed1c24]" /> Complete Residential Address
+                </h5>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Village / Ward</span>
+                    <span className="font-bold text-slate-800 uppercase">{selectedHealthCardDetails.address?.village || selectedHealthCardDetails.village || 'N/A'}</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Panchayat</span>
+                    <span className="font-bold text-slate-800 uppercase">{selectedHealthCardDetails.address?.panchayat || selectedHealthCardDetails.panchayat || 'N/A'}</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Block</span>
+                    <span className="font-bold text-slate-800 uppercase">{selectedHealthCardDetails.address?.block || selectedHealthCardDetails.block || 'N/A'}</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase block">District</span>
+                    <span className="font-bold text-slate-800 uppercase">{selectedHealthCardDetails.address?.district || selectedHealthCardDetails.district || 'N/A'}</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase block">State</span>
+                    <span className="font-bold text-slate-800 uppercase">{selectedHealthCardDetails.address?.state || selectedHealthCardDetails.state || 'N/A'}</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Pin Code</span>
+                    <span className="font-bold text-slate-800 font-mono">{selectedHealthCardDetails.address?.pincode || selectedHealthCardDetails.pincode || 'N/A'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 3: Family Members (If Family Card) */}
+              {selectedHealthCardDetails.cardType === 'Family' && (
+                <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <h5 className="font-black text-[#2e3192] text-[11px] uppercase tracking-wider flex items-center gap-1.5">
+                      <Users className="h-4 w-4 text-[#ed1c24]" /> Registered Family Members
+                    </h5>
+                    <span className="text-[10px] font-bold text-slate-400">
+                      {selectedHealthCardDetails.familyMembers?.length || 0} Members Registered
+                    </span>
+                  </div>
+
+                  <div className="border border-slate-200 rounded-xl overflow-hidden">
+                    <table className="w-full text-left border-collapse text-[11px]">
+                      <thead>
+                        <tr className="bg-indigo-50/70 text-[#2e3192] font-black uppercase text-[9px] border-b border-slate-200">
+                          <th className="py-2 px-3">#</th>
+                          <th className="py-2 px-3">Relationship</th>
+                          <th className="py-2 px-3">Full Name</th>
+                          <th className="py-2 px-3 text-center">Age / Sex</th>
+                          <th className="py-2 px-3">Aadhar Number</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {selectedHealthCardDetails.familyMembers && selectedHealthCardDetails.familyMembers.length > 0 ? (
+                          selectedHealthCardDetails.familyMembers.map((member, idx) => (
+                            <tr key={idx} className="hover:bg-slate-50/50">
+                              <td className="py-2 px-3 font-bold text-slate-400">{idx + 1}</td>
+                              <td className="py-2 px-3 font-black text-indigo-700 uppercase">{member.relationship}</td>
+                              <td className="py-2 px-3 font-extrabold text-slate-900 uppercase">{member.fullName || '-'}</td>
+                              <td className="py-2 px-3 font-bold text-slate-700 text-center">{member.age || '-'} / {member.gender?.[0] || '-'}</td>
+                              <td className="py-2 px-3 font-mono font-semibold text-slate-600">
+                                {member.aadhar ? member.aadhar.replace(/(\d{4})/g, '$1 ').trim() : '-'}
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan="5" className="py-4 text-center text-slate-400 font-semibold">
+                              No family members data recorded.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Section 4: Payment & Transaction Info */}
+              <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                <h5 className="font-black text-[#2e3192] text-[11px] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                  <CreditCard className="h-4 w-4 text-[#ed1c24]" /> Payment &amp; System Tracking Info
+                </h5>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Order ID</span>
+                    <span className="font-bold text-slate-800 font-mono text-[10px] break-all">{selectedHealthCardDetails.orderId || 'N/A'}</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Payment ID</span>
+                    <span className="font-bold text-slate-800 font-mono text-[10px] break-all">{selectedHealthCardDetails.paymentId || 'N/A'}</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Amount Paid</span>
+                    <span className="font-extrabold text-emerald-700 text-xs">₹{selectedHealthCardDetails.amount || (selectedHealthCardDetails.cardType === 'Family' ? 499 : 201)}.00</span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Enrollment Date</span>
+                    <span className="font-bold text-slate-700 text-[10px]">
+                      {selectedHealthCardDetails.createdAt ? new Date(selectedHealthCardDetails.createdAt).toLocaleString('en-IN') : 'N/A'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex flex-wrap gap-2 p-4 border-t border-slate-100 bg-slate-50">
+              <button
+                type="button"
+                onClick={() => setShowHealthCardDetailsModal(false)}
+                className="flex-1 rounded-xl bg-white border border-slate-200 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+              >
+                Close Dossier
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowHealthCardDetailsModal(false);
+                  handleOpenEditHealthCard(selectedHealthCardDetails);
+                }}
+                className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 text-xs font-bold shadow-sm cursor-pointer"
+              >
+                <Edit className="h-4 w-4" /> Edit All Details
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowHealthCardDetailsModal(false);
+                  setSelectedHealthCard(selectedHealthCardDetails);
+                  setShowHealthCardModal(true);
+                }}
+                className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-[#2e3192] hover:bg-[#1a1c54] text-white px-4 py-2.5 text-xs font-bold shadow-sm cursor-pointer"
+              >
+                <Eye className="h-4 w-4" /> View Printable Card
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================== */}
+      {/*  MODAL 9.2: EDIT HEALTH CARD FULL DETAILS  */}
+      {/* ========================================== */}
+      {showEditHealthCardModal && selectedEditHealthCard && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 overflow-y-auto font-sans animate-fade-in text-left">
+          <div className="w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 my-8">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 bg-slate-900 p-5 text-white">
+              <div className="flex items-center gap-3">
+                <div className="rounded-xl bg-emerald-500/20 p-2 border border-emerald-500/30">
+                  <Edit className="h-5 w-5 text-emerald-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-wider text-white">
+                    Edit Health Card Details &amp; Photo
+                  </h3>
+                  <p className="text-[11px] text-slate-300 font-mono font-bold mt-0.5">
+                    Health ID: <span className="text-emerald-400 font-black">{selectedEditHealthCard.healthId}</span> &bull; Cardholder: {selectedEditHealthCard.fullName}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowEditHealthCardModal(false)} 
+                className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white transition-all cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleEditHealthCardSubmit(onSubmitEditHealthCard)}>
+              <div className="p-6 max-h-[75vh] overflow-y-auto space-y-6 text-xs bg-slate-50/50">
+                
+                {/* Alert Messages */}
+                {editHealthCardError && (
+                  <div className="p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs font-bold rounded-2xl flex items-center gap-2">
+                    <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
+                    <span>{editHealthCardError}</span>
+                  </div>
+                )}
+                {editHealthCardSuccess && (
+                  <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold rounded-2xl flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                    <span>{editHealthCardSuccess}</span>
+                  </div>
+                )}
+
+                {/* Patient Photo Editor */}
+                <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center gap-5">
+                  <div className="relative group shrink-0">
+                    <img
+                      src={editHealthCardPhotoPreview || '/logo.jpg'}
+                      alt="Preview"
+                      className="h-24 w-24 rounded-2xl border-2 border-[#2e3192] object-cover shadow-sm bg-slate-50 p-0.5"
+                      onError={handleImageError}
+                    />
+                    <label 
+                      htmlFor="editHealthPhotoInput" 
+                      className="absolute inset-0 bg-slate-900/60 rounded-2xl flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-all cursor-pointer text-[10px] font-bold gap-1"
+                    >
+                      <Camera className="h-5 w-5" /> Change
+                    </label>
+                  </div>
+
+                  <div className="flex-grow space-y-1.5 text-center sm:text-left">
+                    <h5 className="font-extrabold text-slate-800 text-xs">Patient Passport Photo (मरीज की फोटो)</h5>
+                    <p className="text-[11px] text-slate-500">
+                      Upload a clear front-facing portrait. The photo will be automatically resized and optimized for HD card rendering.
+                    </p>
+                    <div>
+                      <input
+                        type="file"
+                        id="editHealthPhotoInput"
+                        accept="image/*"
+                        onChange={handleEditPhotoChange}
+                        className="hidden"
+                      />
+                      <label
+                        htmlFor="editHealthPhotoInput"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs cursor-pointer shadow-xs transition-all"
+                      >
+                        <Camera className="h-3.5 w-3.5 text-[#2e3192]" /> Choose New Image
+                      </label>
+                      {selectedEditHealthCardPhoto && (
+                        <span className="ml-2 text-[10px] font-bold text-emerald-600">
+                          &bull; New photo selected ({Math.round(selectedEditHealthCardPhoto.size / 1024)} KB)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 1: Personal Details */}
+                <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                  <h5 className="font-black text-[#2e3192] text-[11px] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                    <UserCheck className="h-4 w-4 text-[#ed1c24]" /> 1. Personal &amp; Identification Details
+                  </h5>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-600 uppercase">Patient Full Name *</label>
+                      <input
+                        type="text"
+                        {...regEditHealthCard('fullName', { required: 'Name is required' })}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:border-[#2e3192] focus:outline-none uppercase"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-600 uppercase">Mobile Number (10 Digits) *</label>
+                      <input
+                        type="text"
+                        maxLength={10}
+                        {...regEditHealthCard('mobile', { required: 'Mobile is required', pattern: /^\d{10}$/ })}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold focus:border-[#2e3192] focus:outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-600 uppercase">Aadhar Card (12 Digits) *</label>
+                      <input
+                        type="text"
+                        maxLength={12}
+                        {...regEditHealthCard('aadhar', { required: 'Aadhar is required', pattern: /^\d{12}$/ })}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold focus:border-[#2e3192] focus:outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-600 uppercase">Email Address</label>
+                      <input
+                        type="email"
+                        {...regEditHealthCard('email')}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:border-[#2e3192] focus:outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-600 uppercase">Age (Years) *</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={120}
+                        {...regEditHealthCard('age', { required: 'Age is required' })}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:border-[#2e3192] focus:outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-600 uppercase">Gender *</label>
+                      <select
+                        {...regEditHealthCard('gender')}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold bg-white focus:border-[#2e3192] focus:outline-none"
+                      >
+                        <option value="Male">Male (पुरुष)</option>
+                        <option value="Female">Female (महिला)</option>
+                        <option value="Other">Other (अन्य)</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-600 uppercase">Blood Group *</label>
+                      <select
+                        {...regEditHealthCard('bloodGroup')}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold bg-white focus:border-[#2e3192] focus:outline-none text-rose-600"
+                      >
+                        <option value="A+">A+</option>
+                        <option value="A-">A-</option>
+                        <option value="B+">B+</option>
+                        <option value="B-">B-</option>
+                        <option value="O+">O+</option>
+                        <option value="O-">O-</option>
+                        <option value="AB+">AB+</option>
+                        <option value="AB-">AB-</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-600 uppercase">Card Type</label>
+                      <select
+                        {...regEditHealthCard('cardType')}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold bg-white focus:border-[#2e3192] focus:outline-none text-indigo-700"
+                      >
+                        <option value="Single">Single Health Card (₹201)</option>
+                        <option value="Family">Family Health Card (₹499)</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-600 uppercase">Expiry Date</label>
+                      <input
+                        type="date"
+                        {...regEditHealthCard('expiryDate')}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:border-[#2e3192] focus:outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-600 uppercase">Registered By</label>
+                      <input
+                        type="text"
+                        {...regEditHealthCard('registeredBy')}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:border-[#2e3192] focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 2: Residential Address */}
+                <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                  <h5 className="font-black text-[#2e3192] text-[11px] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-100 pb-2">
+                    <Home className="h-4 w-4 text-[#ed1c24]" /> 2. Residential Address Details
+                  </h5>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-600 uppercase">Village / Ward</label>
+                      <input
+                        type="text"
+                        {...regEditHealthCard('village')}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:border-[#2e3192] focus:outline-none uppercase"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-600 uppercase">Panchayat</label>
+                      <input
+                        type="text"
+                        {...regEditHealthCard('panchayat')}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:border-[#2e3192] focus:outline-none uppercase"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-600 uppercase">Block</label>
+                      <input
+                        type="text"
+                        {...regEditHealthCard('block')}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:border-[#2e3192] focus:outline-none uppercase"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-600 uppercase">District *</label>
+                      <input
+                        type="text"
+                        {...regEditHealthCard('district', { required: 'District is required' })}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:border-[#2e3192] focus:outline-none uppercase"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-600 uppercase">State *</label>
+                      <input
+                        type="text"
+                        {...regEditHealthCard('state', { required: 'State is required' })}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:border-[#2e3192] focus:outline-none uppercase"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-600 uppercase">Pin Code</label>
+                      <input
+                        type="text"
+                        maxLength={6}
+                        {...regEditHealthCard('pincode')}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold focus:border-[#2e3192] focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 3: Family Members Dynamic Editor (If Family Card) */}
+                {editCardTypeWatch === 'Family' && (
+                  <div className="p-4 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3">
+                    <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                      <h5 className="font-black text-[#2e3192] text-[11px] uppercase tracking-wider flex items-center gap-1.5">
+                        <Users className="h-4 w-4 text-[#ed1c24]" /> 3. Family Members ({editFamilyMembers.length} Members)
+                      </h5>
+                      <button
+                        type="button"
+                        onClick={handleAddEditFamilyMember}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold text-[10px] hover:bg-indigo-100 transition-all cursor-pointer"
+                      >
+                        <Plus className="h-3 w-3" /> Add Member
+                      </button>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      {editFamilyMembers.map((member, idx) => (
+                        <div key={idx} className="p-3 rounded-xl bg-slate-50 border border-slate-200 grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                          <div className="sm:col-span-3">
+                            <label className="text-[9px] font-bold text-slate-500 uppercase block mb-0.5">Relation</label>
+                            <input
+                              type="text"
+                              value={member.relationship || ''}
+                              onChange={(e) => handleEditFamilyMemberChange(idx, 'relationship', e.target.value)}
+                              placeholder="e.g. Father, Mother"
+                              className="w-full border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-bold bg-white focus:outline-none uppercase"
+                            />
+                          </div>
+                          <div className="sm:col-span-3">
+                            <label className="text-[9px] font-bold text-slate-500 uppercase block mb-0.5">Full Name</label>
+                            <input
+                              type="text"
+                              value={member.fullName || ''}
+                              onChange={(e) => handleEditFamilyMemberChange(idx, 'fullName', e.target.value)}
+                              placeholder="Member Name"
+                              className="w-full border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-bold bg-white focus:outline-none uppercase"
+                            />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="text-[9px] font-bold text-slate-500 uppercase block mb-0.5">Age</label>
+                            <input
+                              type="number"
+                              value={member.age || ''}
+                              onChange={(e) => handleEditFamilyMemberChange(idx, 'age', e.target.value)}
+                              placeholder="Age"
+                              className="w-full border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-bold bg-white focus:outline-none"
+                            />
+                          </div>
+                          <div className="sm:col-span-3">
+                            <label className="text-[9px] font-bold text-slate-500 uppercase block mb-0.5">Aadhar (12 Digits)</label>
+                            <input
+                              type="text"
+                              maxLength={12}
+                              value={member.aadhar || ''}
+                              onChange={(e) => handleEditFamilyMemberChange(idx, 'aadhar', e.target.value)}
+                              placeholder="Aadhar Number"
+                              className="w-full border border-slate-200 rounded-lg px-2 py-1 text-[11px] font-mono font-bold bg-white focus:outline-none"
+                            />
+                          </div>
+                          <div className="sm:col-span-1 flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveEditFamilyMember(idx)}
+                              className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
+                              title="Remove Member"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              </div>
+
+              {/* Form Footer */}
+              <div className="flex gap-2 p-4 border-t border-slate-100 bg-slate-50">
+                <button
+                  type="button"
+                  onClick={() => setShowEditHealthCardModal(false)}
+                  className="flex-1 rounded-xl bg-white border border-slate-200 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editHealthCardSubmitting}
+                  className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 text-xs font-bold shadow-md cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  {editHealthCardSubmitting ? 'Saving Changes...' : 'Save & Update Details'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
