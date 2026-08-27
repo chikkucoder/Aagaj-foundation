@@ -3221,18 +3221,43 @@ const AdminDashboard = () => {
                           paginatedList.map(m => (
                             <tr key={m._id} className="hover:bg-slate-50/50 transition-all">
                               <td className="py-3 px-4">
-                                {m.photoUrl ? (
-                                  <img 
-                                    src={resolveAssetUrl(m.photoUrl)} 
-                                    alt="Member" 
-                                    className="h-9 w-9 rounded-full object-cover border border-slate-200"
-                                    onError={handleImageError}
-                                  />
-                                ) : (
-                                  <div className="h-9 w-9 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-[10px]">
-                                    AF
-                                  </div>
-                                )}
+                                {(() => {
+                                  const photoSrc = m.photoUrl || m.photo || m.photoPath || m.image || m.profileImage || m.avatar || m.imageUrl;
+                                  if (photoSrc) {
+                                    return (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleOpenMemberDetails(m)}
+                                        className="relative group block rounded-full focus:outline-none cursor-pointer"
+                                        title="Click to view or change photo"
+                                      >
+                                        <img 
+                                          src={resolveAssetUrl(photoSrc)} 
+                                          alt={m.fullName} 
+                                          className="h-10 w-10 rounded-full object-cover border-2 border-slate-200 group-hover:border-rose-600 transition-all shadow-xs"
+                                          onError={handleImageError}
+                                        />
+                                        <div className="absolute inset-0 bg-slate-900/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
+                                          <Camera className="h-3.5 w-3.5 text-white" />
+                                        </div>
+                                      </button>
+                                    );
+                                  }
+                                  const initials = m.fullName ? m.fullName.trim().split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() : 'AF';
+                                  return (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenMemberDetails(m)}
+                                      className="relative group h-10 w-10 rounded-full bg-gradient-to-tr from-rose-100 to-amber-100 border border-rose-300 text-rose-800 flex items-center justify-center font-black text-[11px] shadow-xs cursor-pointer hover:bg-rose-200 transition-all"
+                                      title="No photo uploaded - Click to upload photo now"
+                                    >
+                                      <span>{initials}</span>
+                                      <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-rose-600 text-white flex items-center justify-center shadow-xs border border-white">
+                                        <Camera className="h-2.5 w-2.5" />
+                                      </div>
+                                    </button>
+                                  );
+                                })()}
                               </td>
                               <td className="py-3 px-4 font-black text-rose-800 font-mono">{m.membershipId}</td>
                               <td className="py-3 px-4 font-bold text-slate-900">
