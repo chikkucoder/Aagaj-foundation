@@ -323,20 +323,38 @@ const EmployeeDashboard = () => {
 
   const resolveAssetUrl = (assetPath) => {
     if (!assetPath) return '';
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-    const normalizedPath = assetPath.replace(/\\/g, '/');
-    if (normalizedPath.startsWith('http://') || normalizedPath.startsWith('https://')) return normalizedPath;
-    if (normalizedPath.startsWith('/')) return `${baseUrl}${normalizedPath}`;
-    return `${baseUrl}/${normalizedPath}`;
+    const normalized = String(assetPath).trim().replace(/\\/g, '/');
+    if (
+      normalized.startsWith('http://') || 
+      normalized.startsWith('https://') || 
+      normalized.startsWith('data:') || 
+      normalized.startsWith('blob:')
+    ) {
+      return normalized;
+    }
+    const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
+    if (normalized.startsWith('/')) {
+      return `${baseUrl}${normalized}`;
+    }
+    return `${baseUrl}/${normalized}`;
   };
 
   const handleImageError = (e) => {
     const currentSrc = e.target.src;
     const prodBase = 'https://aagajfoundation.com';
     
-    if (currentSrc && (currentSrc.includes('localhost') || currentSrc.includes('127.0.0.1'))) {
+    if (
+      currentSrc && 
+      (currentSrc.includes('localhost') || currentSrc.includes('127.0.0.1')) && 
+      !currentSrc.startsWith('data:') && 
+      !currentSrc.startsWith('blob:')
+    ) {
       try {
         const url = new URL(currentSrc);
+        e.target.onerror = () => {
+          e.target.onerror = null;
+          e.target.src = '/logo.jpg';
+        };
         e.target.src = `${prodBase}${url.pathname}`;
         return;
       } catch (err) {}
