@@ -25,7 +25,8 @@ import {
   resolveAssetUrl, 
   renderElementToCanvas, 
   saveOrShareCanvas, 
-  downloadCombinedCardImage 
+  downloadCombinedCardImage,
+  compressImageFile
 } from '../utils/cardDownloadUtils';
 
 const HealthCard = () => {
@@ -221,16 +222,16 @@ const HealthCard = () => {
     setShowWebcam(false);
   };
 
-  const capturePhoto = () => {
+  const capturePhoto = async () => {
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      canvas.width = video.videoWidth || 640;
-      canvas.height = video.videoHeight || 480;
+      canvas.width = Math.min(video.videoWidth || 640, 640);
+      canvas.height = Math.min(video.videoHeight || 480, 480);
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
       setPhotoPreview(dataUrl);
 
       canvas.toBlob((blob) => {
@@ -239,23 +240,27 @@ const HealthCard = () => {
           setPhotoBlob(file);
         }
         closeCamera();
-      }, 'image/jpeg', 0.92);
+      }, 'image/jpeg', 0.85);
     }
   };
 
-  const handlePhotoUpload = (e) => {
+  const handlePhotoUpload = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert('File size must be 5MB or less.');
-        return;
+      try {
+        // Automatically resize and compress multi-megabyte camera photos to ~100-200KB
+        const { file: compressedFile, dataUrl } = await compressImageFile(file, 800, 0.85);
+        setPhotoBlob(compressedFile);
+        setPhotoPreview(dataUrl);
+      } catch (err) {
+        // Fallback to original file
+        setPhotoBlob(file);
+        const reader = new FileReader();
+        reader.onload = (uploadEvent) => {
+          setPhotoPreview(uploadEvent.target.result);
+        };
+        reader.readAsDataURL(file);
       }
-      setPhotoBlob(file);
-      const reader = new FileReader();
-      reader.onload = (uploadEvent) => {
-        setPhotoPreview(uploadEvent.target.result);
-      };
-      reader.readAsDataURL(file);
     }
   };
 
