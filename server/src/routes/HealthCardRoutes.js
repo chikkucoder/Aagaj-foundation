@@ -319,11 +319,13 @@ router.post('/verify-payment', validateRequest({ body: healthCardVerifyPaymentSc
         // 7. Clean up pending record from MongoDB
         await PendingPayment.deleteOne({ orderId: pendingOrderId });
 
+        const frontendUrl = process.env.FRONTEND_URL || 'https://aagajfoundation.com';
         const responsePayload = {
             success: true,
             orderId: pendingOrderId,
             paymentId: razorpay_payment_id,
-            redirectUrl: `${process.env.FRONTEND_URL}/healthcard.html?status=success&orderId=${encodeURIComponent(pendingOrderId)}&paymentId=${encodeURIComponent(razorpay_payment_id)}`
+            card: newCard,
+            redirectUrl: `${frontendUrl}/medical/healthcard?status=success&orderId=${encodeURIComponent(pendingOrderId)}&paymentId=${encodeURIComponent(razorpay_payment_id)}`
         };
 
         if (process.env.NODE_ENV !== 'production') {
@@ -342,17 +344,39 @@ router.post('/verify-payment', validateRequest({ body: healthCardVerifyPaymentSc
 router.get('/get-by-order/:orderId', async (req, res) => {
     try {
         const { orderId } = req.params;
-        const { paymentId } = req.query;
+        const { paymentId, healthId } = req.query;
 
-        let card = await HealthCard.findOne({ orderId });
+        const cleanOrderId = String(orderId || '').trim();
+        const cleanPaymentId = String(paymentId || '').trim();
+        const cleanHealthId = String(healthId || '').trim();
 
-        // Fallback: try paymentId if orderId not found
-        if (!card && paymentId) {
-            card = await HealthCard.findOne({ paymentId });
+        // Build flexible query to find card by any available identifier
+        const queries = [];
+        if (cleanOrderId && cleanOrderId !== 'undefined' && cleanOrderId !== 'null') {
+            queries.push({ orderId: cleanOrderId });
+            queries.push({ healthId: cleanOrderId });
+            if (!cleanOrderId.startsWith('MC-') && /^\d{6}$/.test(cleanOrderId)) {
+                queries.push({ healthId: `MC-${cleanOrderId}` });
+            }
+        }
+        if (cleanPaymentId && cleanPaymentId !== 'undefined' && cleanPaymentId !== 'null') {
+            queries.push({ paymentId: cleanPaymentId });
+        }
+        if (cleanHealthId && cleanHealthId !== 'undefined' && cleanHealthId !== 'null') {
+            queries.push({ healthId: cleanHealthId });
+            if (!cleanHealthId.startsWith('MC-') && /^\d{6}$/.test(cleanHealthId)) {
+                queries.push({ healthId: `MC-${cleanHealthId}` });
+            }
         }
 
+        if (queries.length === 0) {
+            return res.status(400).json({ success: false, message: "No search identifier provided" });
+        }
+
+        const card = await HealthCard.findOne({ $or: queries });
+
         if (!card) {
-            return res.json({ success: false, message: "Card not found" });
+            return res.json({ success: false, message: "Card not found in database" });
         }
 
         res.json({ success: true, data: card });
