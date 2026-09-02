@@ -114,18 +114,18 @@ const Blogs = () => {
     : "Our Blog & Insights - Aagaj Foundation";
   const seoDesc = getDynamicMetaDescription(selectedBlog);
   const seoUrl = selectedBlog 
-    ? `https://aagajfoundation.com/blogs?post=${selectedBlog.slug}`
-    : "https://aagajfoundation.com/blogs";
+    ? `https://www.aagajfoundation.com/blogs?post=${selectedBlog.slug}`
+    : "https://www.aagajfoundation.com/blogs";
   const seoImage = selectedBlog && selectedBlog.image 
     ? selectedBlog.image 
-    : "https://aagajfoundation.com/logo.jpg";
+    : "https://www.aagajfoundation.com/logo.jpg";
 
   const blogSchema = selectedBlog ? {
     "@context": "https://schema.org",
     "@type": "NewsArticle",
     "headline": selectedBlog.title,
     "image": [
-      selectedBlog.image ? (selectedBlog.image.startsWith('http') ? selectedBlog.image : `https://aagajfoundation.com${selectedBlog.image}`) : "https://aagajfoundation.com/logo.jpg"
+      selectedBlog.image ? (selectedBlog.image.startsWith('http') ? selectedBlog.image : `https://www.aagajfoundation.com${selectedBlog.image}`) : "https://www.aagajfoundation.com/logo.jpg"
     ],
     "datePublished": selectedBlog.createdAt,
     "dateModified": selectedBlog.createdAt,
@@ -139,7 +139,7 @@ const Blogs = () => {
       "name": "Aagaj Foundation",
       "logo": {
         "@type": "ImageObject",
-        "url": "https://aagajfoundation.com/logo.jpg"
+        "url": "https://www.aagajfoundation.com/logo.jpg"
       }
     },
     "description": seoDesc
@@ -153,13 +153,13 @@ const Blogs = () => {
         "@type": "ListItem",
         "position": 1,
         "name": "Home",
-        "item": "https://aagajfoundation.com/"
+        "item": "https://www.aagajfoundation.com/"
       },
       {
         "@type": "ListItem",
         "position": 2,
         "name": "Blogs",
-        "item": "https://aagajfoundation.com/blogs"
+        "item": "https://www.aagajfoundation.com/blogs"
       }
     ]
   };

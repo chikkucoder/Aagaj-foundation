@@ -119,19 +119,19 @@ const Home = () => {
       <SEO 
         title="Aagaj Foundation - Women Empowerment & Livelihood NGO in Bihar"
         description="Aagaj Foundation is a registered public charitable trust dedicated to women empowerment, healthcare distribution, and livelihood training under Mahila Silayi Yojana and Swasthya Suraksha Yojana in Paliganj, Patna, Bihar."
-        canonicalUrl="https://aagajfoundation.com/"
+        canonicalUrl="https://www.aagajfoundation.com/"
         keywords="Aagaj Foundation, NGO Bihar, Women Empowerment Patna, Mahila Silayi Yojana, Swasthya Suraksha Card, Doctor Appointment Bihar, Trust Paliganj, NGO Darpan BR/2020/0260968"
         ogTitle="Aagaj Foundation - Empowering Women, Uplifting Communities"
         ogDescription="Providing sewing training, healthcare support, and self-employment initiatives for rural families in Patna and across Bihar."
-        ogImage="https://aagajfoundation.com/logo.jpg"
+        ogImage="https://www.aagajfoundation.com/logo.jpg"
         schema={[
           {
             "@context": "https://schema.org",
             "@type": "NGO",
             "name": "Aagaj Foundation",
             "alternateName": "Aagaj Foundation Trust",
-            "url": "https://aagajfoundation.com",
-            "logo": "https://aagajfoundation.com/logo.jpg",
+            "url": "https://www.aagajfoundation.com",
+            "logo": "https://www.aagajfoundation.com/logo.jpg",
             "founder": [
               {
                 "@type": "Person",
@@ -168,7 +168,7 @@ const Home = () => {
             "@type": "LocalBusiness",
             "name": "Aagaj Foundation Patna Office",
             "image": [
-              "https://aagajfoundation.com/logo.jpg"
+              "https://www.aagajfoundation.com/logo.jpg"
             ],
             "telephone": "+91-9431430464",
             "email": "aagajfoundationpaliganj@gmail.com",
@@ -185,7 +185,7 @@ const Home = () => {
               "latitude": "25.5941",
               "longitude": "85.1376"
             },
-            "url": "https://aagajfoundation.com",
+            "url": "https://www.aagajfoundation.com",
             "openingHoursSpecification": {
               "@type": "OpeningHoursSpecification",
               "dayOfWeek": [
@@ -203,12 +203,12 @@ const Home = () => {
           {
             "@context": "https://schema.org",
             "@type": "WebSite",
-            "url": "https://aagajfoundation.com",
+            "url": "https://www.aagajfoundation.com",
             "potentialAction": {
               "@type": "SearchAction",
               "target": {
                 "@type": "EntryPoint",
-                "urlTemplate": "https://aagajfoundation.com/blogs?search={search_term_string}"
+                "urlTemplate": "https://www.aagajfoundation.com/blogs?search={search_term_string}"
               },
               "query-input": "required name=search_term_string"
             }

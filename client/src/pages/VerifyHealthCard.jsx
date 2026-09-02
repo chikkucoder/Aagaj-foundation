@@ -64,7 +64,7 @@ const VerifyHealthCard = () => {
         })
         .catch((err) => {
           console.error("CORS fetch failed, trying fallback:", err);
-          const prodBase = 'https://aagajfoundation.com';
+          const prodBase = 'https://www.aagajfoundation.com';
           if (url.includes('localhost') || url.includes('127.0.0.1')) {
             try {
               const urlObj = new URL(url);
@@ -312,7 +312,7 @@ const VerifyHealthCard = () => {
 
   const handleImageError = (e) => {
     const currentSrc = e.target.src;
-    const prodBase = 'https://aagajfoundation.com';
+    const prodBase = 'https://www.aagajfoundation.com';
     
     if (currentSrc && (currentSrc.includes('localhost') || currentSrc.includes('127.0.0.1'))) {
       try {
@@ -331,11 +331,11 @@ const VerifyHealthCard = () => {
       <SEO 
         title="Verify Health Card Online - Aagaj Foundation"
         description="Verify your Swasthya Suraksha Card and search for candidate details using your unique Health ID or mobile number. Secure OTP verification required."
-        canonicalUrl="https://aagajfoundation.com/medical/verify-healthcard"
+        canonicalUrl="https://www.aagajfoundation.com/medical/verify-healthcard"
         keywords="Verify health card Patna, Health ID status search, check NGO card validation"
         ogTitle="Verify Swasthya Suraksha Card - Aagaj Foundation"
         ogDescription="Verify credentials and download card PDF securely."
-        ogImage="https://aagajfoundation.com/logo.jpg"
+        ogImage="https://www.aagajfoundation.com/logo.jpg"
         schema={{
           "@context": "https://schema.org",
           "@type": "BreadcrumbList",
@@ -344,19 +344,19 @@ const VerifyHealthCard = () => {
               "@type": "ListItem",
               "position": 1,
               "name": "Home",
-              "item": "https://aagajfoundation.com/"
+              "item": "https://www.aagajfoundation.com/"
             },
             {
               "@type": "ListItem",
               "position": 2,
               "name": "Health Card",
-              "item": "https://aagajfoundation.com/medical/healthcard"
+              "item": "https://www.aagajfoundation.com/medical/healthcard"
             },
             {
               "@type": "ListItem",
               "position": 3,
               "name": "Verify Health Card",
-              "item": "https://aagajfoundation.com/medical/verify-healthcard"
+              "item": "https://www.aagajfoundation.com/medical/verify-healthcard"
             }
           ]
         }}

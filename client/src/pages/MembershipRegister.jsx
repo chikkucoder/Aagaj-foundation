@@ -454,11 +454,11 @@ const MembershipRegister = () => {
       <SEO 
         title="NGO Membership Registration Portal - Aagaj Foundation"
         description="Become an official member of Aagaj Foundation. Register online, make payments securely, download your official certificate, and verify active memberships."
-        canonicalUrl="https://aagajfoundation.com/membership"
+        canonicalUrl="https://www.aagajfoundation.com/membership"
         keywords="NGO membership Bihar, register trust member Patna, download membership certificate, verify NGO certificate"
         ogTitle="Aagaj Foundation - Membership & Partner Portal"
         ogDescription="Complete registrations and instantly generate official printable member certificates."
-        ogImage="https://aagajfoundation.com/logo.jpg"
+        ogImage="https://www.aagajfoundation.com/logo.jpg"
         schema={{
           "@context": "https://schema.org",
           "@type": "BreadcrumbList",
@@ -467,13 +467,13 @@ const MembershipRegister = () => {
               "@type": "ListItem",
               "position": 1,
               "name": "Home",
-              "item": "https://aagajfoundation.com/"
+              "item": "https://www.aagajfoundation.com/"
             },
             {
               "@type": "ListItem",
               "position": 2,
               "name": "Membership",
-              "item": "https://aagajfoundation.com/membership"
+              "item": "https://www.aagajfoundation.com/membership"
             }
           ]
         }}

@@ -1,4 +1,17 @@
 {
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "aagajfoundation.com"
+        }
+      ],
+      "destination": "https://www.aagajfoundation.com/:path*",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     { "source": "/sitemap.xml", "destination": "https://api.aagajfoundation.com/sitemap.xml" },
     { "source": "/(.*)", "destination": "/index.html" }

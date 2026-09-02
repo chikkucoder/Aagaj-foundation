@@ -257,7 +257,7 @@ const EmployeeDashboard = () => {
         })
         .catch((err) => {
           console.error("CORS fetch failed, trying fallback:", err);
-          const prodBase = 'https://aagajfoundation.com';
+          const prodBase = 'https://www.aagajfoundation.com';
           if (url.includes('localhost') || url.includes('127.0.0.1')) {
             try {
               const urlObj = new URL(url);
@@ -310,7 +310,7 @@ const EmployeeDashboard = () => {
 
   const handleImageError = (e) => {
     const currentSrc = e.target.src;
-    const prodBase = 'https://aagajfoundation.com';
+    const prodBase = 'https://www.aagajfoundation.com';
     
     if (currentSrc && (currentSrc.includes('localhost') || currentSrc.includes('127.0.0.1'))) {
       try {

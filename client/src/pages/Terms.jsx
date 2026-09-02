@@ -7,11 +7,11 @@ const Terms = () => {
       <SEO 
         title="Terms of Service - Aagaj Foundation Trust"
         description="Review the Terms of Service for Aagaj Foundation, covering registrations, health cards, refund policies, and user account rules."
-        canonicalUrl="https://aagajfoundation.com/terms"
+        canonicalUrl="https://www.aagajfoundation.com/terms"
         keywords="Aagaj Foundation terms of service, NGO website terms, donation policies"
         ogTitle="Terms of Service - Aagaj Foundation Trust"
         ogDescription="Read the terms of use governing our website services and portals."
-        ogImage="https://aagajfoundation.com/logo.jpg"
+        ogImage="https://www.aagajfoundation.com/logo.jpg"
         schema={{
           "@context": "https://schema.org",
           "@type": "BreadcrumbList",
@@ -20,13 +20,13 @@ const Terms = () => {
               "@type": "ListItem",
               "position": 1,
               "name": "Home",
-              "item": "https://aagajfoundation.com/"
+              "item": "https://www.aagajfoundation.com/"
             },
             {
               "@type": "ListItem",
               "position": 2,
               "name": "Terms of Service",
-              "item": "https://aagajfoundation.com/terms"
+              "item": "https://www.aagajfoundation.com/terms"
             }
           ]
         }}
@@ -50,7 +50,7 @@ const Terms = () => {
           <section className="space-y-3">
             <h2 className="text-xl sm:text-2xl font-bold text-[#0B2C66] border-b pb-2 border-slate-100">1. Acceptance of Terms</h2>
             <p>
-              By accessing and using the website of <strong>Aagaj Foundation</strong> (located at <a href="https://aagajfoundation.com" className="text-[#ED1C24] hover:underline font-semibold">https://aagajfoundation.com</a>), you agree to comply with and be bound by these Terms of Service. If you do not agree to these terms, please do not use our services.
+              By accessing and using the website of <strong>Aagaj Foundation</strong> (located at <a href="https://www.aagajfoundation.com" className="text-[#ED1C24] hover:underline font-semibold">https://www.aagajfoundation.com</a>), you agree to comply with and be bound by these Terms of Service. If you do not agree to these terms, please do not use our services.
             </p>
           </section>
 

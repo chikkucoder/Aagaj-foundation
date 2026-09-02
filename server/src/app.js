@@ -160,7 +160,7 @@ app.use('/uploads', async (req, res, next) => {
         return next();
     }
     const filePath = req.path; // relative to '/uploads', e.g. "/healthcards/health-123.jpg" or "/photo-123.jpg"
-    const fallbackBaseUrl = process.env.PRODUCTION_FALLBACK_URL || 'https://aagajfoundation.com';
+    const fallbackBaseUrl = process.env.PRODUCTION_FALLBACK_URL || 'https://www.aagajfoundation.com';
     const prodUrl = `${fallbackBaseUrl.replace(/\/+$/, '')}/uploads${filePath}`;
     try {
         const response = await fetch(prodUrl);
@@ -797,10 +797,16 @@ app.get('/api/blogs', async (req, res) => {
     }
 });
 
+// ✅ ROBOTS.TXT ENDPOINT
+app.get('/robots.txt', (req, res) => {
+    res.type('text/plain');
+    res.send("User-agent: *\nAllow: /\n\nSitemap: https://www.aagajfoundation.com/sitemap.xml\n");
+});
+
 // ✅ DYNAMIC XML SITEMAP GENERATOR
 app.get('/sitemap.xml', async (req, res) => {
     try {
-        const baseUrl = 'https://aagajfoundation.com';
+        const baseUrl = 'https://www.aagajfoundation.com';
         
         // Static routes
         const staticRoutes = [
@@ -825,10 +831,8 @@ app.get('/sitemap.xml', async (req, res) => {
         ];
 
         // Fetch dynamic items from DB
-        const CarouselImage = require('./models/CarouselImageSchema');
-        const [blogs, carouselImages] = await Promise.all([
-            Blog.find({}).select('slug createdAt').lean(),
-            CarouselImage.find({ active: true }).select('createdAt').lean()
+        const [blogs] = await Promise.all([
+            Blog.find({}).select('slug createdAt').lean()
         ]);
 
         let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
@@ -853,15 +857,6 @@ app.get('/sitemap.xml', async (req, res) => {
             xml += `    <priority>0.7</priority>\n`;
             xml += `  </url>\n`;
         });
-
-        // 3. Add dynamic gallery image items (if they have active records)
-        if (carouselImages.length > 0) {
-            xml += `  <url>\n`;
-            xml += `    <loc>${baseUrl}/gallery</loc>\n`;
-            xml += `    <changefreq>weekly</changefreq>\n`;
-            xml += `    <priority>0.6</priority>\n`;
-            xml += `  </url>\n`;
-        }
 
         xml += `</urlset>`;
 

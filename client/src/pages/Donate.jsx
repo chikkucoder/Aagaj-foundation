@@ -167,11 +167,11 @@ const Donate = () => {
       <SEO 
         title="Donate Online - Support Aagaj Foundation Trust"
         description="Support women tailoring centers, health card distribution, and child education by donating online. We accept Razorpay and provide 80G tax exemption receipts."
-        canonicalUrl="https://aagajfoundation.com/donate"
+        canonicalUrl="https://www.aagajfoundation.com/donate"
         keywords="Donate NGO Patna, online trust donation, tax exemption 80G trust Bihar, women support funds"
         ogTitle="Donate to Aagaj Foundation - Change a Life Today"
         ogDescription="Help rural families in Bihar by supporting tailoring machines and medicine camps."
-        ogImage="https://aagajfoundation.com/logo.jpg"
+        ogImage="https://www.aagajfoundation.com/logo.jpg"
         schema={{
           "@context": "https://schema.org",
           "@type": "BreadcrumbList",
@@ -180,13 +180,13 @@ const Donate = () => {
               "@type": "ListItem",
               "position": 1,
               "name": "Home",
-              "item": "https://aagajfoundation.com/"
+              "item": "https://www.aagajfoundation.com/"
             },
             {
               "@type": "ListItem",
               "position": 2,
               "name": "Donate Us",
-              "item": "https://aagajfoundation.com/donate"
+              "item": "https://www.aagajfoundation.com/donate"
             }
           ]
         }}

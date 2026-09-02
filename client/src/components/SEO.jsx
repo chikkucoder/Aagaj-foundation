@@ -15,6 +15,15 @@ const SEO = ({
   robots = 'index, follow'
 }) => {
   useEffect(() => {
+    const ensureWww = (url) => {
+      if (typeof url !== 'string') return url;
+      return url.replace(/^https:\/\/aagajfoundation\.com/gi, 'https://www.aagajfoundation.com');
+    };
+
+    const activeCanonical = ensureWww(canonicalUrl);
+    const activeOgImage = ensureWww(ogImage);
+    const activeTwitterImage = ensureWww(twitterImage);
+
     // 1. Update Title
     if (title) {
       document.title = title;
@@ -54,8 +63,8 @@ const SEO = ({
     updateMetaTag('name', 'robots', robots);
 
     // 3. Update Canonical URL
-    if (canonicalUrl) {
-      updateLinkTag('canonical', canonicalUrl);
+    if (activeCanonical) {
+      updateLinkTag('canonical', activeCanonical);
     }
 
     // 4. Update Open Graph Tags
@@ -65,11 +74,11 @@ const SEO = ({
     if (description) {
       updateMetaTag('property', 'og:description', ogDescription || description);
     }
-    if (ogImage) {
-      updateMetaTag('property', 'og:image', ogImage);
+    if (activeOgImage) {
+      updateMetaTag('property', 'og:image', activeOgImage);
     }
-    if (canonicalUrl) {
-      updateMetaTag('property', 'og:url', canonicalUrl);
+    if (activeCanonical) {
+      updateMetaTag('property', 'og:url', activeCanonical);
     }
     updateMetaTag('property', 'og:type', 'website');
 
@@ -81,8 +90,8 @@ const SEO = ({
     if (description) {
       updateMetaTag('name', 'twitter:description', twitterDescription || ogDescription || description);
     }
-    if (ogImage || twitterImage) {
-      updateMetaTag('name', 'twitter:image', twitterImage || ogImage);
+    if (activeOgImage || activeTwitterImage) {
+      updateMetaTag('name', 'twitter:image', activeTwitterImage || activeOgImage);
     }
 
     // 6. Update JSON-LD Schemas
@@ -93,20 +102,28 @@ const SEO = ({
     const finalSchemas = [];
 
     // Fallback WebPage schema
-    if (title && description && canonicalUrl) {
+    if (title && description && activeCanonical) {
       finalSchemas.push({
         "@context": "https://schema.org",
         "@type": "WebPage",
         "name": title,
         "description": description,
-        "url": canonicalUrl
+        "url": activeCanonical
       });
     }
 
     if (schema) {
       const schemasToInject = Array.isArray(schema) ? schema : [schema];
       schemasToInject.forEach(s => {
-        if (s) finalSchemas.push(s);
+        if (s) {
+          // Normalize any non-WWW domain strings inside schema objects
+          const jsonStr = JSON.stringify(s).replace(/https:\/\/aagajfoundation\.com/gi, 'https://www.aagajfoundation.com');
+          try {
+            finalSchemas.push(JSON.parse(jsonStr));
+          } catch {
+            finalSchemas.push(s);
+          }
+        }
       });
     }
 
