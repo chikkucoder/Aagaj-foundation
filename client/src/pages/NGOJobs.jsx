@@ -21,11 +21,11 @@ const NGOJobs = () => {
       <SEO 
         title="NGO Careers & Coordinator Jobs - Aagaj Foundation"
         description="Apply for Panchayat Coordinator, Block Coordinator, and Health Supervisor job openings. Support rural welfare operations and manage local scheme centers."
-        canonicalUrl="https://aagajfoundation.com/careers/ngo-jobs"
+        canonicalUrl="https://www.aagajfoundation.com/careers/ngo-jobs"
         keywords="NGO jobs Bihar, Panchayat Coordinator vacancy Patna, Block Coordinator applications, trust recruitment"
         ogTitle="Aagaj Foundation Careers - NGO Job Openings"
         ogDescription="Become a coordinator or skill trainer and help drive local social welfare projects."
-        ogImage="https://aagajfoundation.com/logo.jpg"
+        ogImage="https://www.aagajfoundation.com/logo.jpg"
         schema={{
           "@context": "https://schema.org",
           "@type": "BreadcrumbList",
@@ -34,13 +34,13 @@ const NGOJobs = () => {
               "@type": "ListItem",
               "position": 1,
               "name": "Home",
-              "item": "https://aagajfoundation.com/"
+              "item": "https://www.aagajfoundation.com/"
             },
             {
               "@type": "ListItem",
               "position": 2,
               "name": "NGO Careers",
-              "item": "https://aagajfoundation.com/careers/ngo-jobs"
+              "item": "https://www.aagajfoundation.com/careers/ngo-jobs"
             }
           ]
         }}

@@ -12,11 +12,11 @@ const GeneralJobs = () => {
       <SEO 
         title="General Vacancies & Livelihood Jobs - Aagaj Foundation"
         description="Explore open vacancies for administrative and skill development roles at Aagaj Foundation. Find general employment and career options in Bihar."
-        canonicalUrl="https://aagajfoundation.com/careers/general-jobs"
+        canonicalUrl="https://www.aagajfoundation.com/careers/general-jobs"
         keywords="General NGO careers, NGO vacancies Patna, Bihar skill trainer jobs"
         ogTitle="Careers - General Job Vacancies - Aagaj Foundation"
         ogDescription="Apply for local administrative and vocational center supervisor roles."
-        ogImage="https://aagajfoundation.com/logo.jpg"
+        ogImage="https://www.aagajfoundation.com/logo.jpg"
         schema={{
           "@context": "https://schema.org",
           "@type": "BreadcrumbList",
@@ -25,13 +25,13 @@ const GeneralJobs = () => {
               "@type": "ListItem",
               "position": 1,
               "name": "Home",
-              "item": "https://aagajfoundation.com/"
+              "item": "https://www.aagajfoundation.com/"
             },
             {
               "@type": "ListItem",
               "position": 2,
               "name": "General Careers",
-              "item": "https://aagajfoundation.com/careers/general-jobs"
+              "item": "https://www.aagajfoundation.com/careers/general-jobs"
             }
           ]
         }}

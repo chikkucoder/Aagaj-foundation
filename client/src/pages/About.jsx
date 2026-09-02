@@ -8,11 +8,11 @@ const About = () => {
       <SEO 
         title="About Us - Aagaj Foundation Trust Bihar"
         description="Aagaj Foundation is a registered public charitable trust under the Indian Trust Act 1882. Discover our mission, values, and how we empower women and build local healthcare networks."
-        canonicalUrl="https://aagajfoundation.com/about"
+        canonicalUrl="https://www.aagajfoundation.com/about"
         keywords="About Aagaj Foundation, Trust Act 1882, Bihar NGO founders, NGO mission Patna"
         ogTitle="About Us - Aagaj Foundation Trust"
         ogDescription="Discover our genesis, vision, and how we create sustainable livelihoods for rural communities."
-        ogImage="https://aagajfoundation.com/logo.jpg"
+        ogImage="https://www.aagajfoundation.com/logo.jpg"
         schema={{
           "@context": "https://schema.org",
           "@type": "BreadcrumbList",
@@ -21,13 +21,13 @@ const About = () => {
               "@type": "ListItem",
               "position": 1,
               "name": "Home",
-              "item": "https://aagajfoundation.com/"
+              "item": "https://www.aagajfoundation.com/"
             },
             {
               "@type": "ListItem",
               "position": 2,
               "name": "About Us",
-              "item": "https://aagajfoundation.com/about"
+              "item": "https://www.aagajfoundation.com/about"
             }
           ]
         }}

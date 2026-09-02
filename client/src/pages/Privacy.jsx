@@ -7,11 +7,11 @@ const Privacy = () => {
       <SEO 
         title="Privacy Policy - Aagaj Foundation Trust"
         description="Read the Privacy Policy of Aagaj Foundation to understand how we collect, use, protect, and process user credentials and donation transactions."
-        canonicalUrl="https://aagajfoundation.com/privacy"
+        canonicalUrl="https://www.aagajfoundation.com/privacy"
         keywords="Aagaj Foundation privacy policy, NGO data security, privacy terms"
         ogTitle="Privacy Policy - Aagaj Foundation Trust"
         ogDescription="Commitment to protecting the personal data of our beneficiaries and donors."
-        ogImage="https://aagajfoundation.com/logo.jpg"
+        ogImage="https://www.aagajfoundation.com/logo.jpg"
         schema={{
           "@context": "https://schema.org",
           "@type": "BreadcrumbList",
@@ -20,13 +20,13 @@ const Privacy = () => {
               "@type": "ListItem",
               "position": 1,
               "name": "Home",
-              "item": "https://aagajfoundation.com/"
+              "item": "https://www.aagajfoundation.com/"
             },
             {
               "@type": "ListItem",
               "position": 2,
               "name": "Privacy Policy",
-              "item": "https://aagajfoundation.com/privacy"
+              "item": "https://www.aagajfoundation.com/privacy"
             }
           ]
         }}

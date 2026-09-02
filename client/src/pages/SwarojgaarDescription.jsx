@@ -9,11 +9,11 @@ const SwarojgaarDescription = () => {
       <SEO 
         title="Mahila Swarojgaar Yojana - Aagaj Foundation"
         description="Learn about Aagaj Foundation's Self-Help Groups (SHGs) under the Mahila Swarojgaar Yojana. We support micro-enterprise finance and local marketing for women in Bihar."
-        canonicalUrl="https://aagajfoundation.com/schemes/swarojgaar"
+        canonicalUrl="https://www.aagajfoundation.com/schemes/swarojgaar"
         keywords="Mahila Swarojgaar Yojana, Self-Help Groups Bihar, women micro finance Patna, rural enterprises"
         ogTitle="Mahila Swarojgaar Yojana - Aagaj Foundation SHGs"
         ogDescription="Providing business training and group funding opportunities for village cooperatives."
-        ogImage="https://aagajfoundation.com/logo.jpg"
+        ogImage="https://www.aagajfoundation.com/logo.jpg"
         schema={[
           {
             "@context": "https://schema.org",
@@ -23,13 +23,13 @@ const SwarojgaarDescription = () => {
                 "@type": "ListItem",
                 "position": 1,
                 "name": "Home",
-                "item": "https://aagajfoundation.com/"
+                "item": "https://www.aagajfoundation.com/"
               },
               {
                 "@type": "ListItem",
                 "position": 2,
                 "name": "Mahila Swarojgaar Yojana",
-                "item": "https://aagajfoundation.com/schemes/swarojgaar"
+                "item": "https://www.aagajfoundation.com/schemes/swarojgaar"
               }
             ]
           },
@@ -54,13 +54,13 @@ const SwarojgaarDescription = () => {
               }
             },
             "image": [
-              "https://aagajfoundation.com/swarojgaar.png"
+              "https://www.aagajfoundation.com/swarojgaar.png"
             ],
             "description": "Livelihood enterprise financial literacy workshop and Self-Help Group microfinance coordination camps.",
             "organizer": {
               "@type": "Organization",
               "name": "Aagaj Foundation",
-              "url": "https://aagajfoundation.com"
+              "url": "https://www.aagajfoundation.com"
             }
           }
         ]}

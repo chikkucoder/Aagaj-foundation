@@ -213,8 +213,8 @@ const Footer = () => {
                 <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-slate-800 text-[#fdd831] shrink-0">
                   <ExternalLink className="h-4 w-4" />
                 </div>
-                <a href="https://aagajfoundation.com" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors">
-                  aagajfoundation.com
+                <a href="https://www.aagajfoundation.com" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white transition-colors">
+                  www.aagajfoundation.com
                 </a>
               </div>
             </div>

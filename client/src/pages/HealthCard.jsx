@@ -302,7 +302,7 @@ const HealthCard = () => {
         })
         .catch((err) => {
           console.error("CORS fetch failed, trying fallback:", err);
-          const prodBase = 'https://aagajfoundation.com';
+          const prodBase = 'https://www.aagajfoundation.com';
           if (url.includes('localhost') || url.includes('127.0.0.1')) {
             try {
               const urlObj = new URL(url);
@@ -383,7 +383,7 @@ const HealthCard = () => {
 
   const handleImageError = (e) => {
     const currentSrc = e.target.src;
-    const prodBase = 'https://aagajfoundation.com';
+    const prodBase = 'https://www.aagajfoundation.com';
     
     if (currentSrc && (currentSrc.includes('localhost') || currentSrc.includes('127.0.0.1'))) {
       try {
@@ -402,11 +402,11 @@ const HealthCard = () => {
       <SEO 
         title="Get Swasthya Suraksha Health Card - Aagaj Foundation"
         description="Apply for your digital Swasthya Suraksha Card online. Get huge discounts at our partner hospitals, labs, and pharmacies across Bihar."
-        canonicalUrl="https://aagajfoundation.com/medical/healthcard"
+        canonicalUrl="https://www.aagajfoundation.com/medical/healthcard"
         keywords="health card Bihar, Swasthya Suraksha Card apply, medical discount card Patna"
         ogTitle="Aagaj Foundation - Swasthya Suraksha Card Application"
         ogDescription="Connect with partner hospitals and chemists. Save on diagnostic services and OPD fees."
-        ogImage="https://aagajfoundation.com/logo.jpg"
+        ogImage="https://www.aagajfoundation.com/logo.jpg"
         schema={{
           "@context": "https://schema.org",
           "@type": "BreadcrumbList",
@@ -415,13 +415,13 @@ const HealthCard = () => {
               "@type": "ListItem",
               "position": 1,
               "name": "Home",
-              "item": "https://aagajfoundation.com/"
+              "item": "https://www.aagajfoundation.com/"
             },
             {
               "@type": "ListItem",
               "position": 2,
               "name": "Health Card",
-              "item": "https://aagajfoundation.com/medical/healthcard"
+              "item": "https://www.aagajfoundation.com/medical/healthcard"
             }
           ]
         }}

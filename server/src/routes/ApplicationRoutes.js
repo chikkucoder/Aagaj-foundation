@@ -15,8 +15,8 @@ const { validateRequest } = require('../middleware/requestValidation');
 const { jobApplicationCreateOrderSchema, paymentVerifySchema } = require('../utils/routeSchemas');
 
 const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID,
-    key_secret: process.env.RAZORPAY_KEY_SECRET
+    key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder',
+    key_secret: process.env.RAZORPAY_KEY_SECRET || 'rzp_test_placeholder'
 });
 
 const uploadDir = path.join(__dirname, '..', 'uploads');
@@ -86,7 +86,7 @@ async function getImageBuffer(photoPath) {
     }
 
     // Fallback: Fetch from production server uploads folder
-    const fallbackBaseUrl = process.env.PRODUCTION_FALLBACK_URL || 'https://aagajfoundation.com';
+    const fallbackBaseUrl = process.env.PRODUCTION_FALLBACK_URL || 'https://www.aagajfoundation.com';
     const cleanFallbackBaseUrl = fallbackBaseUrl.replace(/\/+$/, '');
 
     const prodUrl = `${cleanFallbackBaseUrl}/uploads/${basename}`;

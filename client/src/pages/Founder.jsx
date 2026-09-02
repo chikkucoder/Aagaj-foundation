@@ -6,6 +6,7 @@ const Founder = () => {
   const [activePhoto, setActivePhoto] = useState(0);
 
   const photos = [
+    { src: '/chairman.jpg', alt: 'Vivek Kumar - Founder & Chairman, AAGAJ Foundation' },
     { src: '/vivek-kumar-founder-aagaj-foundation-1.webp', alt: 'Vivek Kumar - Founder, AAGAJ Foundation' },
     { src: '/vivek-kumar-founder-aagaj-foundation-2.webp', alt: 'Vivek Kumar - Formal Portrait' },
     { src: '/vivek-kumar-founder-aagaj-foundation-3.webp', alt: 'Vivek Kumar - Business Profile' },
@@ -63,20 +64,36 @@ const Founder = () => {
   const personSchema = {
     "@context": "https://schema.org",
     "@type": "Person",
+    "@id": "https://www.aagajfoundation.com/about/founder#person",
     "name": "Vivek Kumar",
-    "jobTitle": "Founder, AAGAJ Foundation",
+    "url": "https://www.aagajfoundation.com/about/founder",
+    "jobTitle": "Founder",
+    "worksFor": {
+      "@type": "NGO",
+      "@id": "https://www.aagajfoundation.com/#organization",
+      "name": "Aagaj Foundation",
+      "url": "https://www.aagajfoundation.com"
+    },
     "founderOf": {
       "@type": "NGO",
+      "@id": "https://www.aagajfoundation.com/#organization",
       "name": "Aagaj Foundation",
-      "url": "https://aagajfoundation.com",
-      "logo": "https://aagajfoundation.com/logo.jpg",
+      "url": "https://www.aagajfoundation.com",
+      "logo": "https://www.aagajfoundation.com/logo.jpg",
       "taxID": "NGO Darpan ID: BR/2020/0260968"
     },
+    "affiliation": {
+      "@type": "NGO",
+      "@id": "https://www.aagajfoundation.com/#organization",
+      "name": "Aagaj Foundation",
+      "url": "https://www.aagajfoundation.com"
+    },
     "image": [
-      "https://aagajfoundation.com/vivek-kumar-founder-aagaj-foundation-1.webp",
-      "https://aagajfoundation.com/vivek-kumar-founder-aagaj-foundation-2.webp",
-      "https://aagajfoundation.com/vivek-kumar-founder-aagaj-foundation-3.webp",
-      "https://aagajfoundation.com/vivek-kumar-founder-aagaj-foundation-4.webp"
+      "https://www.aagajfoundation.com/chairman.jpg",
+      "https://www.aagajfoundation.com/vivek-kumar-founder-aagaj-foundation-1.webp",
+      "https://www.aagajfoundation.com/vivek-kumar-founder-aagaj-foundation-2.webp",
+      "https://www.aagajfoundation.com/vivek-kumar-founder-aagaj-foundation-3.webp",
+      "https://www.aagajfoundation.com/vivek-kumar-founder-aagaj-foundation-4.webp"
     ],
     "description": "Vivek Kumar is the Founder of AAGAJ Foundation, a nonprofit organization dedicated to creating sustainable social impact through healthcare, employment generation, skill development, and women empowerment in Bihar.",
     "sameAs": [
@@ -91,24 +108,53 @@ const Founder = () => {
   const orgSchema = {
     "@context": "https://schema.org",
     "@type": "NGO",
+    "@id": "https://www.aagajfoundation.com/#organization",
     "name": "Aagaj Foundation",
-    "url": "https://aagajfoundation.com",
-    "logo": "https://aagajfoundation.com/logo.jpg",
+    "url": "https://www.aagajfoundation.com",
+    "logo": "https://www.aagajfoundation.com/logo.jpg",
     "founder": {
       "@type": "Person",
+      "@id": "https://www.aagajfoundation.com/about/founder#person",
       "name": "Vivek Kumar",
-      "jobTitle": "Founder, AAGAJ Foundation"
+      "jobTitle": "Founder",
+      "url": "https://www.aagajfoundation.com/about/founder"
     }
+  };
+
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://www.aagajfoundation.com/"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "About Us",
+        "item": "https://www.aagajfoundation.com/about"
+      },
+      {
+        "@type": "ListItem",
+        "position": 3,
+        "name": "Founder - Vivek Kumar",
+        "item": "https://www.aagajfoundation.com/about/founder"
+      }
+    ]
   };
 
   const imageSchemas = photos.map(photo => ({
     "@context": "https://schema.org",
     "@type": "ImageObject",
-    "contentUrl": `https://aagajfoundation.com${photo.src}`,
-    "license": "https://aagajfoundation.com/terms",
-    "acquireLicensePage": "https://aagajfoundation.com/terms",
+    "contentUrl": `https://www.aagajfoundation.com${photo.src}`,
+    "license": "https://www.aagajfoundation.com/terms",
+    "acquireLicensePage": "https://www.aagajfoundation.com/terms",
     "creator": {
       "@type": "Person",
+      "@id": "https://www.aagajfoundation.com/about/founder#person",
       "name": "Vivek Kumar"
     },
     "creditText": "Aagaj Foundation Trust",
@@ -120,12 +166,12 @@ const Founder = () => {
       <SEO 
         title="Vivek Kumar - Founder, Aagaj Foundation"
         description="Vivek Kumar is the Founder of AAGAJ Foundation, a nonprofit organization dedicated to women empowerment, healthcare access, and vocational skill training in Bihar."
-        canonicalUrl="https://aagajfoundation.com/about/founder"
+        canonicalUrl="https://www.aagajfoundation.com/about/founder"
         keywords="Vivek Kumar, Founder Aagaj Foundation, NGO Founder Bihar, Social Entrepreneur Patna"
         ogTitle="Vivek Kumar - Founder, AAGAJ Foundation"
         ogDescription="Uplifting rural families and building sustainable social welfare infrastructures across Bihar."
-        ogImage="https://aagajfoundation.com/vivek-kumar-founder-aagaj-foundation-1.webp"
-        schema={[personSchema, orgSchema, ...imageSchemas]}
+        ogImage="https://www.aagajfoundation.com/chairman.jpg"
+        schema={[personSchema, orgSchema, breadcrumbSchema, ...imageSchemas]}
       />
 
       {/* Hero Header */}

@@ -9,11 +9,11 @@ const SilayiYojnaDescription = () => {
       <SEO 
         title="Mahila Silayi Prasikshan Yojana - Aagaj Foundation"
         description="Learn about our flagship sewing and apparel tailoring training scheme for women in Bihar. Apply for registration online to learn and get certificates."
-        canonicalUrl="https://aagajfoundation.com/schemes/silayi"
+        canonicalUrl="https://www.aagajfoundation.com/schemes/silayi"
         keywords="Mahila Silayi Yojana, sewing training NGO Bihar, women tailoring classes Patna"
         ogTitle="Mahila Silayi Prasikshan Yojana - Aagaj Foundation"
         ogDescription="Free and subsidized tailoring classes and start-up toolkit distribution."
-        ogImage="https://aagajfoundation.com/logo.jpg"
+        ogImage="https://www.aagajfoundation.com/logo.jpg"
         schema={[
           {
             "@context": "https://schema.org",
@@ -23,13 +23,13 @@ const SilayiYojnaDescription = () => {
                 "@type": "ListItem",
                 "position": 1,
                 "name": "Home",
-                "item": "https://aagajfoundation.com/"
+                "item": "https://www.aagajfoundation.com/"
               },
               {
                 "@type": "ListItem",
                 "position": 2,
                 "name": "Mahila Silayi Yojana",
-                "item": "https://aagajfoundation.com/schemes/silayi"
+                "item": "https://www.aagajfoundation.com/schemes/silayi"
               }
             ]
           },
@@ -54,13 +54,13 @@ const SilayiYojnaDescription = () => {
               }
             },
             "image": [
-              "https://aagajfoundation.com/silai.jpeg"
+              "https://www.aagajfoundation.com/silai.jpeg"
             ],
             "description": "Subsidized vocational tailoring training program for rural women to enable financial self-reliance.",
             "organizer": {
               "@type": "Organization",
               "name": "Aagaj Foundation",
-              "url": "https://aagajfoundation.com"
+              "url": "https://www.aagajfoundation.com"
             }
           }
         ]}
