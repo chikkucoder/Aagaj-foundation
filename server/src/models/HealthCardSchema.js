@@ -35,4 +35,8 @@ const HealthCardSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now }
 });
 
+// Indexes for high-speed concurrent lookups
+HealthCardSchema.index({ orderId: 1 });
+HealthCardSchema.index({ paymentId: 1 });
+
 module.exports = mongoose.model('HealthCard', HealthCardSchema);

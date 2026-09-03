@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { checkAdminExists, registerAdmin } from '../api/authApi';
-import { KeyRound, Mail, User, ShieldAlert, HeartHandshake, Eye, EyeOff, Building2, ArrowLeft } from 'lucide-react';
+import { KeyRound, Mail, User, ShieldAlert, HeartHandshake, Eye, EyeOff, Building2, ArrowLeft, RotateCw } from 'lucide-react';
 
 const Login = () => {
   const [activeRole, setActiveRole] = useState('employee'); // 'employee', 'admin', 'hospital'
@@ -12,6 +12,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -34,33 +35,45 @@ const Login = () => {
   }, []);
 
   const onLoginSubmit = async (data) => {
+    if (isSubmitting) return;
     setErrorMsg('');
     setSuccessMsg('');
-    const username = data.username;
-    const res = await login(username, data.password, activeRole);
-    if (res.success) {
-      setSuccessMsg('Login Successful! Redirecting...');
-      setTimeout(() => {
-        if (res.role === 'admin') {
-          navigate('/admin/dashboard');
-        } else if (res.role === 'hospital') {
-          navigate('/hospital/dashboard');
-        } else {
-          navigate('/employee/dashboard');
-        }
-      }, 1500);
-    } else {
-      setErrorMsg(res.message || 'Invalid Credentials');
+    setIsSubmitting(true);
+
+    const username = (data.username || '').trim();
+    try {
+      const res = await login(username, data.password, activeRole);
+      if (res.success) {
+        setSuccessMsg('Login Successful! Opening dashboard...');
+        // Fast, smooth redirect without artificial long delay
+        setTimeout(() => {
+          if (res.role === 'admin') {
+            navigate('/admin/dashboard', { replace: true });
+          } else if (res.role === 'hospital') {
+            navigate('/hospital/dashboard', { replace: true });
+          } else {
+            navigate('/employee/dashboard', { replace: true });
+          }
+        }, 150);
+      } else {
+        setIsSubmitting(false);
+        setErrorMsg(res.message || 'Invalid Credentials');
+      }
+    } catch (err) {
+      setIsSubmitting(false);
+      setErrorMsg('Connection error. Please try again.');
     }
   };
 
   const onSignupSubmit = async (data) => {
+    if (isSubmitting) return;
     setErrorMsg('');
     setSuccessMsg('');
+    setIsSubmitting(true);
     try {
       const res = await registerAdmin({
         fullName: data.fullName,
-        email: data.email,
+        email: (data.email || '').trim(),
         password: data.password
       });
       if (res.success) {
@@ -73,6 +86,8 @@ const Login = () => {
       }
     } catch (err) {
       setErrorMsg('Server connection error during registration.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -271,9 +286,21 @@ const Login = () => {
 
               <button
                 type="submit"
-                className="flex w-full justify-center rounded-xl bg-[#fdd831] px-4 py-3 text-sm font-bold text-slate-900 shadow-md md:hover:bg-[#eec600] active:bg-[#eec600] focus:outline-none focus:ring-2 focus:ring-[#fdd831] focus:ring-offset-2 active:scale-95 transition-all duration-200 cursor-pointer"
+                disabled={isSubmitting}
+                className={`flex w-full items-center justify-center rounded-xl bg-[#fdd831] px-4 py-3 text-sm font-bold text-slate-900 shadow-md transition-all duration-200 touch-manipulation ${
+                  isSubmitting 
+                    ? 'opacity-80 cursor-wait' 
+                    : 'md:hover:bg-[#eec600] active:bg-[#eec600] active:scale-95 cursor-pointer'
+                } focus:outline-none focus:ring-2 focus:ring-[#fdd831] focus:ring-offset-2`}
               >
-                CREATE ADMIN ACCOUNT
+                {isSubmitting ? (
+                  <span className="inline-flex items-center gap-2">
+                    <RotateCw className="h-4 w-4 animate-spin shrink-0" />
+                    <span>Creating account...</span>
+                  </span>
+                ) : (
+                  'CREATE ADMIN ACCOUNT'
+                )}
               </button>
             </form>
           ) : (
@@ -300,6 +327,9 @@ const Login = () => {
                   </span>
                   <input
                     type={activeRole === 'admin' ? 'email' : 'text'}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck="false"
                     {...regLogin('username', { 
                       required: activeRole === 'admin' 
                         ? 'Admin Email is required' 
@@ -317,7 +347,7 @@ const Login = () => {
                         ? 'hospital@foundation.com' 
                         : 'EMP1234 or name@aagaj.com'
                     }
-                    className="block w-full rounded-xl border border-slate-200 py-3 pl-10 pr-3 text-slate-800 placeholder-slate-400 outline-none focus:border-[#ED1C24] focus:ring-1 focus:ring-[#ED1C24] sm:text-sm transition-all"
+                    className="block w-full rounded-xl border border-slate-200 py-3 pl-10 pr-3 text-slate-800 placeholder-slate-400 outline-none focus:border-[#ED1C24] focus:ring-1 focus:ring-[#ED1C24] sm:text-sm transition-all touch-manipulation"
                   />
                 </div>
                 {loginErrors.username && (
@@ -346,14 +376,17 @@ const Login = () => {
                   </span>
                   <input
                     type={showPassword ? 'text' : 'password'}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck="false"
                     {...regLogin('password', { required: 'Password is required' })}
                     placeholder="••••••••"
-                    className="block w-full rounded-xl border border-slate-200 py-3 pl-10 pr-10 text-slate-800 placeholder-slate-400 outline-none focus:border-[#ED1C24] focus:ring-1 focus:ring-[#ED1C24] sm:text-sm transition-all"
+                    className="block w-full rounded-xl border border-slate-200 py-3 pl-10 pr-10 text-slate-800 placeholder-slate-400 outline-none focus:border-[#ED1C24] focus:ring-1 focus:ring-[#ED1C24] sm:text-sm transition-all touch-manipulation"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600"
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600 cursor-pointer"
                   >
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
@@ -366,9 +399,21 @@ const Login = () => {
               {/* Login Button */}
               <button
                 type="submit"
-                className="flex w-full justify-center rounded-xl bg-[#ED1C24] px-4 py-3 text-sm font-bold text-white shadow-md md:hover:bg-[#b0151b] active:bg-[#b0151b] focus:outline-none focus:ring-2 focus:ring-[#ED1C24] focus:ring-offset-2 active:scale-95 transition-all duration-200 cursor-pointer"
+                disabled={isSubmitting}
+                className={`flex w-full items-center justify-center rounded-xl bg-[#ED1C24] px-4 py-3 text-sm font-bold text-white shadow-md transition-all duration-200 touch-manipulation ${
+                  isSubmitting 
+                    ? 'opacity-80 cursor-wait' 
+                    : 'md:hover:bg-[#b0151b] active:bg-[#b0151b] active:scale-95 cursor-pointer'
+                } focus:outline-none focus:ring-2 focus:ring-[#ED1C24] focus:ring-offset-2`}
               >
-                SECURE LOG IN
+                {isSubmitting ? (
+                  <span className="inline-flex items-center gap-2">
+                    <RotateCw className="h-4 w-4 animate-spin shrink-0" />
+                    <span>Verifying credentials...</span>
+                  </span>
+                ) : (
+                  'SECURE LOG IN'
+                )}
               </button>
 
               {/* Help & Contact Support */}

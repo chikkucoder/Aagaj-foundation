@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import html2canvas from 'html2canvas-pro';
 import apiClient from '../api/apiClient';
 import { 
   Search, 
@@ -16,17 +15,28 @@ import {
   Mail,
   KeyRound,
   Clock,
-  X
+  X,
+  Layers
 } from 'lucide-react';
 import SEO from '../components/SEO';
+import { 
+  generateQrCodeDataUrl, 
+  imageUrlToBase64, 
+  resolveAssetUrl, 
+  renderElementToCanvas, 
+  saveOrShareCanvas, 
+  downloadCombinedCardImage 
+} from '../utils/cardDownloadUtils';
 
 const VerifyHealthCard = () => {
   const [healthId, setHealthId] = useState('');
   const [loading, setLoading] = useState(false);
+  const [downloadingType, setDownloadingType] = useState(null); // 'front' | 'back' | 'full' | null
   const [cardData, setCardData] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [healthCardPhotoUrl, setHealthCardPhotoUrl] = useState('/logo.jpg');
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
 
   // OTP Verification States
   const [showOtpModal, setShowOtpModal] = useState(false);
@@ -45,59 +55,30 @@ const VerifyHealthCard = () => {
   const cardFrontRef = useRef(null);
   const cardBackRef = useRef(null);
 
-  // Resolve Health Card photo to local blob URL to bypass CORS
+  // Preload and Base64-encode Images & Local QR Code for 100% reliable Canvas rendering
   useEffect(() => {
     let active = true;
-    let localUrl = '';
 
-    if (cardData && cardData.photoPath) {
-      const url = resolveAssetUrl(cardData.photoPath);
-      fetch(url)
-        .then((res) => {
-          if (!res.ok) throw new Error('Image fetch failed');
-          return res.blob();
-        })
-        .then((blob) => {
-          if (!active) return;
-          localUrl = URL.createObjectURL(blob);
-          setHealthCardPhotoUrl(localUrl);
-        })
-        .catch((err) => {
-          console.error("CORS fetch failed, trying fallback:", err);
-          const prodBase = 'https://www.aagajfoundation.com';
-          if (url.includes('localhost') || url.includes('127.0.0.1')) {
-            try {
-              const urlObj = new URL(url);
-              const fallbackUrl = `${prodBase}${urlObj.pathname}`;
-              fetch(fallbackUrl)
-                .then((res) => {
-                  if (!res.ok) throw new Error('Fallback failed');
-                  return res.blob();
-                })
-                .then((blob) => {
-                  if (!active) return;
-                  localUrl = URL.createObjectURL(blob);
-                  setHealthCardPhotoUrl(localUrl);
-                })
-                .catch(() => {
-                  if (active) setHealthCardPhotoUrl('/logo.jpg');
-                });
-            } catch (e) {
-              if (active) setHealthCardPhotoUrl('/logo.jpg');
-            }
-          } else {
-            if (active) setHealthCardPhotoUrl('/logo.jpg');
-          }
+    if (cardData) {
+      // 1. Local QR Code
+      const qrData = `AAGAJ-HEALTH-ID:${cardData.healthId}\nNAME:${cardData.fullName}\nTYPE:${cardData.cardType || 'Single'}\nSTATUS:VALID\nEXPIRY:${cardData.expiryDate ? new Date(cardData.expiryDate).toLocaleDateString('en-IN') : '6 Months'}`;
+      generateQrCodeDataUrl(qrData).then((qrUrl) => {
+        if (active) setQrCodeDataUrl(qrUrl);
+      });
+
+      // 2. Safe Base64 Photo loader
+      if (cardData.photoPath) {
+        const fullUrl = resolveAssetUrl(cardData.photoPath);
+        imageUrlToBase64(fullUrl, '/logo.jpg').then((base64) => {
+          if (active) setHealthCardPhotoUrl(base64);
         });
-    } else {
-      setHealthCardPhotoUrl('/logo.jpg');
+      } else {
+        setHealthCardPhotoUrl('/logo.jpg');
+      }
     }
 
     return () => {
       active = false;
-      if (localUrl) {
-        URL.revokeObjectURL(localUrl);
-      }
     };
   }, [cardData]);
 
@@ -271,63 +252,55 @@ const VerifyHealthCard = () => {
     window.print();
   };
 
-  const downloadFrontCard = () => {
-    if (!cardFrontRef.current) return;
-    html2canvas(cardFrontRef.current, { scale: 3, useCORS: true, allowTaint: true })
-      .then((canvas) => {
-        const link = document.createElement('a');
-        link.download = `Health_Card_Front_${cardData.fullName.replace(/\s+/g, '_')}_${cardData.healthId}.png`;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-      })
-      .catch((err) => {
-        console.error("Error generating card front canvas:", err);
-        alert("Failed to save image. Please try again.");
-      });
-  };
-
-  const downloadBackCard = () => {
-    if (!cardBackRef.current) return;
-    html2canvas(cardBackRef.current, { scale: 3, useCORS: true, allowTaint: true })
-      .then((canvas) => {
-        const link = document.createElement('a');
-        link.download = `Health_Card_Back_${cardData.fullName.replace(/\s+/g, '_')}_${cardData.healthId}.png`;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-      })
-      .catch((err) => {
-        console.error("Error generating card back canvas:", err);
-        alert("Failed to save image. Please try again.");
-      });
-  };
-
-  const resolveAssetUrl = (assetPath) => {
-    if (!assetPath) return '';
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-    const normalizedPath = assetPath.replace(/\\/g, '/');
-    if (normalizedPath.startsWith('http://') || normalizedPath.startsWith('https://')) return normalizedPath;
-    if (normalizedPath.startsWith('/')) return `${baseUrl}${normalizedPath}`;
-    return `${baseUrl}/${normalizedPath}`;
-  };
-
-  const handleImageError = (e) => {
-    const currentSrc = e.target.src;
-    const prodBase = 'https://www.aagajfoundation.com';
-    
-    if (currentSrc && (currentSrc.includes('localhost') || currentSrc.includes('127.0.0.1'))) {
-      try {
-        const url = new URL(currentSrc);
-        e.target.src = `${prodBase}${url.pathname}`;
-        return;
-      } catch (err) {}
+  // Robust Card Download Handlers
+  const handleDownloadFront = async () => {
+    if (!cardFrontRef.current || !cardData || downloadingType) return;
+    setDownloadingType('front');
+    try {
+      const filename = `Health_Card_Front_${(cardData.fullName || 'User').replace(/\s+/g, '_')}_${cardData.healthId}.png`;
+      const canvas = await renderElementToCanvas(cardFrontRef.current);
+      await saveOrShareCanvas(canvas, filename);
+    } catch (err) {
+      console.error('Front card download error:', err);
+      alert('Could not download image. Please try again or use the Print Card option.');
+    } finally {
+      setDownloadingType(null);
     }
-    
-    e.target.onerror = null;
-    e.target.src = '/logo.jpg';
+  };
+
+  const handleDownloadBack = async () => {
+    if (!cardBackRef.current || !cardData || downloadingType) return;
+    setDownloadingType('back');
+    try {
+      const filename = `Health_Card_Back_${(cardData.fullName || 'User').replace(/\s+/g, '_')}_${cardData.healthId}.png`;
+      const canvas = await renderElementToCanvas(cardBackRef.current);
+      await saveOrShareCanvas(canvas, filename);
+    } catch (err) {
+      console.error('Back card download error:', err);
+      alert('Could not download image. Please try again or use the Print Card option.');
+    } finally {
+      setDownloadingType(null);
+    }
+  };
+
+  const handleDownloadCombined = async () => {
+    if (!cardFrontRef.current || !cardBackRef.current || !cardData || downloadingType) return;
+    setDownloadingType('full');
+    try {
+      const filename = `Health_Card_Complete_${(cardData.fullName || 'User').replace(/\s+/g, '_')}_${cardData.healthId}.png`;
+      await downloadCombinedCardImage(cardFrontRef.current, cardBackRef.current, filename);
+    } catch (err) {
+      console.error('Combined card download error:', err);
+      alert('Could not download combined image. Please try downloading Front and Back individually.');
+    } finally {
+      setDownloadingType(null);
+    }
+  };
+    }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8 print:min-h-0 print:py-0 print:bg-transparent">
+    <div className="min-h-screen bg-slate-50 py-8 sm:py-12 px-3 sm:px-6 lg:px-8 print:min-h-0 print:py-0 print:bg-white print:p-0">
       <SEO 
         title="Verify Health Card Online - Aagaj Foundation"
         description="Verify your Swasthya Suraksha Card and search for candidate details using your unique Health ID or mobile number. Secure OTP verification required."
@@ -362,31 +335,36 @@ const VerifyHealthCard = () => {
         }}
       />
       {/* Back button */}
-      <div className="print:hidden max-w-3xl mx-auto mb-6">
+      <div className="print:hidden max-w-3xl mx-auto mb-6 flex justify-between items-center">
         <Link
           to="/"
           className="inline-flex items-center gap-2 rounded-xl bg-white border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:text-rose-600 shadow-sm transition-all"
         >
           <ArrowLeft className="h-4 w-4" /> Back to Home
         </Link>
+        <Link
+          to="/medical/healthcard"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-50 border border-indigo-200 px-3.5 py-2 text-xs font-bold text-[#2e3192] hover:bg-indigo-100 shadow-sm transition-all"
+        >
+          Apply New Health Card &rarr;
+        </Link>
       </div>
 
       <div className="max-w-3xl mx-auto">
-        <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-2xl print:hidden mb-8">
+        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-100 shadow-2xl print:hidden mb-8">
           
           <div className="flex flex-col items-center text-center mb-8 gap-4">
             <img 
               src="/logo.jpg" 
               alt="Logo" 
               className="h-16 w-auto rounded-2xl border border-slate-100 p-1 object-contain shadow-sm" 
-              onError={(e) => { e.target.src = '/logo.jpeg'; }}
             />
             <div className="space-y-1">
               <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 border border-rose-200 text-rose-600 font-extrabold px-3.5 py-1 text-xs uppercase tracking-wide">
                 <Award className="h-3.5 w-3.5" /> Swasthya Suraksha Network
               </span>
-              <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase mt-1">Health Card Verification</h2>
-              <p className="text-slate-500 font-semibold text-sm">Verify your registered Health ID card number and download/print your digital copy instantly.</p>
+              <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight uppercase mt-1">Health Card Verification</h1>
+              <p className="text-slate-500 font-semibold text-xs sm:text-sm">Verify your registered Health ID card number and download/print your digital copy instantly.</p>
             </div>
           </div>
 
@@ -442,44 +420,80 @@ const VerifyHealthCard = () => {
 
         {/* Card View and Download Control buttons (Rendered only on verification success) */}
         {cardData && (
-          <div className="flex flex-col items-center w-full max-w-full overflow-hidden">
+          <div className="flex flex-col items-center w-full">
             
             {/* Print/Download Button Panel */}
-            <div className="print:hidden w-full max-w-[550px] bg-emerald-50 border border-emerald-100 rounded-3xl p-4 sm:p-6 mb-6 flex flex-col items-center text-center">
-              <h3 className="text-sm sm:text-base font-extrabold text-slate-850">Health ID Verified Successfully!</h3>
-              <p className="text-xs text-slate-500 mt-1">Select your choice of action from the buttons below to export your verified digital Health Card.</p>
+            <div className="print:hidden w-full max-w-xl bg-white border border-emerald-200 rounded-3xl p-5 sm:p-6 mb-6 shadow-xl flex flex-col items-center text-center">
+              <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center mb-3">
+                <ShieldCheck className="h-7 w-7 text-emerald-600" />
+              </div>
+              <h3 className="text-base font-extrabold text-slate-850">Health ID Verified Successfully!</h3>
+              <p className="text-xs text-slate-500 mt-1 max-w-sm">Select your choice of action from the buttons below to export or save your verified digital Health Card.</p>
               
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full mt-4">
-                <button
-                  onClick={downloadFrontCard}
-                  className="flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 text-xs font-bold shadow-md cursor-pointer transition-all active:scale-95"
-                >
-                  <Download className="h-4 w-4" /> Front Side (PNG)
-                </button>
-                <button
-                  onClick={downloadBackCard}
-                  className="flex items-center justify-center gap-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white py-2.5 text-xs font-bold shadow-md cursor-pointer transition-all active:scale-95"
-                >
-                  <Download className="h-4 w-4" /> Back Side (PNG)
-                </button>
-                <button
-                  onClick={handlePrint}
-                  className="flex items-center justify-center gap-1.5 rounded-xl bg-[#2e3192] hover:bg-[#1a1c54] text-white py-2.5 text-xs font-bold shadow-md cursor-pointer transition-all active:scale-95"
-                >
-                  <Printer className="h-4 w-4" /> Print Card
-                </button>
+              <div className="flex flex-col gap-2.5 w-full mt-5">
+                {/* Action Row 1: Full Card & Print */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
+                  <button
+                    onClick={handleDownloadCombined}
+                    disabled={!!downloadingType}
+                    className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white py-3 px-4 text-xs font-black shadow-md cursor-pointer transition-all active:scale-95 disabled:opacity-50"
+                  >
+                    {downloadingType === 'full' ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Layers className="h-4 w-4" />
+                    )}
+                    Download Complete Card (PNG)
+                  </button>
+
+                  <button
+                    onClick={handlePrint}
+                    className="flex items-center justify-center gap-2 rounded-xl bg-[#2e3192] hover:bg-[#1a1c54] text-white py-3 px-4 text-xs font-bold shadow-md cursor-pointer transition-all active:scale-95"
+                  >
+                    <Printer className="h-4 w-4" /> Print Card (A4 / PVC)
+                  </button>
+                </div>
+
+                {/* Action Row 2: Front & Back */}
+                <div className="grid grid-cols-2 gap-2 w-full">
+                  <button
+                    onClick={handleDownloadFront}
+                    disabled={!!downloadingType}
+                    className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white py-2.5 px-3 text-xs font-bold shadow-sm cursor-pointer transition-all active:scale-95 disabled:opacity-50"
+                  >
+                    {downloadingType === 'front' ? (
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Download className="h-3.5 w-3.5" />
+                    )}
+                    Front Side Only
+                  </button>
+
+                  <button
+                    onClick={handleDownloadBack}
+                    disabled={!!downloadingType}
+                    className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white py-2.5 px-3 text-xs font-bold shadow-sm cursor-pointer transition-all active:scale-95 disabled:opacity-50"
+                  >
+                    {downloadingType === 'back' ? (
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Download className="h-3.5 w-3.5" />
+                    )}
+                    Back Side Only
+                  </button>
+                </div>
               </div>
             </div>
 
             {/* Front & Back Card Layout for Printing (Fully Responsive Scaled Wrapper) */}
-            <div className="w-full max-w-full flex flex-col items-center py-2 overflow-hidden">
+            <div className="w-full flex flex-col items-center gap-6 py-2 overflow-x-hidden">
               
               {/* CARD FRONT SIDE */}
-              <div className="w-full flex justify-center overflow-visible py-1">
-                <div className="transform scale-[0.62] min-[380px]:scale-[0.70] min-[440px]:scale-[0.80] min-[520px]:scale-[0.92] sm:scale-100 origin-top transition-transform duration-200">
+              <div className="w-full flex justify-center overflow-visible">
+                <div className="transform scale-[0.58] min-[360px]:scale-[0.66] min-[420px]:scale-[0.76] min-[500px]:scale-[0.90] sm:scale-100 origin-top transition-transform duration-200 h-[210px] min-[360px]:h-[240px] min-[420px]:h-[275px] min-[500px]:h-[325px] sm:h-auto">
                   <div 
                     ref={cardFrontRef}
-                    className="w-[550px] min-h-[350px] rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden relative flex flex-col justify-between select-none font-sans"
+                    className="w-[550px] min-h-[350px] rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden relative flex flex-col justify-between select-none font-sans print:shadow-none print:border-2"
                   >
                     {/* Issued under banner strip */}
                     <div className="bg-slate-50 text-[#2e3192] text-center py-1 text-[10px] font-black uppercase tracking-wider border-b border-slate-100">
@@ -489,7 +503,7 @@ const VerifyHealthCard = () => {
                     {/* Premium Header */}
                     <div className="bg-gradient-to-r from-[#2e3192] to-[#1a1c54] h-[72px] text-white py-2.5 px-6 flex justify-between items-center relative">
                       <div className="flex items-center gap-3">
-                        <img src="/logo.jpg" alt="Logo" className="h-10 w-10 rounded-lg bg-white p-0.5" onError={(e) => { e.target.src = '/logo.jpeg'; }} />
+                        <img src="/logo.jpg" alt="Logo" className="h-10 w-10 rounded-lg bg-white p-0.5 object-contain" />
                         <span className="text-xl font-black text-[#ed1c24] tracking-wider uppercase">Aagaj.Foundation</span>
                       </div>
                       <div className="text-right flex flex-col items-end justify-center">
@@ -509,8 +523,6 @@ const VerifyHealthCard = () => {
                           src={healthCardPhotoUrl}
                           alt="Patient"
                           className="w-full h-full object-cover rounded-lg"
-                          crossOrigin="anonymous"
-                          onError={handleImageError}
                         />
                       </div>
 
@@ -533,7 +545,9 @@ const VerifyHealthCard = () => {
 
                         <div className="col-span-2">
                           <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">Aadhar Number</label>
-                          <span className="font-bold text-slate-700 block tracking-wide font-mono">{cardData.aadhar?.replace(/(\d{4})/g, '$1 ').trim()}</span>
+                          <span className="font-bold text-slate-700 block tracking-wide font-mono">
+                            {cardData.aadhar ? cardData.aadhar.replace(/(\d{4})/g, '$1 ').trim() : 'N/A'}
+                          </span>
                         </div>
 
                         <div className="col-span-2">
@@ -552,7 +566,7 @@ const VerifyHealthCard = () => {
                       <div className="text-right">
                         <span className="text-[8px] text-slate-400 block">EXPIRY DATE</span>
                         <span className="font-extrabold text-slate-800 text-xs block uppercase">
-                          {new Date(cardData.expiryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          {cardData.expiryDate ? new Date(cardData.expiryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '6 MONTHS'}
                         </span>
                       </div>
                     </div>
@@ -561,11 +575,11 @@ const VerifyHealthCard = () => {
               </div>
 
               {/* CARD BACK SIDE */}
-              <div className="w-full flex justify-center overflow-visible py-1 -mt-32 min-[380px]:-mt-24 min-[440px]:-mt-14 min-[520px]:-mt-6 sm:mt-0">
-                <div className="transform scale-[0.62] min-[380px]:scale-[0.70] min-[440px]:scale-[0.80] min-[520px]:scale-[0.92] sm:scale-100 origin-top transition-transform duration-200">
+              <div className="w-full flex justify-center overflow-visible">
+                <div className="transform scale-[0.58] min-[360px]:scale-[0.66] min-[420px]:scale-[0.76] min-[500px]:scale-[0.90] sm:scale-100 origin-top transition-transform duration-200 h-[210px] min-[360px]:h-[240px] min-[420px]:h-[275px] min-[500px]:h-[325px] sm:h-auto">
                   <div 
                     ref={cardBackRef}
-                    className="w-[550px] min-h-[350px] rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden relative flex flex-col justify-between select-none font-sans"
+                    className="w-[550px] min-h-[350px] rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden relative flex flex-col justify-between select-none font-sans print:shadow-none print:border-2"
                   >
                     {/* Back Header Banner */}
                     <div className="bg-[#ed1c24] text-white text-center py-2 text-xs font-black uppercase tracking-wider">
@@ -600,8 +614,8 @@ const VerifyHealthCard = () => {
                                 <tbody className="divide-y divide-slate-100 text-[9px] font-medium text-slate-700">
                                   {cardData.familyMembers?.map((m, idx) => (
                                     <tr key={idx}>
-                                      <td className="p-1 font-bold">{m.name}</td>
-                                      <td className="p-1 text-slate-500">{m.relation}</td>
+                                      <td className="p-1 font-bold">{m.fullName || m.name}</td>
+                                      <td className="p-1 text-slate-500">{m.relationship || m.relation}</td>
                                       <td className="p-1">{m.age} Y / {m.gender}</td>
                                     </tr>
                                   ))}
@@ -638,14 +652,17 @@ const VerifyHealthCard = () => {
                           </div>
                         )}
 
-                        {/* QR Code Container */}
+                        {/* Local QR Code Container */}
                         <div className="flex flex-col items-center shrink-0 ml-4 p-2 bg-slate-50 border border-slate-100 rounded-2xl">
-                          <img
-                            src={`https://api.qrserver.com/v1/create-qr-code/?size=85x85&data=HEALTH-ID:${cardData.healthId}%0ANAME:${encodeURIComponent(cardData.fullName)}`}
-                            alt="Profile QR Code"
-                            className="h-20 w-20 object-contain rounded-md"
-                            crossOrigin="anonymous"
-                          />
+                          {qrCodeDataUrl ? (
+                            <img
+                              src={qrCodeDataUrl}
+                              alt="Profile QR Code"
+                              className="h-20 w-20 object-contain rounded-md"
+                            />
+                          ) : (
+                            <div className="h-20 w-20 bg-slate-200 animate-pulse rounded-md" />
+                          )}
                           <span className="text-[8px] font-black text-slate-800 tracking-wider uppercase mt-1">Scan Profile</span>
                         </div>
                       </div>

@@ -40,7 +40,7 @@ if (trustProxySetting === 'true') {
 // ============================================
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: parseInt(process.env.API_RATE_LIMIT, 10) || 1000, // Increased fallback to 1000 to prevent throttling active admin actions
+    max: parseInt(process.env.API_RATE_LIMIT, 10) || 3000, // Generous limit to prevent throttling active operators/users
     message: {
         success: false,
         message: 'Too many requests from this IP, please try again after 15 minutes.'
@@ -53,7 +53,7 @@ const apiLimiter = rateLimit({
 
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // Only 5 failed login attempts
+    max: 15, // 15 failed login attempts
     skipSuccessfulRequests: true, // Don't count successful logins
     message: {
         success: false,
@@ -64,10 +64,10 @@ const authLimiter = rateLimit({
 
 const paymentLimiter = rateLimit({
     windowMs: 60 * 60 * 1000, // 1 hour
-    max: 10, // 10 payment attempts per hour per IP
+    max: parseInt(process.env.PAYMENT_RATE_LIMIT, 10) || 200, // Allow up to 200 order attempts per hour per IP (essential for field camps, CSC centers, and mobile CGNAT)
     message: {
         success: false,
-        message: 'Payment limit exceeded. Please try again later.'
+        message: 'Payment limit exceeded for this network. Please try again later.'
     },
     validate: { trustProxy: false }
 });
@@ -182,7 +182,7 @@ const redactedMongoUri = (process.env.MONGO_URI || '').replace(/:([^@]+)@/, ':**
 console.log(`[MongoDB] Attempting to connect to: ${redactedMongoUri}`);
 
 mongoose.connect(process.env.MONGO_URI, {
-    maxPoolSize: 10,
+    maxPoolSize: 50,
     serverSelectionTimeoutMS: 5000,
     socketTimeoutMS: 45000
 })
@@ -749,15 +749,35 @@ app.patch('/api/admin/toggle-applicant-status/:id', verifyAdmin, async (req, res
 app.post('/api/employee/login', authLimiter, async (req, res) => {
     try {
         const { username, password } = req.body;
+        const cleanUsername = String(username || '').trim();
 
-        let user = await Applicant.findOne({ $or: [{ email: username }, { emp_username: username }] });
+        if (!cleanUsername || !password) {
+            return res.json({ success: false, message: "Username and password are required" });
+        }
+
+        const safeUsername = cleanUsername.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const userQuery = {
+            $or: [
+                { email: cleanUsername },
+                { emp_username: cleanUsername },
+                { email: new RegExp(`^${safeUsername}$`, 'i') },
+                { emp_username: new RegExp(`^${safeUsername}$`, 'i') }
+            ]
+        };
+
+        let user = await Applicant.findOne(userQuery);
 
         if (!user) {
-            user = await NormalApplicant.findOne({ $or: [{ email: username }, { emp_username: username }] });
+            user = await NormalApplicant.findOne(userQuery);
         }
 
         if (!user) {
-            user = await Employee.findOne({ email: username });
+            user = await Employee.findOne({
+                $or: [
+                    { email: cleanUsername },
+                    { email: new RegExp(`^${safeUsername}$`, 'i') }
+                ]
+            });
         }
 
         if (!user || (!user.emp_password && !user.password)) {

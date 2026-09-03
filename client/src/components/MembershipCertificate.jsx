@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import html2canvas from 'html2canvas-pro';
 import { Download, Award, Printer } from 'lucide-react';
+import { resolveAssetUrl } from '../utils/cardDownloadUtils';
 
 const MembershipCertificate = ({ member, onClose }) => {
   const certRef = useRef(null);
@@ -204,7 +205,16 @@ const MembershipCertificate = ({ member, onClose }) => {
                 <div className="flex items-center gap-3">
                   <div className="w-14 h-16 rounded-xl border-2 border-rose-600 overflow-hidden bg-slate-200 shadow-md shrink-0">
                     {member.photoUrl ? (
-                      <img src={member.photoUrl} alt="Member Photo" className="w-full h-full object-cover" />
+                      <img 
+                        src={resolveAssetUrl(member.photoUrl)} 
+                        alt="Member Photo" 
+                        className="w-full h-full object-cover" 
+                        crossOrigin="anonymous"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = '/logo.jpeg';
+                        }}
+                      />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-slate-400 text-[8px] text-center font-bold">
                         NO PHOTO

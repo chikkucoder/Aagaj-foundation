@@ -228,25 +228,6 @@ router.post('/verify-payment', validateRequest({ body: paymentVerifySchema }), a
         }
 
         const groupData = pendingRecord.data;
-
-        try {
-            await PaymentLog.create({
-                orderId: pendingOrderId,
-                amount: groupData.registrationFee || 0,
-                status: 'success',
-                paymentId: razorpay_payment_id,
-                transactionId: razorpay_order_id,
-                schemeType: 'swarojgaar',
-                ipAddress: req.ip || req.connection.remoteAddress,
-                userAgent: req.get('User-Agent'),
-                rawResponse: req.body,
-                verificationStatus: 'verified',
-                amountVerified: true,
-                signatureVerified: true
-            });
-        } catch (logError) {
-            console.warn('PaymentLog write failed (swarojgaar):', logError.message);
-        }
         groupData.paymentStatus = 'Paid';
         groupData.paymentId = razorpay_payment_id;
         groupData.orderId = pendingOrderId;
@@ -254,15 +235,36 @@ router.post('/verify-payment', validateRequest({ body: paymentVerifySchema }), a
         const newGroup = new SwarojgaarGroup(groupData);
         await newGroup.save();
 
-        if (groupData.email || req.body.email) {
-            try {
-                await sendSwarojgaarRegistrationConfirmation(newGroup, groupData.email || req.body.email);
-            } catch (mailErr) {
-                console.warn('Swarojgaar confirmation email failed:', mailErr.message);
-            }
-        }
-
         await PendingPayment.deleteOne({ orderId: pendingOrderId });
+
+        setImmediate(async () => {
+            try {
+                await PaymentLog.create({
+                    orderId: pendingOrderId,
+                    amount: groupData.registrationFee || 0,
+                    status: 'success',
+                    paymentId: razorpay_payment_id,
+                    transactionId: razorpay_order_id,
+                    schemeType: 'swarojgaar',
+                    ipAddress: req.ip || req.connection?.remoteAddress,
+                    userAgent: req.get('User-Agent'),
+                    rawResponse: req.body,
+                    verificationStatus: 'verified',
+                    amountVerified: true,
+                    signatureVerified: true
+                });
+            } catch (logError) {
+                console.warn('PaymentLog write failed (swarojgaar):', logError.message);
+            }
+
+            if (groupData.email || req.body.email) {
+                try {
+                    await sendSwarojgaarRegistrationConfirmation(newGroup, groupData.email || req.body.email);
+                } catch (mailErr) {
+                    console.warn('Swarojgaar confirmation email failed:', mailErr.message);
+                }
+            }
+        });
 
         return res.json({ success: true, orderId: pendingOrderId, paymentId: razorpay_payment_id });
     } catch (error) {

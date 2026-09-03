@@ -329,13 +329,15 @@ router.post('/verify-payment', validateRequest({ body: paymentVerifySchema }), a
         const newBen = new Beneficiary(pendingData);
         await newBen.save();
 
-        try {
-            await sendSilayiRegistrationConfirmation(newBen);
-        } catch (mailError) {
-            console.warn('Silayi registration email failed:', mailError.message);
-        }
-
         await PendingPayment.deleteOne({ orderId: pendingOrderId });
+
+        setImmediate(async () => {
+            try {
+                await sendSilayiRegistrationConfirmation(newBen);
+            } catch (mailError) {
+                console.warn('Silayi registration email background failed:', mailError.message);
+            }
+        });
 
         return res.json({ success: true, orderId: pendingOrderId, paymentId: razorpay_payment_id });
         
