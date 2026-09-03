@@ -6,56 +6,71 @@ const Founder = () => {
   const [activePhoto, setActivePhoto] = useState(0);
 
   const photos = [
-    { src: '/chairman.jpg', alt: 'Vivek Kumar - Founder & Chairman, AAGAJ Foundation' },
-    { src: '/vivek-kumar-founder-aagaj-foundation-1.webp', alt: 'Vivek Kumar - Founder, AAGAJ Foundation' },
-    { src: '/vivek-kumar-founder-aagaj-foundation-2.webp', alt: 'Vivek Kumar - Formal Portrait' },
-    { src: '/vivek-kumar-founder-aagaj-foundation-3.webp', alt: 'Vivek Kumar - Business Profile' },
-    { src: '/vivek-kumar-founder-aagaj-foundation-4.webp', alt: 'Vivek Kumar - Active Social Work Portrait' }
+    { 
+      src: '/chairman.jpg', 
+      alt: 'Vivek Kumar - Founder & Chairman, AAGAJ Foundation',
+      position: 'object-center'
+    },
+    { 
+      src: '/vivek-kumar-founder-aagaj-foundation-2.webp', 
+      alt: 'Vivek Kumar - Founder portrait',
+      position: 'object-top'
+    },
+    { 
+      src: '/vivek-kumar-founder-aagaj-foundation-1.webp', 
+      alt: 'Vivek Kumar - Social Work',
+      position: 'object-center'
+    },
+    { 
+      src: '/vivek-kumar-founder-aagaj-foundation-3.webp', 
+      alt: 'Vivek Kumar - Award Ceremony',
+      position: 'object-center'
+    }
   ];
 
   const socialLinks = [
-    { 
-      name: 'LinkedIn', 
-      url: 'https://www.linkedin.com/company/aagaj-foundation/', 
+    {
+      name: 'LinkedIn',
+      url: 'https://www.linkedin.com/company/aagaj-foundation/',
       icon: (
         <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-          <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452z"/>
+          <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452z" />
         </svg>
       )
     },
-    { 
-      name: 'Facebook', 
-      url: 'https://www.facebook.com/share/19Q9fVQfS3/', 
+    {
+      name: 'Facebook',
+      url: 'https://www.facebook.com/share/19Q9fVQfS3/',
       icon: (
         <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
         </svg>
       )
     },
-    { 
-      name: 'Instagram', 
-      url: 'https://www.instagram.com/aagajfoundation?igsh=OGs0Nm5uZjF4eXBn', 
+    {
+      name: 'Instagram',
+      url: 'https://www.instagram.com/aagajfoundation?igsh=OGs0Nm5uZjF4eXBn',
       icon: (
         <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/>
+          <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" />
         </svg>
       )
     },
-    { 
-      name: 'X', 
-      url: 'https://x.com/AagajFoundation', 
+    {
+      name: 'X',
+      url: 'https://x.com/AagajFoundation',
       icon: (
         <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
         </svg>
       )
     },
-    { 
-      name: 'YouTube', 
-      url: 'https://www.youtube.com/@aagajfoundation6622', 
+    {
+      name: 'YouTube',
+      url: 'https://www.youtube.com/@aagajfoundation6622',
       icon: (
         <svg viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
-          <path d="M23.498 6.163a3.003 3.003 0 00-2.11-2.11C19.518 3.545 12 3.545 12 3.545s-7.518 0-9.388.507a3.003 3.003 0 00-2.11 2.11C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 002.11 2.11c1.87.507 9.388.507 9.388.507s7.518 0 9.388-.507a3.003 3.003 0 002.11-2.11C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+          <path d="M23.498 6.163a3.003 3.003 0 00-2.11-2.11C19.518 3.545 12 3.545 12 3.545s-7.518 0-9.388.507a3.003 3.003 0 00-2.11 2.11C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 002.11 2.11c1.87.507 9.388.507 9.388.507s7.518 0 9.388-.507a3.003 3.003 0 002.11-2.11C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
         </svg>
       )
     }
@@ -93,7 +108,7 @@ const Founder = () => {
       "https://www.aagajfoundation.com/vivek-kumar-founder-aagaj-foundation-1.webp",
       "https://www.aagajfoundation.com/vivek-kumar-founder-aagaj-foundation-2.webp",
       "https://www.aagajfoundation.com/vivek-kumar-founder-aagaj-foundation-3.webp",
-      "https://www.aagajfoundation.com/vivek-kumar-founder-aagaj-foundation-4.webp"
+      "https://www.aagajfoundation.com/chairman.jpg"
     ],
     "description": "Vivek Kumar is the Founder of AAGAJ Foundation, a nonprofit organization dedicated to creating sustainable social impact through healthcare, employment generation, skill development, and women empowerment in Bihar.",
     "sameAs": [
@@ -163,7 +178,7 @@ const Founder = () => {
 
   return (
     <div className="bg-slate-50 min-h-screen pb-16 font-sans">
-      <SEO 
+      <SEO
         title="Vivek Kumar - Founder, Aagaj Foundation"
         description="Vivek Kumar is the Founder of AAGAJ Foundation, a nonprofit organization dedicated to women empowerment, healthcare access, and vocational skill training in Bihar."
         canonicalUrl="https://www.aagajfoundation.com/about/founder"
@@ -178,17 +193,17 @@ const Founder = () => {
       <div className="bg-gradient-to-r from-[#0B2C66] via-[#103D88] to-[#1E4E9E] py-16 text-white relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(237,28,36,0.15),transparent)]"></div>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 flex flex-col md:flex-row items-center gap-8">
-          
+
           {/* Photos Grid & Gallery */}
           <div className="w-full md:w-1/3 space-y-4">
             <div className="aspect-square rounded-3xl overflow-hidden bg-white shadow-2xl border-4 border-white/10 group relative">
-              <img 
-                src={photos[activePhoto].src} 
+              <img
+                src={photos[activePhoto].src}
                 alt={photos[activePhoto].alt}
-                className="w-full h-full object-cover select-none"
+                className={`w-full h-full object-cover select-none ${photos[activePhoto].position || 'object-center'}`}
               />
             </div>
-            
+
             {/* Gallery Thumbnails */}
             <div className="grid grid-cols-4 gap-2.5">
               {photos.map((photo, index) => (
@@ -197,7 +212,7 @@ const Founder = () => {
                   onClick={() => setActivePhoto(index)}
                   className={`aspect-square rounded-xl overflow-hidden bg-white border-2 cursor-pointer transition-all duration-300 ${activePhoto === index ? 'border-[#ED1C24] scale-105 shadow-md' : 'border-transparent opacity-70 hover:opacity-100'}`}
                 >
-                  <img src={photo.src} alt={`Thumbnail ${index + 1}`} className="w-full h-full object-cover" />
+                  <img src={photo.src} alt={`Thumbnail ${index + 1}`} className={`w-full h-full object-cover ${photo.position || 'object-center'}`} />
                 </button>
               ))}
             </div>
@@ -212,7 +227,7 @@ const Founder = () => {
             <p className="text-slate-300 text-sm sm:text-base font-semibold max-w-xl">
               Founder of AAGAJ Foundation. Working to empower rural families, women, and youth through healthcare and skill development.
             </p>
-            
+
             {/* Social Links */}
             <div className="flex flex-wrap justify-center md:justify-start gap-2.5 pt-4">
               {socialLinks.map((social) => (
@@ -236,14 +251,14 @@ const Founder = () => {
       {/* Main Grid Content */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-12">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          
+
           {/* Left Column: Biography & Quote */}
           <div className="lg:col-span-7 space-y-6">
-            
+
             <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-md space-y-4">
               <h2 className="text-xl sm:text-2xl font-black text-slate-800">Biography</h2>
               <div className="h-1.5 w-16 bg-[#ED1C24] rounded-full"></div>
-              
+
               <div className="text-slate-600 text-sm sm:text-base leading-relaxed space-y-4 font-medium">
                 <p>
                   Vivek Kumar is the Founder of AAGAJ Foundation, a nonprofit organization dedicated to creating sustainable social impact through healthcare, employment generation, skill development, and women empowerment.
@@ -277,7 +292,7 @@ const Founder = () => {
 
           {/* Right Column: Achievements, Vision, Education, Awards, Work, Interviews */}
           <div className="lg:col-span-5 space-y-6">
-            
+
             {/* Vision Box */}
             <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-md space-y-4">
               <div className="flex items-center gap-3">
@@ -299,7 +314,7 @@ const Founder = () => {
                 </div>
                 <h3 className="text-lg font-bold text-slate-800">Key Achievements</h3>
               </div>
-              
+
               <ul className="space-y-3 text-xs sm:text-sm font-semibold text-slate-600">
                 <li className="flex items-start gap-2.5">
                   <span className="h-1.5 w-1.5 bg-[#ED1C24] rounded-full mt-2 shrink-0"></span>
@@ -324,7 +339,7 @@ const Founder = () => {
                 </div>
                 <h3 className="text-lg font-bold text-slate-800">Awards & Education</h3>
               </div>
-              
+
               <div className="space-y-4 text-xs sm:text-sm font-semibold text-slate-600">
                 <div className="border-l-2 border-slate-100 pl-4 space-y-1">
                   <span className="text-xs text-[#ED1C24] font-extrabold uppercase">Education</span>
@@ -345,7 +360,7 @@ const Founder = () => {
                 </div>
                 <h3 className="text-lg font-bold text-slate-800">Social Work & Media</h3>
               </div>
-              
+
               <div className="space-y-3 text-xs sm:text-sm font-semibold text-slate-600">
                 <div className="flex items-start gap-3">
                   <BookOpen className="h-4 w-4 text-[#ED1C24] shrink-0 mt-0.5" />
