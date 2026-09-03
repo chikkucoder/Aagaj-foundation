@@ -428,8 +428,6 @@ const HealthCard = () => {
       setDownloadingType(null);
     }
   };
-    }
-  };
 
   const handleDownloadBack = async () => {
     if (!cardBackRef.current || !successCard || downloadingType) return;

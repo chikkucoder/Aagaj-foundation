@@ -296,8 +296,6 @@ const VerifyHealthCard = () => {
       setDownloadingType(null);
     }
   };
-    }
-  };
 
   return (
     <div className="min-h-screen bg-slate-50 py-8 sm:py-12 px-3 sm:px-6 lg:px-8 print:min-h-0 print:py-0 print:bg-white print:p-0">
