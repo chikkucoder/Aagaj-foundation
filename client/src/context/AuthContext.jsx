@@ -62,7 +62,6 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (username, password, selectedRole) => {
-    setLoading(true);
     try {
       let data;
       if (selectedRole === 'admin') {
@@ -100,10 +99,11 @@ export const AuthProvider = ({ children }) => {
           setUser(authUser);
           setRole('hospital');
         } else {
-          // Store actual JWT token returned by backend, or fallback to mock token if old backend
-          const tokenToStore = data.token || 'employee-session';
-          localStorage.setItem('token', tokenToStore);
-          setToken(tokenToStore);
+          const tokenToStore = data.token;
+          if (tokenToStore) {
+            localStorage.setItem('token', tokenToStore);
+            setToken(tokenToStore);
+          }
           
           const empDesignation = data.user.designation || data.user.roleApplied || data.user.applyForPost || 'Employee';
           sessionStorage.setItem('loggedInUser', data.user.fullName);
@@ -123,14 +123,11 @@ export const AuthProvider = ({ children }) => {
           setRole('employee');
         }
 
-        setLoading(false);
         return { success: true, role: userRole };
       } else {
-        setLoading(false);
         return { success: false, message: data.message || 'Invalid Credentials' };
       }
     } catch (error) {
-      setLoading(false);
       return { 
         success: false, 
         message: error.response?.data?.message || error.message || 'Connection server error.' 

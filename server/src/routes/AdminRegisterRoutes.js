@@ -57,7 +57,19 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
-        const admin = await Admin.findOne({ email });
+        const cleanEmail = String(email || '').trim();
+
+        if (!cleanEmail || !password) {
+            return res.json({ success: false, message: "Email and password are required" });
+        }
+
+        const safeEmail = cleanEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const admin = await Admin.findOne({
+            $or: [
+                { email: cleanEmail },
+                { email: new RegExp(`^${safeEmail}$`, 'i') }
+            ]
+        });
 
         if (!admin) return res.json({ success: false, message: "Invalid Credentials" });
 

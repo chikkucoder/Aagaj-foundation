@@ -1,19 +1,45 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
+import { useSearchParams, Link } from 'react-router-dom';
 import { createHealthCardOrder, verifyHealthCardPayment, checkHealthCardExists } from '../api/paymentApi';
-import { Camera, RefreshCw, Printer, ShieldAlert, Award, HeartHandshake, User, MapPin, CheckCircle, ArrowLeft, Download } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { 
+  Camera, 
+  RefreshCw, 
+  Printer, 
+  ShieldAlert, 
+  Award, 
+  HeartHandshake, 
+  User, 
+  MapPin, 
+  CheckCircle, 
+  ArrowLeft, 
+  Download, 
+  Share2, 
+  Layers 
+} from 'lucide-react';
 import apiClient from '../api/apiClient';
-import html2canvas from 'html2canvas-pro';
 import SEO from '../components/SEO';
+import { 
+  generateQrCodeDataUrl, 
+  imageUrlToBase64, 
+  resolveAssetUrl, 
+  renderElementToCanvas, 
+  saveOrShareCanvas, 
+  downloadCombinedCardImage,
+  compressImageFile
+} from '../utils/cardDownloadUtils';
 
 const HealthCard = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+
   // Page States
   const [loading, setLoading] = useState(false);
+  const [downloadingType, setDownloadingType] = useState(null); // 'front' | 'back' | 'full' | null
   const [successCard, setSuccessCard] = useState(null); // When card is successfully created/restored
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [successCardPhotoUrl, setSuccessCardPhotoUrl] = useState('/logo.jpg');
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
 
   // Webcam Capture States
   const [cameraStream, setCameraStream] = useState(null);
@@ -48,7 +74,7 @@ const HealthCard = () => {
     setFamilyMembers(updated);
   };
 
-  const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm({
+  const { register, handleSubmit, formState: { errors }, watch, reset } = useForm({
     defaultValues: {
       gender: 'Male',
       bloodGroup: 'A+',
@@ -85,11 +111,97 @@ const HealthCard = () => {
     }
   };
 
+  // 1. URL Parameter & Auto-Recovery on Mount / Reload
+  useEffect(() => {
+    const orderIdParam = searchParams.get('orderId') || searchParams.get('pendingOrderId');
+    const paymentIdParam = searchParams.get('paymentId');
+    const healthIdParam = searchParams.get('healthId');
+
+    if (orderIdParam || paymentIdParam || healthIdParam) {
+      fetchCardWithRetry(orderIdParam || paymentIdParam || healthIdParam, paymentIdParam, 3);
+    } else {
+      // Check session storage if card was recently generated
+      try {
+        const cached = sessionStorage.getItem('lastGeneratedHealthCard');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && parsed.healthId) {
+            setSuccessCard(parsed);
+          }
+        }
+      } catch (e) {}
+    }
+  }, [searchParams]);
+
+  // Robust Fetch with Retry
+  const fetchCardWithRetry = async (orderIdentifier, paymentId, retriesLeft = 3) => {
+    if (!orderIdentifier) return;
+    setLoading(true);
+    try {
+      const query = paymentId ? `?paymentId=${encodeURIComponent(paymentId)}` : '';
+      const cardRes = await apiClient.get(`/api/healthcard/get-by-order/${encodeURIComponent(orderIdentifier)}${query}`);
+      if (cardRes.data?.success && cardRes.data.data) {
+        setSuccessCard(cardRes.data.data);
+        sessionStorage.setItem('lastGeneratedHealthCard', JSON.stringify(cardRes.data.data));
+      } else if (retriesLeft > 1) {
+        setTimeout(() => {
+          fetchCardWithRetry(orderIdentifier, paymentId, retriesLeft - 1);
+        }, 1200);
+      } else {
+        setErrorMsg('Card registered, but failed to load preview automatically. Please verify your card via Verification page.');
+      }
+    } catch (err) {
+      if (retriesLeft > 1) {
+        setTimeout(() => {
+          fetchCardWithRetry(orderIdentifier, paymentId, retriesLeft - 1);
+        }, 1200);
+      } else {
+        console.error('Error fetching card:', err);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 2. Preload and Base64-encode Images & Local QR Code for 100% reliable Canvas rendering
+  useEffect(() => {
+    let active = true;
+
+    if (successCard) {
+      // A. Generate QR Code locally
+      const qrData = `AAGAJ-HEALTH-ID:${successCard.healthId}\nNAME:${successCard.fullName}\nTYPE:${successCard.cardType || 'Single'}\nSTATUS:VALID\nEXPIRY:${successCard.expiryDate ? new Date(successCard.expiryDate).toLocaleDateString('en-IN') : '6 Months'}`;
+      generateQrCodeDataUrl(qrData).then((qrUrl) => {
+        if (active) setQrCodeDataUrl(qrUrl);
+      });
+
+      // B. Resolve Patient Photo safely to Base64
+      if (photoPreview && photoPreview.startsWith('data:')) {
+        setSuccessCardPhotoUrl(photoPreview);
+      } else if (successCard.photoPath) {
+        const fullUrl = resolveAssetUrl(successCard.photoPath);
+        imageUrlToBase64(fullUrl, '/logo.jpg').then((base64) => {
+          if (active) setSuccessCardPhotoUrl(base64);
+        });
+      } else if (photoPreview) {
+        setSuccessCardPhotoUrl(photoPreview);
+      } else {
+        setSuccessCardPhotoUrl('/logo.jpg');
+      }
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [successCard, photoPreview]);
+
   // Webcam controls
   const openCamera = async () => {
     setErrorMsg('');
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 }, audio: false });
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }, 
+        audio: false 
+      });
       setCameraStream(stream);
       setShowWebcam(true);
       setTimeout(() => {
@@ -98,7 +210,7 @@ const HealthCard = () => {
         }
       }, 100);
     } catch (err) {
-      setErrorMsg('Failed to open camera. Please grant camera permission.');
+      setErrorMsg('Failed to open camera. Please grant camera permission or use the file upload option.');
     }
   };
 
@@ -110,40 +222,49 @@ const HealthCard = () => {
     setShowWebcam(false);
   };
 
-  const capturePhoto = () => {
+  const capturePhoto = async () => {
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       const canvas = canvasRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      canvas.width = Math.min(video.videoWidth || 640, 640);
+      canvas.height = Math.min(video.videoHeight || 480, 480);
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      setPhotoPreview(dataUrl);
+
       canvas.toBlob((blob) => {
         if (blob) {
           const file = new File([blob], `health-photo-${Date.now()}.jpg`, { type: 'image/jpeg' });
           setPhotoBlob(file);
-          const previewUrl = URL.createObjectURL(file);
-          setPhotoPreview(previewUrl);
         }
         closeCamera();
-      }, 'image/jpeg', 0.95);
+      }, 'image/jpeg', 0.85);
     }
   };
 
-  const handlePhotoUpload = (e) => {
+  const handlePhotoUpload = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        alert('File size must be 2MB or less.');
-        return;
+      try {
+        // Automatically resize and compress multi-megabyte camera photos to ~100-200KB
+        const { file: compressedFile, dataUrl } = await compressImageFile(file, 800, 0.85);
+        setPhotoBlob(compressedFile);
+        setPhotoPreview(dataUrl);
+      } catch (err) {
+        // Fallback to original file
+        setPhotoBlob(file);
+        const reader = new FileReader();
+        reader.onload = (uploadEvent) => {
+          setPhotoPreview(uploadEvent.target.result);
+        };
+        reader.readAsDataURL(file);
       }
-      setPhotoBlob(file);
-      setPhotoPreview(URL.createObjectURL(file));
     }
   };
 
-  // On successful submission of card metadata, trigger Razorpay
+  // On Form Submit: Create Razorpay Order
   const onSubmit = async (data) => {
     setErrorMsg('');
     setSuccessMsg('');
@@ -153,7 +274,7 @@ const HealthCard = () => {
       return;
     }
 
-    if (!photoBlob) {
+    if (!photoBlob && !photoPreview) {
       setErrorMsg('Passport size photo is required. Please upload or capture a photo.');
       return;
     }
@@ -177,7 +298,9 @@ const HealthCard = () => {
       formData.append('district', data.district);
       formData.append('state', data.state);
       formData.append('pincode', data.pincode);
-      formData.append('photo', photoBlob);
+      if (photoBlob) {
+        formData.append('photo', photoBlob);
+      }
       formData.append(
         'registeredBy',
         sessionStorage.getItem('loggedInRole') === 'Admin'
@@ -210,9 +333,8 @@ const HealthCard = () => {
         return;
       }
 
-      // Check if Razorpay SDK loaded
+      // Load Razorpay SDK if not ready
       if (!window.Razorpay) {
-        // Dynamically load
         const script = document.createElement('script');
         script.src = 'https://checkout.razorpay.com/v1/checkout.js';
         script.async = true;
@@ -256,18 +378,22 @@ const HealthCard = () => {
           if (verifyRes.success) {
             setSuccessMsg('Payment Successful! Dispensing health card...');
             
-            // Retrieve generated card data
-            const cardRes = await apiClient.get(`/api/healthcard/get-by-order/${orderRes.pendingOrderId}`);
-            if (cardRes.data?.success) {
-              setSuccessCard(cardRes.data.data);
+            // If backend returned the created card directly, use it instantly!
+            if (verifyRes.card) {
+              setSuccessCard(verifyRes.card);
+              sessionStorage.setItem('lastGeneratedHealthCard', JSON.stringify(verifyRes.card));
+              setSearchParams({ status: 'success', orderId: orderRes.pendingOrderId, paymentId: response.razorpay_payment_id }, { replace: true });
             } else {
-              setErrorMsg('Card saved in DB, but failed to fetch print specs. Access via Admin Panel.');
+              // Fallback: Fetch via orderId with retry
+              await fetchCardWithRetry(orderRes.pendingOrderId, response.razorpay_payment_id, 3);
             }
           } else {
             setErrorMsg('Payment verification failed.');
           }
         } catch (err) {
-          setErrorMsg('Error verifying transaction.');
+          console.error(err);
+          // Try fetching anyway in case verification succeeded on backend
+          await fetchCardWithRetry(orderRes.pendingOrderId, response.razorpay_payment_id, 3);
         } finally {
           setLoading(false);
         }
@@ -283,122 +409,96 @@ const HealthCard = () => {
     rzp.open();
   };
 
-  // Resolve Health Card photo to local blob URL to bypass CORS
-  useEffect(() => {
-    let active = true;
-    let localUrl = '';
-
-    if (successCard && successCard.photoPath) {
-      const url = resolveAssetUrl(successCard.photoPath);
-      fetch(url)
-        .then((res) => {
-          if (!res.ok) throw new Error('Image fetch failed');
-          return res.blob();
-        })
-        .then((blob) => {
-          if (!active) return;
-          localUrl = URL.createObjectURL(blob);
-          setSuccessCardPhotoUrl(localUrl);
-        })
-        .catch((err) => {
-          console.error("CORS fetch failed, trying fallback:", err);
-          const prodBase = 'https://www.aagajfoundation.com';
-          if (url.includes('localhost') || url.includes('127.0.0.1')) {
-            try {
-              const urlObj = new URL(url);
-              const fallbackUrl = `${prodBase}${urlObj.pathname}`;
-              fetch(fallbackUrl)
-                .then((res) => {
-                  if (!res.ok) throw new Error('Fallback failed');
-                  return res.blob();
-                })
-                .then((blob) => {
-                  if (!active) return;
-                  localUrl = URL.createObjectURL(blob);
-                  setSuccessCardPhotoUrl(localUrl);
-                })
-                .catch(() => {
-                  if (active) setSuccessCardPhotoUrl('/logo.jpg');
-                });
-            } catch (e) {
-              if (active) setSuccessCardPhotoUrl('/logo.jpg');
-            }
-          } else {
-            if (active) setSuccessCardPhotoUrl('/logo.jpg');
-          }
-        });
-    } else {
-      setSuccessCardPhotoUrl('/logo.jpg');
-    }
-
-    return () => {
-      active = false;
-      if (localUrl) {
-        URL.revokeObjectURL(localUrl);
-      }
-    };
-  }, [successCard]);
-
   const handlePrint = () => {
     window.print();
   };
 
-  const downloadFrontCard = () => {
-    if (!cardFrontRef.current) return;
-    html2canvas(cardFrontRef.current, { scale: 3, useCORS: true, allowTaint: true })
-      .then((canvas) => {
-        const link = document.createElement('a');
-        link.download = `Health_Card_Front_${successCard.fullName.replace(/\s+/g, '_')}_${successCard.healthId}.png`;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-      })
-      .catch((err) => {
-        console.error("Error generating card front canvas:", err);
-        alert("Failed to save image. Please try again.");
-      });
-  };
-
-  const downloadBackCard = () => {
-    if (!cardBackRef.current) return;
-    html2canvas(cardBackRef.current, { scale: 3, useCORS: true, allowTaint: true })
-      .then((canvas) => {
-        const link = document.createElement('a');
-        link.download = `Health_Card_Back_${successCard.fullName.replace(/\s+/g, '_')}_${successCard.healthId}.png`;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-      })
-      .catch((err) => {
-        console.error("Error generating card back canvas:", err);
-        alert("Failed to save image. Please try again.");
-      });
-  };
-
-  const resolveAssetUrl = (assetPath) => {
-    if (!assetPath) return '';
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-    if (assetPath.startsWith('http://') || assetPath.startsWith('https://')) return assetPath;
-    if (assetPath.startsWith('/')) return `${baseUrl}${assetPath}`;
-    return `${baseUrl}/${assetPath}`;
-  };
-
-  const handleImageError = (e) => {
-    const currentSrc = e.target.src;
-    const prodBase = 'https://www.aagajfoundation.com';
-    
-    if (currentSrc && (currentSrc.includes('localhost') || currentSrc.includes('127.0.0.1'))) {
-      try {
-        const url = new URL(currentSrc);
-        e.target.src = `${prodBase}${url.pathname}`;
-        return;
-      } catch (err) {}
+  // Robust Card Download Handlers
+  const handleDownloadFront = async () => {
+    if (!cardFrontRef.current || !successCard || downloadingType) return;
+    setDownloadingType('front');
+    try {
+      const filename = `Health_Card_Front_${(successCard.fullName || 'User').replace(/\s+/g, '_')}_${successCard.healthId}.png`;
+      const canvas = await renderElementToCanvas(cardFrontRef.current);
+      await saveOrShareCanvas(canvas, filename);
+    } catch (err) {
+      console.error('Front card download error:', err);
+      alert('Could not download image. Please try again or use the Print Card option.');
+    } finally {
+      setDownloadingType(null);
     }
-    
-    e.target.onerror = null;
-    e.target.src = '/logo.jpg';
+  };
+
+  const handleDownloadBack = async () => {
+    if (!cardBackRef.current || !successCard || downloadingType) return;
+    setDownloadingType('back');
+    try {
+      const filename = `Health_Card_Back_${(successCard.fullName || 'User').replace(/\s+/g, '_')}_${successCard.healthId}.png`;
+      const canvas = await renderElementToCanvas(cardBackRef.current);
+      await saveOrShareCanvas(canvas, filename);
+    } catch (err) {
+      console.error('Back card download error:', err);
+      alert('Could not download image. Please try again or use the Print Card option.');
+    } finally {
+      setDownloadingType(null);
+    }
+  };
+
+  const handleDownloadCombined = async () => {
+    if (!cardFrontRef.current || !cardBackRef.current || !successCard || downloadingType) return;
+    setDownloadingType('full');
+    try {
+      const filename = `Health_Card_Complete_${(successCard.fullName || 'User').replace(/\s+/g, '_')}_${successCard.healthId}.png`;
+      await downloadCombinedCardImage(cardFrontRef.current, cardBackRef.current, filename);
+    } catch (err) {
+      console.error('Combined card download error:', err);
+      alert('Could not download combined image. Please try downloading Front and Back individually.');
+    } finally {
+      setDownloadingType(null);
+    }
+  };
+
+  const handleCreateAnother = () => {
+    try {
+      sessionStorage.removeItem('lastGeneratedHealthCard');
+    } catch (e) {}
+    setSearchParams({}, { replace: true });
+    setSuccessCard(null);
+    setPhotoBlob(null);
+    setPhotoPreview(null);
+    setMobileExists(false);
+    setAadharExists(false);
+    setErrorMsg('');
+    setSuccessMsg('');
+    setLoading(false);
+    setCardType('Single');
+    setFamilyMembers([
+      { relationship: 'Father', fullName: '', age: '', gender: 'Male', aadhar: '' },
+      { relationship: 'Mother', fullName: '', age: '', gender: 'Female', aadhar: '' },
+      { relationship: 'Child 1', fullName: '', age: '', gender: 'Male', aadhar: '' },
+      { relationship: 'Child 2', fullName: '', age: '', gender: 'Male', aadhar: '' }
+    ]);
+    const fileInput = document.getElementById('photoUpload');
+    if (fileInput) fileInput.value = '';
+    reset({
+      fullName: '',
+      mobile: '',
+      email: '',
+      aadhar: '',
+      age: '',
+      gender: 'Male',
+      bloodGroup: 'A+',
+      village: '',
+      panchayat: '',
+      block: '',
+      district: '',
+      state: 'Bihar',
+      pincode: ''
+    });
   };
 
   return (
-    <div className="min-h-screen bg-[#f1f5f9] py-12 px-4 sm:px-6 lg:px-8 print:min-h-0 print:py-0 print:bg-transparent">
+    <div className="min-h-screen bg-[#f1f5f9] py-8 sm:py-12 px-3 sm:px-6 lg:px-8 print:min-h-0 print:py-0 print:bg-white print:p-0">
       <SEO 
         title="Get Swasthya Suraksha Health Card - Aagaj Foundation"
         description="Apply for your digital Swasthya Suraksha Card online. Get huge discounts at our partner hospitals, labs, and pharmacies across Bihar."
@@ -426,13 +526,20 @@ const HealthCard = () => {
           ]
         }}
       />
+
       {/* Hide on print */}
-      <div className="print:hidden max-w-3xl mx-auto mb-6">
+      <div className="print:hidden max-w-3xl mx-auto mb-6 flex justify-between items-center">
         <Link
           to="/"
           className="inline-flex items-center gap-2 rounded-xl bg-white border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:text-rose-600 shadow-sm transition-all"
         >
           <ArrowLeft className="h-4 w-4" /> Home
+        </Link>
+        <Link
+          to="/medical/verify-healthcard"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-indigo-50 border border-indigo-200 px-3.5 py-2 text-xs font-bold text-[#2e3192] hover:bg-indigo-100 shadow-sm transition-all"
+        >
+          Already have card? Verify / Download &rarr;
         </Link>
       </div>
 
@@ -441,7 +548,7 @@ const HealthCard = () => {
         
         {/* --- DUAL STATE CONTAINER: FORM VIEW OR ID CARD VIEW --- */}
         {!successCard ? (
-          <div className="bg-white rounded-3xl p-8 border border-slate-100 shadow-2xl print:hidden">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-100 shadow-2xl print:hidden">
             
             <div className="flex flex-col items-center text-center mb-8 gap-4">
               <img 
@@ -453,7 +560,7 @@ const HealthCard = () => {
                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-extrabold px-3.5 py-1 text-xs uppercase tracking-wide">
                   <Award className="h-3.5 w-3.5" /> Swasthya Suraksha Yojana
                 </span>
-                <h2 className="text-3xl font-black text-slate-900 tracking-tight uppercase mt-1">AAGAJ FOUNDATION</h2>
+                <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight uppercase mt-1">AAGAJ FOUNDATION</h1>
                 <p className="text-rose-600 font-black tracking-widest text-xs uppercase">Health Identity Enrollment</p>
               </div>
             </div>
@@ -466,33 +573,33 @@ const HealthCard = () => {
             )}
 
             {/* Card Selection Toggle */}
-            <div className="bg-slate-50 p-6 rounded-2xl border border-slate-150 mb-6">
+            <div className="bg-slate-50 p-4 sm:p-6 rounded-2xl border border-slate-150 mb-6">
               <h4 className="text-xs font-bold text-[#2e3192] uppercase tracking-wider mb-3 flex items-center gap-1">
                 Choose Card Type (कार्ड का प्रकार चुनें)
               </h4>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 <button
                   type="button"
                   onClick={() => setCardType('Single')}
-                  className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                  className={`flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl border-2 transition-all cursor-pointer ${
                     cardType === 'Single'
                       ? 'border-[#2e3192] bg-indigo-50/50 text-[#2e3192]'
                       : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
                   }`}
                 >
-                  <span className="font-extrabold text-sm uppercase">Single Health Card</span>
+                  <span className="font-extrabold text-xs sm:text-sm uppercase">Single Health Card</span>
                   <span className="text-xs font-black text-[#ed1c24] mt-1">₹201</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setCardType('Family')}
-                  className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                  className={`flex flex-col items-center justify-center p-3 sm:p-4 rounded-xl border-2 transition-all cursor-pointer ${
                     cardType === 'Family'
                       ? 'border-[#2e3192] bg-indigo-50/50 text-[#2e3192]'
                       : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-600'
                   }`}
                 >
-                  <span className="font-extrabold text-sm uppercase">Family Health Card</span>
+                  <span className="font-extrabold text-xs sm:text-sm uppercase">Family Health Card</span>
                   <span className="text-xs font-black text-[#ed1c24] mt-1">₹499</span>
                 </button>
               </div>
@@ -501,7 +608,7 @@ const HealthCard = () => {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               
               {/* Photo Upload Panel */}
-              <div className="bg-slate-50 p-6 rounded-2xl border border-slate-150">
+              <div className="bg-slate-50 p-4 sm:p-6 rounded-2xl border border-slate-150">
                 <h4 className="text-xs font-bold text-[#2e3192] uppercase tracking-wider mb-4 flex items-center gap-1.5">
                   <Camera className="h-4 w-4" /> Patient Passport Photo
                 </h4>
@@ -540,14 +647,14 @@ const HealthCard = () => {
                         Webcam Capture
                       </button>
                     </div>
-                    <p className="text-[10px] text-slate-400 font-medium">Please provide a clear portrait photo. JPEG/PNG up to 2MB supported.</p>
+                    <p className="text-[10px] text-slate-400 font-medium">Please provide a clear portrait photo. JPEG/PNG up to 5MB supported.</p>
                   </div>
                 </div>
 
                 {/* Webcam Panel */}
                 {showWebcam && (
                   <div className="mt-4 p-4 border border-slate-200 rounded-2xl bg-white flex flex-col items-center justify-center gap-4">
-                    <video ref={videoRef} autoPlay playsInline className="w-full max-w-xs rounded-xl bg-black border border-slate-350 shadow-inner" />
+                    <video ref={videoRef} autoPlay playsInline muted className="w-full max-w-xs rounded-xl bg-black border border-slate-350 shadow-inner" />
                     <div className="flex gap-2">
                       <button type="button" onClick={capturePhoto} className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 text-xs tracking-wide cursor-pointer">
                         Take Photo
@@ -562,7 +669,7 @@ const HealthCard = () => {
               </div>
 
               {/* Personal Details Form Section */}
-              <div className="bg-slate-50 p-6 rounded-2xl border border-slate-150">
+              <div className="bg-slate-50 p-4 sm:p-6 rounded-2xl border border-slate-150">
                 <h4 className="text-xs font-bold text-[#2e3192] uppercase tracking-wider mb-4 flex items-center gap-1.5">
                   <User className="h-4 w-4" /> Personal Particulars
                 </h4>
@@ -627,8 +734,9 @@ const HealthCard = () => {
                     <div className="col-span-1">
                       <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Age</label>
                       <input
-                        type="text"
-                        maxLength="3"
+                        type="number"
+                        min="1"
+                        max="120"
                         {...register('age', { required: 'Age required' })}
                         placeholder="Age"
                         className="block mt-1 w-full rounded-xl border border-slate-250 py-2.5 px-3 text-slate-800 text-sm focus:border-[#2e3192] outline-none"
@@ -667,7 +775,7 @@ const HealthCard = () => {
               </div>
 
               {/* Address Form Section */}
-              <div className="bg-slate-50 p-6 rounded-2xl border border-slate-150">
+              <div className="bg-slate-50 p-4 sm:p-6 rounded-2xl border border-slate-150">
                 <h4 className="text-xs font-bold text-[#2e3192] uppercase tracking-wider mb-4 flex items-center gap-1.5">
                   <MapPin className="h-4 w-4" /> Emergency & Residential Address
                 </h4>
@@ -737,7 +845,7 @@ const HealthCard = () => {
 
               {/* Family Members Details Section (Only for Family Card) */}
               {cardType === 'Family' && (
-                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-150 space-y-6">
+                <div className="bg-slate-50 p-4 sm:p-6 rounded-2xl border border-slate-150 space-y-6">
                   <h4 className="text-xs font-bold text-[#2e3192] uppercase tracking-wider flex items-center gap-1.5 border-b border-slate-200 pb-2">
                     <HeartHandshake className="h-4 w-4" /> पारिवारिक सदस्य विवरण (Family Members Details)
                   </h4>
@@ -821,7 +929,7 @@ const HealthCard = () => {
                 {loading ? (
                   <>
                     <RefreshCw className="h-5 w-5 animate-spin" />
-                    Triggering Razorpay Gateways...
+                    Processing Payment &amp; Card Generation...
                   </>
                 ) : (
                   <>
@@ -834,55 +942,90 @@ const HealthCard = () => {
           </div>
         ) : (
           /* --- DUAL STATE B: SUCCESS IDENTITY CARD PREVIEW --- */
-          <div className="flex flex-col items-center">
+          <div className="flex flex-col items-center w-full">
             
             {/* Header Controls for Print & Download */}
-            <div className="print:hidden w-full max-w-[550px] bg-emerald-50 border border-emerald-100 rounded-3xl p-6 mb-6 flex flex-col items-center text-center">
-              <CheckCircle className="h-12 w-12 text-emerald-600 mb-3" />
-              <h3 className="text-base font-extrabold text-slate-850">Health Identity Card Generated!</h3>
-              <p className="text-xs text-slate-500 mt-1 max-w-sm">The digital copy has been issued successfully. Use the options below to print or download your cards.</p>
+            <div className="print:hidden w-full max-w-xl bg-white border border-emerald-200 rounded-3xl p-5 sm:p-6 mb-6 shadow-xl flex flex-col items-center text-center">
+              <div className="h-12 w-12 rounded-full bg-emerald-100 flex items-center justify-center mb-3">
+                <CheckCircle className="h-7 w-7 text-emerald-600" />
+              </div>
+              <h2 className="text-lg font-black text-slate-900">Health Identity Card Generated!</h2>
+              <p className="text-xs text-slate-500 mt-1 max-w-sm">
+                Your digital Health Card is ready. Download it directly to your phone gallery or print it below.
+              </p>
               
-              <div className="flex flex-col gap-2.5 w-full mt-4">
-                <div className="flex gap-2">
+              <div className="flex flex-col gap-2.5 w-full mt-5">
+                {/* Action Buttons: Row 1 (Full Combined Download & Print) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
                   <button
-                    onClick={() => setSuccessCard(null)}
-                    className="flex-1 rounded-xl bg-white border border-slate-200 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer transition-all active:scale-95"
+                    onClick={handleDownloadCombined}
+                    disabled={!!downloadingType}
+                    className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white py-3 px-4 text-xs font-black shadow-md cursor-pointer transition-all active:scale-95 disabled:opacity-50"
                   >
-                    Create Another Card
+                    {downloadingType === 'full' ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Layers className="h-4 w-4" />
+                    )}
+                    Download Complete Card (PNG)
                   </button>
+
                   <button
                     onClick={handlePrint}
-                    className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-[#2e3192] hover:bg-[#1a1c54] text-white py-2.5 text-xs font-bold shadow-md cursor-pointer transition-all active:scale-95"
+                    className="flex items-center justify-center gap-2 rounded-xl bg-[#2e3192] hover:bg-[#1a1c54] text-white py-3 px-4 text-xs font-bold shadow-md cursor-pointer transition-all active:scale-95"
                   >
-                    <Printer className="h-4 w-4" /> Print Card
+                    <Printer className="h-4 w-4" /> Print Card (A4 / PVC)
                   </button>
                 </div>
-                <div className="flex gap-2">
+
+                {/* Action Buttons: Row 2 (Individual Front & Back) */}
+                <div className="grid grid-cols-2 gap-2 w-full">
                   <button
-                    onClick={downloadFrontCard}
-                    className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 text-xs font-bold shadow-md cursor-pointer transition-all active:scale-95"
+                    onClick={handleDownloadFront}
+                    disabled={!!downloadingType}
+                    className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white py-2.5 px-3 text-xs font-bold shadow-sm cursor-pointer transition-all active:scale-95 disabled:opacity-50"
                   >
-                    <Download className="h-4 w-4" /> Download Front (PNG)
+                    {downloadingType === 'front' ? (
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Download className="h-3.5 w-3.5" />
+                    )}
+                    Front Side Only
                   </button>
+
                   <button
-                    onClick={downloadBackCard}
-                    className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white py-2.5 text-xs font-bold shadow-md cursor-pointer transition-all active:scale-95"
+                    onClick={handleDownloadBack}
+                    disabled={!!downloadingType}
+                    className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white py-2.5 px-3 text-xs font-bold shadow-sm cursor-pointer transition-all active:scale-95 disabled:opacity-50"
                   >
-                    <Download className="h-4 w-4" /> Download Back (PNG)
+                    {downloadingType === 'back' ? (
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Download className="h-3.5 w-3.5" />
+                    )}
+                    Back Side Only
                   </button>
                 </div>
+
+                {/* Reset / Apply Another */}
+                <button
+                  onClick={handleCreateAnother}
+                  className="w-full mt-1 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 py-2 text-xs font-bold text-slate-700 cursor-pointer transition-all active:scale-95"
+                >
+                  &larr; Create Another Health Card
+                </button>
               </div>
             </div>
 
-            {/* Front & Back Card Layout for Printing (Fully Responsive Scaled Wrapper) */}
-            <div className="w-full max-w-full flex flex-col items-center py-2 overflow-hidden">
+            {/* Front & Back Card Layout for Display & Printing */}
+            <div className="w-full flex flex-col items-center gap-6 py-2 overflow-x-hidden">
               
-              {/* CARD FRONT SIDE */}
-              <div className="w-full flex justify-center overflow-visible py-1">
-                <div className="transform scale-[0.62] min-[380px]:scale-[0.70] min-[440px]:scale-[0.80] min-[520px]:scale-[0.92] sm:scale-100 origin-top transition-transform duration-200">
+              {/* CARD FRONT SIDE WRAPPER */}
+              <div className="w-full flex justify-center overflow-visible">
+                <div className="transform scale-[0.58] min-[360px]:scale-[0.66] min-[420px]:scale-[0.76] min-[500px]:scale-[0.90] sm:scale-100 origin-top transition-transform duration-200 h-[210px] min-[360px]:h-[240px] min-[420px]:h-[275px] min-[500px]:h-[325px] sm:h-auto">
                   <div 
                     ref={cardFrontRef}
-                    className="w-[550px] min-h-[350px] rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden relative flex flex-col justify-between select-none font-sans"
+                    className="w-[550px] min-h-[350px] rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden relative flex flex-col justify-between select-none font-sans print:shadow-none print:border-2"
                   >
                     
                     {/* Issued under banner strip */}
@@ -893,7 +1036,7 @@ const HealthCard = () => {
                     {/* Premium Header */}
                     <div className="bg-gradient-to-r from-[#2e3192] to-[#1a1c54] h-[72px] text-white py-2.5 px-6 flex justify-between items-center relative">
                       <div className="flex items-center gap-3">
-                        <img src="/logo.jpg" alt="Logo" className="h-10 w-10 rounded-lg bg-white p-0.5" />
+                        <img src="/logo.jpg" alt="Logo" className="h-10 w-10 rounded-lg bg-white p-0.5 object-contain" />
                         <span className="text-xl font-black text-[#ed1c24] tracking-wider uppercase">Aagaj.Foundation</span>
                       </div>
                       <div className="text-right flex flex-col items-end justify-center">
@@ -913,8 +1056,6 @@ const HealthCard = () => {
                           src={successCardPhotoUrl}
                           alt="Patient"
                           className="w-full h-full object-cover rounded-lg"
-                          crossOrigin="anonymous"
-                          onError={handleImageError}
                         />
                       </div>
 
@@ -937,7 +1078,9 @@ const HealthCard = () => {
 
                         <div className="col-span-2">
                           <label className="text-[9px] font-bold uppercase tracking-wider text-slate-400 block">Aadhar Number</label>
-                          <span className="font-bold text-slate-700 block tracking-wide font-mono">{successCard.aadhar?.replace(/(\d{4})/g, '$1 ').trim()}</span>
+                          <span className="font-bold text-slate-700 block tracking-wide font-mono">
+                            {successCard.aadhar ? successCard.aadhar.replace(/(\d{4})/g, '$1 ').trim() : 'N/A'}
+                          </span>
                         </div>
 
                         <div className="col-span-2">
@@ -956,7 +1099,7 @@ const HealthCard = () => {
                       <div className="text-right">
                         <span className="text-[8px] text-slate-400 block">EXPIRY DATE</span>
                         <span className="font-extrabold text-slate-800 text-xs block uppercase">
-                          {new Date(successCard.expiryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          {successCard.expiryDate ? new Date(successCard.expiryDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '6 MONTHS'}
                         </span>
                       </div>
                     </div>
@@ -964,12 +1107,12 @@ const HealthCard = () => {
                 </div>
               </div>
 
-              {/* CARD BACK SIDE */}
-              <div className="w-full flex justify-center overflow-visible py-1 -mt-32 min-[380px]:-mt-24 min-[440px]:-mt-14 min-[520px]:-mt-6 sm:mt-0">
-                <div className="transform scale-[0.62] min-[380px]:scale-[0.70] min-[440px]:scale-[0.80] min-[520px]:scale-[0.92] sm:scale-100 origin-top transition-transform duration-200">
+              {/* CARD BACK SIDE WRAPPER */}
+              <div className="w-full flex justify-center overflow-visible">
+                <div className="transform scale-[0.58] min-[360px]:scale-[0.66] min-[420px]:scale-[0.76] min-[500px]:scale-[0.90] sm:scale-100 origin-top transition-transform duration-200 h-[210px] min-[360px]:h-[240px] min-[420px]:h-[275px] min-[500px]:h-[325px] sm:h-auto">
                   <div 
                     ref={cardBackRef}
-                    className="w-[550px] min-h-[350px] rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden relative flex flex-col justify-between select-none font-sans"
+                    className="w-[550px] min-h-[350px] rounded-3xl bg-white shadow-2xl border border-slate-200 overflow-hidden relative flex flex-col justify-between select-none font-sans print:shadow-none print:border-2"
                   >
                     
                     {/* Back Header Banner */}
@@ -1043,14 +1186,17 @@ const HealthCard = () => {
                           </div>
                         )}
 
-                        {/* QR Code Container */}
+                        {/* Local QR Code Container */}
                         <div className="flex flex-col items-center shrink-0 ml-4 p-2 bg-slate-50 border border-slate-100 rounded-2xl">
-                          <img
-                            src={`https://api.qrserver.com/v1/create-qr-code/?size=85x85&data=HEALTH-ID:${successCard.healthId}%0ANAME:${encodeURIComponent(successCard.fullName)}`}
-                            alt="Profile QR Code"
-                            className="h-20 w-20 object-contain rounded-md"
-                            crossOrigin="anonymous"
-                          />
+                          {qrCodeDataUrl ? (
+                            <img
+                              src={qrCodeDataUrl}
+                              alt="Profile QR Code"
+                              className="h-20 w-20 object-contain rounded-md"
+                            />
+                          ) : (
+                            <div className="h-20 w-20 bg-slate-200 animate-pulse rounded-md" />
+                          )}
                           <span className="text-[8px] font-black text-slate-800 tracking-wider uppercase mt-1">Scan Profile</span>
                         </div>
                       </div>

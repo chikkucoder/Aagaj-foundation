@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import html2canvas from 'html2canvas-pro';
-import { ArrowLeft, Download, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Download, ShieldAlert, RefreshCw } from 'lucide-react';
+import { imageUrlToBase64, resolveAssetUrl, renderElementToCanvas, saveOrShareCanvas } from '../utils/cardDownloadUtils';
 
 const Card = () => {
   const [searchParams] = useSearchParams();
@@ -22,6 +22,7 @@ const Card = () => {
 
   const [photoUrl, setPhotoUrl] = useState('https://via.placeholder.com/120?text=Photo');
   const [isActive, setIsActive] = useState(true);
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     if (uniqueId && uniqueId !== '0000') {
@@ -39,76 +40,35 @@ const Card = () => {
 
   useEffect(() => {
     let active = true;
-    let localUrl = '';
 
     if (photoPath && photoPath !== 'undefined' && photoPath !== 'null') {
-      const resolved = photoPath.startsWith('http') 
-        ? photoPath 
-        : `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${photoPath}`;
-      
-      fetch(resolved)
-        .then((res) => {
-          if (!res.ok) throw new Error('Image fetch failed');
-          return res.blob();
-        })
-        .then((blob) => {
-          if (!active) return;
-          localUrl = URL.createObjectURL(blob);
-          setPhotoUrl(localUrl);
-        })
-        .catch((err) => {
-          console.error("CORS fetch failed, trying fallback:", err);
-          const prodBase = 'https://www.aagajfoundation.com';
-          if (resolved.includes('localhost') || resolved.includes('127.0.0.1')) {
-            try {
-              const urlObj = new URL(resolved);
-              const fallbackUrl = `${prodBase}${urlObj.pathname}`;
-              fetch(fallbackUrl)
-                .then((res) => {
-                  if (!res.ok) throw new Error('Fallback failed');
-                  return res.blob();
-                })
-                .then((blob) => {
-                  if (!active) return;
-                  localUrl = URL.createObjectURL(blob);
-                  setPhotoUrl(localUrl);
-                })
-                .catch(() => {
-                  if (active) setPhotoUrl('https://via.placeholder.com/120?text=Photo');
-                });
-            } catch (e) {
-              if (active) setPhotoUrl('https://via.placeholder.com/120?text=Photo');
-            }
-          } else {
-            if (active) setPhotoUrl('https://via.placeholder.com/120?text=Photo');
-          }
-        });
+      const resolved = resolveAssetUrl(photoPath);
+      imageUrlToBase64(resolved, 'https://via.placeholder.com/120?text=Photo').then((base64) => {
+        if (active) setPhotoUrl(base64);
+      });
     } else {
       setPhotoUrl('https://via.placeholder.com/120?text=Photo');
     }
 
     return () => {
       active = false;
-      if (localUrl) {
-        URL.revokeObjectURL(localUrl);
-      }
     };
   }, [photoPath]);
 
-  const downloadCard = () => {
+  const downloadCard = async () => {
     const cardElement = document.getElementById('employeeIdCard');
-    if (cardElement) {
-      html2canvas(cardElement, { scale: 3, useCORS: true, allowTaint: true })
-        .then((canvas) => {
-          const link = document.createElement('a');
-          link.download = `Aagaj_ID_${uniqueId}.png`;
-          link.href = canvas.toDataURL('image/png');
-          link.click();
-        })
-        .catch((err) => {
-          console.error("Error generating card canvas:", err);
-          alert("Failed to save image. Please try again.");
-        });
+    if (cardElement && !downloading) {
+      setDownloading(true);
+      try {
+        const filename = `Aagaj_ID_${uniqueId}.png`;
+        const canvas = await renderElementToCanvas(cardElement);
+        await saveOrShareCanvas(canvas, filename);
+      } catch (err) {
+        console.error("Error generating card canvas:", err);
+        alert("Failed to save image. Please try again.");
+      } finally {
+        setDownloading(false);
+      }
     }
   };
 

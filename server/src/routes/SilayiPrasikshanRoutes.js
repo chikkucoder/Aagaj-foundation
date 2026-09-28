@@ -329,13 +329,15 @@ router.post('/verify-payment', validateRequest({ body: paymentVerifySchema }), a
         const newBen = new Beneficiary(pendingData);
         await newBen.save();
 
-        try {
-            await sendSilayiRegistrationConfirmation(newBen);
-        } catch (mailError) {
-            console.warn('Silayi registration email failed:', mailError.message);
-        }
-
         await PendingPayment.deleteOne({ orderId: pendingOrderId });
+
+        setImmediate(async () => {
+            try {
+                await sendSilayiRegistrationConfirmation(newBen);
+            } catch (mailError) {
+                console.warn('Silayi registration email background failed:', mailError.message);
+            }
+        });
 
         return res.json({ success: true, orderId: pendingOrderId, paymentId: razorpay_payment_id });
         
@@ -422,28 +424,7 @@ router.get('/verify', async (req, res) => {
     }
 });
 
-// Middleware to verify admin session
-const verifyAdmin = (req, res, next) => {
-    const token = req.header('Authorization');
-    if (!token) return res.status(401).json({ success: false, message: "Access Denied. No Token Provided." });
-
-    const tokenVal = token.replace("Bearer ", "");
-    if (tokenVal === 'employee-session') {
-        req.user = { role: 'employee' };
-        return res.status(403).json({ success: false, message: "Access Denied. Admins Only." });
-    }
-
-    try {
-        const verified = jwt.verify(tokenVal, process.env.JWT_SECRET);
-        req.user = verified;
-        if (verified.role !== 'admin') {
-            return res.status(403).json({ success: false, message: "Access Denied. Admins Only." });
-        }
-        next();
-    } catch (err) {
-        res.status(400).json({ success: false, message: "Invalid Token" });
-    }
-};
+const { verifyAdmin } = require('../middleware/auth');
 
 // ✅ API for Admin to directly register Silayi Yojana candidate (Custom Price & Photo)
 router.post('/admin/create', verifyAdmin, upload.single('photo'), async (req, res) => {

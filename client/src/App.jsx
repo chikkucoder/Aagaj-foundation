@@ -67,7 +67,11 @@ function App() {
             <Route path="/careers/ngo-jobs" element={<NGOJobs />} />
             <Route path="/careers/general-jobs" element={<GeneralJobs />} />
             <Route path="/medical/healthcard" element={<HealthCard />} />
+            <Route path="/medical/health-card" element={<HealthCard />} />
+            <Route path="/healthcard" element={<HealthCard />} />
+            <Route path="/health-card" element={<HealthCard />} />
             <Route path="/medical/verify-healthcard" element={<VerifyHealthCard />} />
+            <Route path="/verify-healthcard" element={<VerifyHealthCard />} />
             <Route path="/medical/appointment" element={<Appointment />} />
             <Route path="/schemes/silayi" element={<SilayiYojnaDescription />} />
             <Route path="/silayi/description" element={<SilayiYojnaDescription />} />

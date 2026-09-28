@@ -43,52 +43,7 @@ const fileFilter = (req, file, cb) => {
 };
 
 const upload = require('../middleware/upload');
-const jwt = require('jsonwebtoken');
-
-// Middleware to verify admin session
-const verifyAdmin = (req, res, next) => {
-    const token = req.header('Authorization');
-    if (!token) return res.status(401).json({ success: false, message: "Access Denied. No Token Provided." });
-
-    const tokenVal = token.replace("Bearer ", "");
-    if (tokenVal === 'employee-session') {
-        return res.status(403).json({ success: false, message: "Access Denied. Admins Only." });
-    }
-
-    try {
-        const verified = jwt.verify(tokenVal, process.env.JWT_SECRET);
-        req.user = verified;
-        if (verified.role !== 'admin') {
-            return res.status(403).json({ success: false, message: "Access Denied. Admins Only." });
-        }
-        next();
-    } catch (err) {
-        res.status(400).json({ success: false, message: "Invalid Token" });
-    }
-};
-
-// Middleware to verify session (allows either Admin JWT or employee token/session)
-const verifyAdminOrEmployee = (req, res, next) => {
-    const token = req.header('Authorization');
-    if (!token) return res.status(401).json({ success: false, message: "Access Denied. No Token Provided." });
-
-    const tokenVal = token.replace("Bearer ", "");
-    if (tokenVal === 'employee-session') {
-        req.user = { role: 'employee' };
-        return next();
-    }
-
-    try {
-        const verified = jwt.verify(tokenVal, process.env.JWT_SECRET);
-        req.user = verified;
-        if (verified.role !== 'admin' && verified.role !== 'employee') {
-            return res.status(403).json({ success: false, message: "Access Denied. Unauthorized Role." });
-        }
-        next();
-    } catch (err) {
-        res.status(400).json({ success: false, message: "Invalid Token" });
-    }
-};
+const { verifyAdmin, verifyAdminOrEmployee } = require('../middleware/auth');
 
 // ==========================================
 //              API ROUTES
@@ -228,25 +183,6 @@ router.post('/verify-payment', validateRequest({ body: paymentVerifySchema }), a
         }
 
         const groupData = pendingRecord.data;
-
-        try {
-            await PaymentLog.create({
-                orderId: pendingOrderId,
-                amount: groupData.registrationFee || 0,
-                status: 'success',
-                paymentId: razorpay_payment_id,
-                transactionId: razorpay_order_id,
-                schemeType: 'swarojgaar',
-                ipAddress: req.ip || req.connection.remoteAddress,
-                userAgent: req.get('User-Agent'),
-                rawResponse: req.body,
-                verificationStatus: 'verified',
-                amountVerified: true,
-                signatureVerified: true
-            });
-        } catch (logError) {
-            console.warn('PaymentLog write failed (swarojgaar):', logError.message);
-        }
         groupData.paymentStatus = 'Paid';
         groupData.paymentId = razorpay_payment_id;
         groupData.orderId = pendingOrderId;
@@ -254,15 +190,36 @@ router.post('/verify-payment', validateRequest({ body: paymentVerifySchema }), a
         const newGroup = new SwarojgaarGroup(groupData);
         await newGroup.save();
 
-        if (groupData.email || req.body.email) {
-            try {
-                await sendSwarojgaarRegistrationConfirmation(newGroup, groupData.email || req.body.email);
-            } catch (mailErr) {
-                console.warn('Swarojgaar confirmation email failed:', mailErr.message);
-            }
-        }
-
         await PendingPayment.deleteOne({ orderId: pendingOrderId });
+
+        setImmediate(async () => {
+            try {
+                await PaymentLog.create({
+                    orderId: pendingOrderId,
+                    amount: groupData.registrationFee || 0,
+                    status: 'success',
+                    paymentId: razorpay_payment_id,
+                    transactionId: razorpay_order_id,
+                    schemeType: 'swarojgaar',
+                    ipAddress: req.ip || req.connection?.remoteAddress,
+                    userAgent: req.get('User-Agent'),
+                    rawResponse: req.body,
+                    verificationStatus: 'verified',
+                    amountVerified: true,
+                    signatureVerified: true
+                });
+            } catch (logError) {
+                console.warn('PaymentLog write failed (swarojgaar):', logError.message);
+            }
+
+            if (groupData.email || req.body.email) {
+                try {
+                    await sendSwarojgaarRegistrationConfirmation(newGroup, groupData.email || req.body.email);
+                } catch (mailErr) {
+                    console.warn('Swarojgaar confirmation email failed:', mailErr.message);
+                }
+            }
+        });
 
         return res.json({ success: true, orderId: pendingOrderId, paymentId: razorpay_payment_id });
     } catch (error) {

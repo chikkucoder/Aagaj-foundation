@@ -39,50 +39,7 @@ const fileFilter = (req, file, cb) => {
 
 const upload = require('../middleware/upload');
 
-// Middleware to verify admin session
-const verifyAdmin = (req, res, next) => {
-    const token = req.header('Authorization');
-    if (!token) return res.status(401).json({ success: false, message: "Access Denied. No Token Provided." });
-
-    const tokenVal = token.replace("Bearer ", "");
-    if (tokenVal === 'employee-session') {
-        return res.status(403).json({ success: false, message: "Access Denied. Admins Only." });
-    }
-
-    try {
-        const verified = jwt.verify(tokenVal, process.env.JWT_SECRET);
-        req.user = verified;
-        if (verified.role !== 'admin') {
-            return res.status(403).json({ success: false, message: "Access Denied. Admins Only." });
-        }
-        next();
-    } catch (err) {
-        res.status(400).json({ success: false, message: "Invalid Token" });
-    }
-};
-
-// Middleware to verify session (allows either Admin JWT or employee token/session)
-const verifyAdminOrEmployee = (req, res, next) => {
-    const token = req.header('Authorization');
-    if (!token) return res.status(401).json({ success: false, message: "Access Denied. No Token Provided." });
-
-    const tokenVal = token.replace("Bearer ", "");
-    if (tokenVal === 'employee-session') {
-        req.user = { role: 'employee' };
-        return next();
-    }
-
-    try {
-        const verified = jwt.verify(tokenVal, process.env.JWT_SECRET);
-        req.user = verified;
-        if (verified.role !== 'admin' && verified.role !== 'employee') {
-            return res.status(403).json({ success: false, message: "Access Denied. Unauthorized Role." });
-        }
-        next();
-    } catch (err) {
-        res.status(400).json({ success: false, message: "Invalid Token" });
-    }
-};
+const { verifyAdmin, verifyAdminOrEmployee } = require('../middleware/auth');
 
 // ✅ API to Check if User Already Exists
 router.post('/check-exists', validateRequest({ body: healthCardCheckExistsSchema }), async (req, res) => {
@@ -269,66 +226,60 @@ router.post('/verify-payment', validateRequest({ body: healthCardVerifyPaymentSc
 
         await newCard.save();
 
-        try {
-            if (newCard.email) {
-                await sendHealthCardConfirmation(newCard);
-            }
-        } catch (mailError) {
-            console.warn('Health card confirmation email failed:', mailError.message);
-        }
-
-        // 🟢 Send SMS & WhatsApp Notification for Health Card
-        let notificationResults = null;
-        const cardTypeTitle = (pendingCardData.cardType || 'Single') === 'Family' ? 'Family Health Card' : 'Health Card';
-        const healthCardMsg = `Dear ${pendingCardData.fullName}, your payment was successful! Your ${cardTypeTitle} ID is ${healthId}. It is valid until ${expiryDate.toLocaleDateString('en-IN')}. Thank you!`;
-        if (pendingCardData.mobile) {
-            const [smsResult, waResult] = await Promise.all([
-                sendSMS(pendingCardData.mobile, healthCardMsg),
-                sendWhatsApp(pendingCardData.mobile, healthCardMsg)
-            ]);
-            notificationResults = {
-                sms: smsResult,
-                whatsapp: waResult
-            };
-            console.log('Health card notification results:', {
-                phone: pendingCardData.mobile,
-                sms: smsResult,
-                whatsapp: waResult
-            });
-        }
-
-        try {
-            await PaymentLog.create({
-                orderId: pendingOrderId,
-                amount: pendingCardData.amount || 201,
-                status: 'success',
-                paymentId: razorpay_payment_id,
-                transactionId: razorpay_order_id,
-                schemeType: 'healthcard',
-                ipAddress: req.ip || req.connection.remoteAddress,
-                userAgent: req.get('User-Agent'),
-                rawResponse: req.body,
-                verificationStatus: 'verified',
-                amountVerified: true,
-                signatureVerified: true
-            });
-        } catch (logError) {
-            console.warn('PaymentLog write failed (healthcard):', logError.message);
-        }
-
-        // 7. Clean up pending record from MongoDB
+        // 7. Clean up pending record from MongoDB immediately
         await PendingPayment.deleteOne({ orderId: pendingOrderId });
 
+        const frontendUrl = process.env.FRONTEND_URL || 'https://aagajfoundation.com';
         const responsePayload = {
             success: true,
             orderId: pendingOrderId,
             paymentId: razorpay_payment_id,
-            redirectUrl: `${process.env.FRONTEND_URL}/healthcard.html?status=success&orderId=${encodeURIComponent(pendingOrderId)}&paymentId=${encodeURIComponent(razorpay_payment_id)}`
+            card: newCard,
+            redirectUrl: `${frontendUrl}/medical/healthcard?status=success&orderId=${encodeURIComponent(pendingOrderId)}&paymentId=${encodeURIComponent(razorpay_payment_id)}`
         };
 
-        if (process.env.NODE_ENV !== 'production') {
-            responsePayload.notificationResults = notificationResults;
-        }
+        // 🟢 Execute Email, SMS, WhatsApp, and PaymentLog asynchronously in background (Non-blocking)
+        setImmediate(async () => {
+            try {
+                if (newCard.email) {
+                    await sendHealthCardConfirmation(newCard);
+                }
+            } catch (mailError) {
+                console.warn('Health card confirmation email background failed:', mailError.message);
+            }
+
+            if (pendingCardData.mobile) {
+                try {
+                    const cardTypeTitle = (pendingCardData.cardType || 'Single') === 'Family' ? 'Family Health Card' : 'Health Card';
+                    const healthCardMsg = `Dear ${pendingCardData.fullName}, your payment was successful! Your ${cardTypeTitle} ID is ${healthId}. It is valid until ${expiryDate.toLocaleDateString('en-IN')}. Thank you!`;
+                    await Promise.all([
+                        sendSMS(pendingCardData.mobile, healthCardMsg),
+                        sendWhatsApp(pendingCardData.mobile, healthCardMsg)
+                    ]);
+                } catch (notifyErr) {
+                    console.warn('Health card SMS/WA notification background error:', notifyErr.message);
+                }
+            }
+
+            try {
+                await PaymentLog.create({
+                    orderId: pendingOrderId,
+                    amount: pendingCardData.amount || 201,
+                    status: 'success',
+                    paymentId: razorpay_payment_id,
+                    transactionId: razorpay_order_id,
+                    schemeType: 'healthcard',
+                    ipAddress: req.ip || req.connection?.remoteAddress,
+                    userAgent: req.get('User-Agent'),
+                    rawResponse: req.body,
+                    verificationStatus: 'verified',
+                    amountVerified: true,
+                    signatureVerified: true
+                });
+            } catch (logError) {
+                console.warn('PaymentLog write failed (healthcard):', logError.message);
+            }
+        });
 
         return res.json(responsePayload);
 
@@ -342,17 +293,39 @@ router.post('/verify-payment', validateRequest({ body: healthCardVerifyPaymentSc
 router.get('/get-by-order/:orderId', async (req, res) => {
     try {
         const { orderId } = req.params;
-        const { paymentId } = req.query;
+        const { paymentId, healthId } = req.query;
 
-        let card = await HealthCard.findOne({ orderId });
+        const cleanOrderId = String(orderId || '').trim();
+        const cleanPaymentId = String(paymentId || '').trim();
+        const cleanHealthId = String(healthId || '').trim();
 
-        // Fallback: try paymentId if orderId not found
-        if (!card && paymentId) {
-            card = await HealthCard.findOne({ paymentId });
+        // Build flexible query to find card by any available identifier
+        const queries = [];
+        if (cleanOrderId && cleanOrderId !== 'undefined' && cleanOrderId !== 'null') {
+            queries.push({ orderId: cleanOrderId });
+            queries.push({ healthId: cleanOrderId });
+            if (!cleanOrderId.startsWith('MC-') && /^\d{6}$/.test(cleanOrderId)) {
+                queries.push({ healthId: `MC-${cleanOrderId}` });
+            }
+        }
+        if (cleanPaymentId && cleanPaymentId !== 'undefined' && cleanPaymentId !== 'null') {
+            queries.push({ paymentId: cleanPaymentId });
+        }
+        if (cleanHealthId && cleanHealthId !== 'undefined' && cleanHealthId !== 'null') {
+            queries.push({ healthId: cleanHealthId });
+            if (!cleanHealthId.startsWith('MC-') && /^\d{6}$/.test(cleanHealthId)) {
+                queries.push({ healthId: `MC-${cleanHealthId}` });
+            }
         }
 
+        if (queries.length === 0) {
+            return res.status(400).json({ success: false, message: "No search identifier provided" });
+        }
+
+        const card = await HealthCard.findOne({ $or: queries });
+
         if (!card) {
-            return res.json({ success: false, message: "Card not found" });
+            return res.json({ success: false, message: "Card not found in database" });
         }
 
         res.json({ success: true, data: card });
@@ -379,9 +352,6 @@ const verifyCardAccessToken = (req, res, next) => {
     }
 
     const tokenVal = authHeader.replace("Bearer ", "").trim();
-    if (tokenVal === 'employee-session') {
-        return next();
-    }
 
     try {
         const decoded = jwt.verify(tokenVal, process.env.JWT_SECRET || 'aagaz_healthcard_secret_key');
@@ -786,8 +756,8 @@ router.post('/admin/create', verifyAdmin, upload.single('photo'), async (req, re
     }
 });
 
-// ✅ Admin: Edit Health Card Details
-router.put('/admin/edit/:id', verifyAdmin, upload.single('photo'), async (req, res) => {
+// ✅ Admin & Authorized Staff: Edit Health Card Details
+router.put('/admin/edit/:id', verifyAdminOrEmployee, upload.single('photo'), async (req, res) => {
     try {
         const cardId = req.params.id;
         const {
@@ -799,14 +769,21 @@ router.put('/admin/edit/:id', verifyAdmin, upload.single('photo'), async (req, r
             gender,
             bloodGroup,
             address,
+            village,
+            panchayat,
+            block,
+            district,
+            state,
+            pincode,
             cardType,
             familyMembers,
-            expiryDate
+            expiryDate,
+            registeredBy
         } = req.body;
 
         // Validation
         if (!fullName || !mobile || !aadhar || !age || !gender || !bloodGroup) {
-            return res.status(400).json({ success: false, message: "Required fields cannot be empty" });
+            return res.status(400).json({ success: false, message: "Required fields (Name, Mobile, Aadhar, Age, Gender, Blood Group) cannot be empty" });
         }
 
         // Check if card exists
@@ -836,15 +813,43 @@ router.put('/admin/edit/:id', verifyAdmin, upload.single('photo'), async (req, r
         // Update fields
         existingCard.fullName = fullName;
         existingCard.mobile = mobile;
-        existingCard.email = email;
+        existingCard.email = email || '';
         existingCard.aadhar = aadhar;
-        existingCard.age = age;
+        existingCard.age = parseInt(age, 10) || existingCard.age;
         existingCard.gender = gender;
         existingCard.bloodGroup = bloodGroup;
-        existingCard.address = typeof address === 'string' ? JSON.parse(address) : address;
+
+        // Parse Address
+        let parsedAddress = existingCard.address || {};
+        if (address) {
+            try {
+                parsedAddress = typeof address === 'string' ? JSON.parse(address) : address;
+            } catch (e) {
+                parsedAddress = { village, panchayat, block, district, state, pincode };
+            }
+        } else {
+            parsedAddress = {
+                village: village !== undefined ? village : parsedAddress.village,
+                panchayat: panchayat !== undefined ? panchayat : parsedAddress.panchayat,
+                block: block !== undefined ? block : parsedAddress.block,
+                district: district !== undefined ? district : parsedAddress.district,
+                state: state !== undefined ? state : parsedAddress.state,
+                pincode: pincode !== undefined ? pincode : parsedAddress.pincode
+            };
+        }
+        existingCard.address = parsedAddress;
+
         existingCard.cardType = cardType || existingCard.cardType;
+        if (registeredBy) {
+            existingCard.registeredBy = registeredBy;
+        }
+
         if (familyMembers) {
-            existingCard.familyMembers = Array.isArray(familyMembers) ? familyMembers : JSON.parse(familyMembers);
+            try {
+                existingCard.familyMembers = Array.isArray(familyMembers) ? familyMembers : JSON.parse(familyMembers);
+            } catch (e) {
+                console.error("Family members parse error on edit:", e.message);
+            }
         }
         if (expiryDate) {
             existingCard.expiryDate = new Date(expiryDate);
@@ -857,7 +862,7 @@ router.put('/admin/edit/:id', verifyAdmin, upload.single('photo'), async (req, r
 
         res.json({
             success: true,
-            message: "Health card updated successfully!",
+            message: "Health card details updated successfully!",
             data: existingCard
         });
     } catch (error) {

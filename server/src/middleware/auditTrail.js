@@ -6,11 +6,22 @@ const WRITE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 const redactKeys = new Set([
     'password',
+    'emp_password',
     'hashPass',
     'token',
     'authorization',
+    'otp',
+    'otpSecret',
+    'secret',
+    'apiKey',
+    'api_key',
+    'razorpay_signature',
     'TWILIO_AUTH_TOKEN',
-    'JWT_SECRET'
+    'JWT_SECRET',
+    'aadhaar',
+    'aadhaarNo',
+    'aadhar',
+    'cardNo'
 ]);
 
 const isObject = (value) => value && typeof value === 'object' && !Array.isArray(value);

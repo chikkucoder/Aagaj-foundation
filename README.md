@@ -1,232 +1,235 @@
-# Aagaj Foundation Web Portal
+# Aagaj Foundation — Full-Stack Management & Healthcare Platform
 
-A production-grade, full-stack digital web portal built for **Aagaj Foundation**, a registered non-profit trust dedicated to empowering women, providing healthcare accessibility, and creating self-employment opportunities across communities
-A production-grade, full-stack digital web portal built for **Aagaj Foundation**, a registered non-profit trust dedicated to community empowerment, women's training (Silayi Prasikshan), healthcare accessibility (Swasthya Suraksha Network), and self-employment (Swarojgaar groups).
+## Overview
 
-This repository comprises a modern React-based single-page application (frontend) and a Node.js/Express application (REST API server) powered by MongoDB.
+**Aagaj Foundation** is a real-world, production-deployed full-stack digital management and healthcare platform engineered for a registered non-profit trust in India. The platform digitizes community health networks, skill development programs, self-employment initiatives, field employee operations, and administrative oversight.
 
----
+The system addresses critical operational challenges in non-profit management, including manual beneficiary tracking, fragmented healthcare appointment routing, insecure employee profile access, field camp registration management, and audit logging. Designed for administrative leaders, partner healthcare facilities, field coordinators, and public citizens, it unifies multi-role workflows into a single secure platform.
 
-## 🚀 Key Modules & Features
-
-### 1. Swasthya Suraksha Network (Healthcare & Appointments)
-* **Beneficiary Search & Validation**: Quick search and validation of custom Health IDs (format: `MC-XXXXXX`).
-* **Interactive Doctor Appointments**: Booking engine that routes patient requests to partner hospitals/clinics by specialty, department, symptoms, and attachments.
-* **Flexible Visit Options**: Supports both **Physical Clinic Visits** and **Teleconsultation (Telemedicine)** bookings.
-* **Success Receipts**: Generates premium print-ready appointment receipt overlays displaying critical patient/doctor info.
-
-### 2. Health ID Card Generator & Exporter
-* **Dynamic PDF & PNG Exporters**: Compiles digital patient details, barcode mapping, passport-size photographs, issue date, and validation metadata into a print-friendly ID card.
-* **Front & Back Download**: Uses `html2canvas-pro` to capture clean, high-resolution graphic cards directly on the client browser.
-
-### 3. Career & Job Applications Portal
-* **Structured Application Forms**: Applicants can apply for specific NGO posts (e.g., *District Coordinator*, *Block Coordinator*, *Panchayat Coordinator*, or *Field Executive*).
-* **Payment Integration**: Seamless checkout flow backed by **Razorpay** for handling application registration fees.
-* **Automated Email Confirmations**: Dynamically notifies selected candidates with structured HTML emails detailing their post, date of joining (DOJ), and post location.
-
-### 4. Silayi Prasikshan & Swarojgaar Registers
-* **Silayi Prasikshan (Stitching & Tailoring Training)**: Registers and validates women beneficiaries enrolled in community tailoring centers.
-* **Swarojgaar (Self-Employment Groups)**: Tracks community-led joint enterprise groups, group leaders, and validation statuses.
-* **Dual-Stage Lookup**: Secure verification using mobile numbers or registration keys before details are fetched.
+Built as a decoupled full-stack application, the platform features a modern React single-page application (SPA) powered by Vite on the frontend and an Express.js REST API server backed by MongoDB on the backend.
 
 ---
 
-## 🔑 Role-Based Access Control (RBAC)
+## Engineering Highlights
 
-The application implements strict Role-Based Access Control (RBAC) via JWT payload signatures and express middleware.
+- Designed and implemented a decoupled React + Express full-stack architecture.
+- Implemented JWT-based authentication with server-side RBAC.
+- Built role-specific workflows for administrators, employees/coordinators, hospital partners, and public users.
+- Integrated MongoDB using Mongoose for structured application data.
+- Implemented API rate limiting, security headers, CORS controls, input validation, and audit logging.
+- Integrated third-party services for payments, OTP/SMS, email notifications, and media storage.
+- Implemented sensitive-data redaction and protected access to employee and beneficiary information.
+- Added production-oriented error handling and environment-based secret management.
+
+---
+
+## Key Features
+
+### Healthcare & Beneficiary Management
+- **Swasthya Suraksha Network**: Dynamic lookup and verification of custom Health IDs (format: `MC-XXXXXX`).
+- **Doctor Appointments**: Multi-department booking engine supporting physical clinic visits and teleconsultations with hospital/specialty routing.
+- **Digital Health Card Generator**: Client-side graphic rendering (`html2canvas-pro`) and PDF/PNG generation for patient ID cards.
+- **Hospital Intake & Billing**: Partner hospitals can log patient intake, manage treatment bills, and upload digital receipt attachments.
+
+### Employee & Administration Management
+- **Role-Based Access Control (RBAC)**: Fine-grained server-side authorization separating Super Admins, Hospital Partners, and District/Block Coordinators.
+- **Real-Time Attendance**: Clock-in and clock-out system with work mode selection (Office/Field), geolocation tracking, and active session heartbeat pings.
+- **Field Scheme Registers**: Management of *Silayi Prasikshan* (stitching and tailoring training) and *Swarojgaar* (self-employment groups) candidate registrations.
+- **Candidate Application Portal**: Job application engine for NGO post applicants with role-specific tracking and dynamic email notifications.
+
+### User & Public Features
+- **Public Appointment Booking**: Direct booking interface for healthcare appointments with instant confirmation receipts.
+- **Health Card Verification**: Public card validation tool protected by secure OTP authentication.
+- **Dynamic Content Showcase**: Live carousel banners and public notice board updates managed via backend API.
+
+### Payments & Communication Services
+- **Payment Processing**: Integrated **Razorpay** checkout for candidate registration fees and donations with server-side signature verification.
+- **Multi-Provider SMS & OTP**: Unified SMS service wrapper supporting **Fast2SMS** (DLT OTP), **MSG91** (Widget & Template API), and **Twilio** (Global SMS).
+- **Automated Email Notifications**: HTML transactional emails for candidate selection, appointment bookings, and partner registrations.
+
+### Monitoring & Security Audit
+- **Automated Audit Logging**: Middleware-driven audit trail capturing write operations (`POST`, `PUT`, `PATCH`, `DELETE`) with request correlation IDs.
+- **Sensitive Data Redaction**: Automatic parameter sanitization replacing passwords, OTPs, Aadhaar numbers, and API tokens with `[REDACTED]`.
+- **System Telemetry & Reports**: Global applicant counters, attendance analytics, and transaction logs accessible via Super Admin dashboard.
+
+---
+
+## User Roles & RBAC
+
+All protected resources enforce authorization **server-side** using verified JWT claims (`req.user.role`). Client-side route guards complement backend authorization to present role-specific UI components.
+
+| Role | Responsibilities / Access Scope |
+| :--- | :--- |
+| **Super Admin** (`admin`) | Complete system access. Manages partner hospital credentials, approves applicant candidates, views global audit logs, and monitors overall foundation metrics. |
+| **Hospital Partner** (`hospital`) | Scoped strictly to the facility's unique ID (`uniqueId`). Registers patient intake, creates treatment bills, edits billing entries, and attaches treatment receipts. |
+| **Employee / Coordinator** (`employee`) | Covers District, Block, and Panchayat Coordinators. Submits beneficiary health cards, registers Silayi/Swarojgaar groups, logs daily attendance, and manages field camp data. |
+| **User / Citizen** (`public`) | Unauthenticated public access. Can submit doctor appointments, verify health cards via OTP, apply for NGO career opportunities, and view public information. |
+
+---
+
+## System Architecture
 
 ```mermaid
 graph TD
-    User([Incoming Request]) --> Auth{JWT Auth Header?}
-    Auth -- No --> Guest[Guest Role]
-    Auth -- Yes --> Verify[Verify JWT Secret]
-    Verify --> RoleCheck{Decode Role}
+    User([User / Browser]) -->|HTTPS / REST| Frontend[React SPA / Vite]
+    Frontend -->|Bearer JWT Header| SecurityLayer[Express Security Middleware]
     
-    RoleCheck -- admin --> SuperAdminDash[Super Admin Dashboard]
-    RoleCheck -- hospital --> HospitalDash[Hospital/Clinic Dashboard]
-    RoleCheck -- employee --> EmployeeDash[Employee/Coordinator Dashboard]
+    subgraph Security & Request Pipeline
+        SecurityLayer --> Helmet[Helmet Security Headers]
+        SecurityLayer --> CORS[CORS Origin Filter]
+        SecurityLayer --> RateLimit[Rate Limiters]
+        SecurityLayer --> JWTAuth[JWT Auth & RBAC Guard]
+        SecurityLayer --> AuditLog[Audit Trail Logger]
+    end
     
-    Guest --> PublicPortal[Book Appointments / Verify ID / Apply for Jobs]
+    JWTAuth --> Controllers[Express Route Controllers]
+    Controllers --> Validators[Joi Input Validators]
+    Validators --> Mongoose[Mongoose ODM Models]
+    Mongoose --> MongoDB[(MongoDB Database)]
+    
+    Controllers --> ExternalServices[External Integrations]
+    subgraph External Services
+        ExternalServices --> Razorpay[Razorpay Payment Gateway]
+        ExternalServices --> SMS[SMS Gateway: MSG91 / Fast2SMS / Twilio]
+        ExternalServices --> Cloudinary[Cloudinary Media Storage]
+    end
 ```
 
-### Roles and Permissions Matrix
-
-| Feature / Action | Guest / Public | Employee (Coordinators) | Hospital Partner | Super Admin |
-| :--- | :---: | :---: | :---: | :---: |
-| **Book Appointment / Verify Health Card** | ✅ | ✅ | ✅ | ✅ |
-| **Apply for NGO Jobs / Apply for Health ID** | ✅ | ✅ | ✅ | ✅ |
-| **Log Attendance (Clock In/Out + Heartbeat)** | ❌ | ✅ | ❌ | ❌ |
-| **Register Silayi & Swarojgaar Beneficiaries** | ❌ | ✅ | ❌ | ✅ |
-| **Check in Patients & Upload Treatment Bills** | ❌ | ❌ | ✅ | ✅ |
-| **Add/Delete/Edit Patient Bills & Receipt Attachments**| ❌ | ❌ | ✅ | ✅ |
-| **Generate/Reset Partner Hospital Credentials** | ❌ | ❌ | ❌ | ✅ |
-| **View Audit Trails & Global Transaction Logs** | ❌ | ❌ | ❌ | ✅ |
-| **Manage Carousel Media & Global App Statistics** | ❌ | ❌ | ❌ | ✅ |
-
-#### 1. Super Admin (`admin`)
-* Full root access.
-* Ability to register, approve, edit, and reset passwords for partner hospitals/clinics.
-* Visualizes global transaction streams, analytics, and handles user management.
-* Oversees the global auditing log console.
-
-#### 2. Hospital Partner (`hospital`)
-* Scoped access limited to the hospital's unique identifier (`uniqueId`).
-* Records patient intake logs, checks in beneficiaries, and generates billing records for treatments.
-* Supports uploading receipts/bills, editing bill amounts, or deleting incorrect entries.
-
-#### 3. Employee / Coordinator (`employee`)
-* Includes designations like *District*, *Block*, and *Panchayat Coordinators*.
-* Can submit beneficiary health cards, silayi registrations, and swarojgaar records.
-* **Realtime Software Attendance**: Clock-in and Clock-out tool with geolocation/work mode selection. Active work tracking monitors the session via heartbeat pings to calculate true software usage time.
-
-#### 4. Guest / Public (`guest`)
-* Public endpoints allowing users to submit appointment requests, verify cards, apply for jobs, and trigger secure OTP verifications.
+The application uses a clean, decoupled architecture. Client requests pass through a security middleware stack (Helmet headers, CORS restrictions, rate limiters, JWT signature validation, and audit logging) before reaching Express route controllers. Data persistence is managed through Mongoose ODM schemas connected to MongoDB, while external operations (payments, SMS notifications, and file storage) are handled by dedicated service wrappers.
 
 ---
 
-## 💬 Message & Gateway Integrations
+## Technology Stack
 
-The system is equipped with robust SMS, authentication, and payment integrations.
-
-### 1. SMS & OTP Integrations
-The application features a plug-and-play **SMS Gateway Service** (`server/src/services/smsService.js`) with support for three major providers:
-* **Fast2SMS (India)**: Ideal for quick OTP routing via Indian DLT templates.
-* **MSG91 (Enterprise India)**: Supports both direct OTP templates and the **MSG91 Auth Widget API** (`/api/v5/widget/sendOtp`) for headless verification.
-* **Twilio (Global)**: Integrated for international SMS and WhatsApp alert notifications upon booking approvals.
-
-> [!TIP]
-> **Developer Fallback Mode**: If no API keys are provided in the environment variables, the system automatically falls back to logging OTP codes directly to the server console (`dev_mode`). This prevents testing workflows from breaking during offline local development.
-
-### 2. Payment Integration (Razorpay)
-* Processes application fees for coordinator roles.
-* Integrates webhooks (`/api/payments/webhook`) to handle payment confirmation events, saving application files and writing payment logs securely to MongoDB.
-
----
-
-## 📝 System Logging & Auditing (How Logs Work)
-
-To maintain accountability and security, the system utilizes a customized **Audit Log Middleware** (`server/src/middleware/auditTrail.js`).
-
-### How Audit Trail Logging Operates:
-1. **Request Interception**: The middleware intercepts all data-modifying write operations (`POST`, `PUT`, `PATCH`, `DELETE`).
-2. **Actor Resolution**: It decodes the JWT Authorization header on the fly to determine who made the request (captures `actor.id`, `actor.role`, and `actor.uniqueId`).
-3. **Data Redaction & Truncation**:
-   * Sensitive parameters (such as `password`, `hashPass`, `token`, `authorization`, and key secrets) are automatically replaced with `[REDACTED]` to prevent leak of credentials.
-   * Super-long payload texts are truncated to `500...[TRUNCATED]` to preserve database storage.
-4. **Context Capture**: It logs details like HTTP Method, Target URL path, Response status code, IP Address, User-Agent, and exact query parameters/body payloads.
-5. **Unique Request Tracking**: A unique 8-character hexadecimal `requestId` is stamped on the incoming request to correlate actions across server logs.
-6. **Querying Audit Logs**: Super Admins can monitor, search, and filter these logs dynamically through:
-   `GET /api/hospital-admin-system/admin/audit-logs?role=employee&action=POST&fromDate=2026-08-01`
+| Layer | Technology |
+| :--- | :--- |
+| **Frontend Framework** | React 18, Vite |
+| **UI & Styling** | Custom CSS, TailwindCSS, Lucide React (Icons) |
+| **Client Libraries** | React Router DOM, Axios, html2canvas-pro, Canvas-Confetti |
+| **Backend Runtime** | Node.js, Express.js |
+| **Database** | MongoDB, Mongoose ODM |
+| **Authentication** | JSON Web Tokens (`jsonwebtoken`), Bcrypt.js |
+| **Security** | Helmet, Express-Rate-Limit, Custom Audit Logger, Joi Validation |
+| **Payment Gateway** | Razorpay SDK |
+| **Messaging & OTP** | MSG91 API, Fast2SMS API, Twilio SDK, Nodemailer |
+| **File Storage** | Cloudinary API, Multer, Local Uploads Static Middleware |
+| **PDF Generation** | PDFKit |
 
 ---
 
-## 📂 Repository Structure
+## Security & Production Hardening
+
+The repository incorporates standard backend security controls:
+
+- **JWT Authentication**: Secured with server-side signature validation using environment-configured secrets. Hardcoded token bypass strings (such as `employee-session`) have been completely removed.
+- **Server-Side RBAC Enforcement**: Role checks (`admin`, `employee`, `hospital`) are enforced at the API route layer rather than relying on client-side UI visibility.
+- **IDOR Prevention**: Profile endpoints (`/api/employee/profile`) and attendance queries (`/my-attendance`) enforce token identity (`req.user.email`) for non-admin users, preventing unauthorized query parameter manipulation.
+- **Response Sanitization**: Authentication and user endpoints return sanitized data transfer objects (`safeUser`), preventing password hashes, OTP secrets, or internal database metadata from leaking in API payloads.
+- **PII Protection**: Sensitive fields such as Aadhaar numbers and contact information are restricted to authorized endpoints and masked in public views.
+- **Audit Logging with Redaction**: Data-modifying requests (`POST`, `PUT`, `PATCH`, `DELETE`) are logged to MongoDB. Sensitive fields (`password`, `emp_password`, `otp`, `aadhaar`, `razorpay_signature`) are automatically replaced with `[REDACTED]`.
+- **API Rate Limiting**: Multi-tiered rate limiters protect public APIs, authentication login attempts, and payment order creation endpoints against brute-force attacks.
+- **Security Headers & CORS**: Uses `helmet` for cross-origin security headers and environment-driven CORS configuration (`ALLOWED_ORIGINS`).
+- **Input Validation**: Critical POST/PUT inputs are validated against Joi schemas and MongoDB ObjectId checks before reaching database execution layers.
+- **Secrets Management**: All API keys, tokens, database URIs, and credentials are read strictly from environment variables (`.env`). `.env` files are explicitly excluded in `.gitignore`.
+
+---
+
+## Project Structure
 
 ```text
-Aagaz-Conversion/
-├── client/                     # React Frontend Application (Vite)
+Colg-proj/
+├── client/                     # React Frontend Single-Page Application
 │   ├── src/
-│   │   ├── api/                # API Client Layer (Axios interceptors & endpoints)
-│   │   │   ├── attendanceApi.js# Employee Clock-in/Clock-out & pings
-│   │   │   └── userApi.js      # User, Applicants, & Beneficiary requests
-│   │   ├── components/         # Shared UI components
-│   │   │   └── Navbar.jsx      # Dynamic navigation routing based on roles
-│   │   ├── context/            # AuthContext & Session management
-│   │   └── pages/              # View screens (Dashboards, Booking, Verification)
-│   │       ├── AdminDashboard.jsx
-│   │       ├── EmployeeDashboard.jsx
-│   │       ├── HospitalDashboard.jsx
-│   │       └── VerifyHealthCard.jsx
-│   └── package.json
+│   │   ├── api/                # Axios API service callers (attendanceApi, userApi, etc.)
+│   │   ├── components/         # Shared UI components & Navbar
+│   │   ├── context/            # AuthContext & Session state management
+│   │   ├── pages/              # Views (Dashboards, Booking, Verification, Forms)
+│   │   ├── utils/              # Client utilities & card export logic
+│   │   ├── App.jsx             # Main client routes & RBAC guards
+│   │   └── main.jsx            # React application entry point
+│   ├── index.html              # HTML shell template
+│   ├── package.json            # Client dependencies & Vite scripts
+│   └── vite.config.js          # Vite bundler configuration
 │
-├── server/                     # Node.js/Express Backend Server
+├── server/                     # Node.js / Express REST API Server
 │   ├── src/
-│   │   ├── config/             # DB Connection (MongoDB Atlas) & Server configs
-│   │   ├── middleware/         # Audit Log, JWT Auth, & Validation Guards
-│   │   ├── models/             # Mongoose Schemas (Attendance, HealthCard, OTPs, AuditLogs)
-│   │   ├── routes/             # REST Endpoints (Hospital, Attendance, Payments)
-│   │   ├── services/           # External API Wrappers (MSG91, Twilio, Fast2SMS, Email)
-│   │   └── app.js              # Server entry point & global configurations
-│   └── package.json
-└── README.md
+│   │   ├── config/             # Cloudinary & MongoDB connection modules
+│   │   ├── middleware/         # Auth guard, Audit logger, Request validator, Upload guard
+│   │   ├── models/             # Mongoose schemas (Admin, Employee, HealthCard, AuditLog, etc.)
+│   │   ├── routes/             # REST route modules (Hospital, Attendance, Payments, etc.)
+│   │   ├── services/           # Gateway wrappers (SMS, Email, OTP)
+│   │   ├── utils/              # Joi validation schemas & helper functions
+│   │   └── app.js              # Server entry point, middleware stack & API routes
+│   ├── .env.example            # Environment variable template (no real secrets)
+│   ├── package.json            # Server dependencies & scripts
+│   └── vercel.json             # Vercel deployment configuration
+│
+├── .gitignore                  # Git ignore rule definitions
+└── README.md                   # Technical documentation
 ```
 
 ---
 
-## ⚙️ Environment Configurations
+## Environment Setup
 
-### Server Environment Setup (`server/.env`)
-Create a `.env` file inside the `server/` directory and configure the variables as shown in `server/.env.example`:
+1. Create a `.env` file in the `server/` directory based on `.env.example`:
+
 ```env
 PORT=5000
 NODE_ENV=development
-MONGO_URI=your_mongodb_connection_string
-JWT_SECRET=your_jwt_secret_token
+MONGO_URI=mongodb://localhost:27017/aagaj
+JWT_SECRET=your_jwt_secret_key_here
 FRONTEND_URL=http://localhost:5173
 
-# Razorpay credentials
+# RAZORPAY CONFIGURATION
 RAZORPAY_KEY_ID=your_razorpay_key_id
 RAZORPAY_KEY_SECRET=your_razorpay_key_secret
 
-# SMS Provider Selection: 'fast2sms' | 'msg91' | 'twilio' (leave empty for Dev mode console logs)
-SMS_PROVIDER=msg91
-
-# FAST2SMS Configurations
+# SMS GATEWAY CONFIGURATION ('fast2sms' | 'msg91' | 'twilio')
+SMS_PROVIDER=fast2sms
 FAST2SMS_API_KEY=your_fast2sms_api_key
-
-# MSG91 Configurations
 MSG91_AUTH_KEY=your_msg91_auth_key
-MSG91_WIDGET_ID=your_msg91_widget_id
-MSG91_TEMPLATE_ID=your_msg91_otp_template_id
-
-# Twilio Configurations (Global SMS / WhatsApp)
 TWILIO_ACCOUNT_SID=your_twilio_sid
 TWILIO_AUTH_TOKEN=your_twilio_auth_token
-TWILIO_PHONE_NUMBER=your_twilio_phone_number
 ```
 
-### Client Environment Setup (`client/.env`)
-Create a `.env` file inside the `client/` directory:
+2. Create a `.env` file in the `client/` directory:
+
 ```env
 VITE_API_URL=http://localhost:5000
 ```
 
 ---
 
-## 💻 Local Installation & Setup
+## Local Development & Installation
 
-### Step 1: Run the Express Backend Server
+### 1. Run Backend Server
+
 ```bash
-# Navigate to the server folder
 cd server
-
-# Install node dependencies
 npm install
-
-# Start backend server in development mode
-npm run dev
+npm start
 ```
 
-### Step 2: Run the React Frontend Client
+### 2. Run Frontend Client
+
 ```bash
-# Open a new terminal and navigate to the client folder
 cd client
-
-# Install node dependencies
 npm install
-
-# Start Vite hot-reloading dev server
 npm run dev
 ```
-Navigate to [http://localhost:5173](http://localhost:5173) in your browser.
+
+Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ---
 
-## 📦 Production Builds
+## Build & Verification
 
-To compile the React bundle for production hosting:
+To generate the frontend production distribution bundle:
+
 ```bash
 cd client
 npm run build
 ```
-The optimized production bundle will be generated under the `client/dist` directory.
+
+The compiled assets will be output to `client/dist/`.
