@@ -305,31 +305,7 @@ try {
     console.warn('⚠️ Could not create uploads dir (expected on Vercel):', err.message);
 }
 
-// ============================================
-//      ✅ JWT AUTHENTICATION MIDDLEWARE
-// ============================================
-const verifyAdmin = (req, res, next) => {
-    const token = req.header('Authorization');
-    if (!token) return res.status(401).json({ success: false, message: "Access Denied. No Token Provided." });
-
-    const tokenVal = token.replace("Bearer ", "");
-    if (tokenVal === 'employee-session') {
-        req.user = { role: 'employee' };
-        return next();
-    }
-
-    try {
-        const verified = jwt.verify(tokenVal, process.env.JWT_SECRET);
-        req.user = verified;
-        // Verify role is authorized (admin or employee) for shared backend endpoints
-        if (verified.role !== 'admin' && verified.role !== 'employee') {
-            return res.status(403).json({ success: false, message: "Access Denied. Unauthorized Role." });
-        }
-        next();
-    } catch (err) {
-        res.status(400).json({ success: false, message: "Invalid Token" });
-    }
-};
+const { verifyAdmin, verifyAdminOrEmployee } = require('./middleware/auth');
 
 // ============================================
 //               API ROUTES
@@ -505,11 +481,19 @@ app.get('/api/admin/employee-detailed-stats', verifyAdmin, async (req, res) => {
 });
 
 // ✅ Employee Profile + Health Card Stats
-app.get('/api/employee/profile', async (req, res) => {
+app.get('/api/employee/profile', verifyAdminOrEmployee, async (req, res) => {
     try {
-        const rawEmail = (req.query.email || '').toString().trim();
+        let rawEmail = '';
+        if (req.user && req.user.role === 'admin' && req.query.email) {
+            rawEmail = req.query.email.toString().trim();
+        } else if (req.user && (req.user.email || req.user.emp_username)) {
+            rawEmail = (req.user.email || req.user.emp_username).toString().trim();
+        } else {
+            rawEmail = (req.query.email || '').toString().trim();
+        }
+
         if (!rawEmail) {
-            return res.status(400).json({ success: false, message: 'Email is required' });
+            return res.status(400).json({ success: false, message: 'Authenticated user email is required' });
         }
 
         const safeEmail = rawEmail.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -795,10 +779,22 @@ app.post('/api/employee/login', authLimiter, async (req, res) => {
         if (isMatch) {
             const token = jwt.sign(
                 { id: user._id, email: user.email || user.emp_username, role: 'employee', designation: user.designation },
-                process.env.JWT_SECRET,
+                process.env.JWT_SECRET || 'aagaz_healthcard_secret_key',
                 { expiresIn: '24h' }
             );
-            res.json({ success: true, user: user, token: token });
+
+            const safeUser = {
+                id: user._id,
+                fullName: user.fullName || user.name || 'Employee',
+                email: user.email || user.emp_username || '',
+                mobile: user.mobile || user.phone || '',
+                role: 'employee',
+                designation: user.designation || user.roleApplied || user.applyForPost || 'Employee',
+                district: user.district || '',
+                state: user.state || ''
+            };
+
+            res.json({ success: true, user: safeUser, token: token });
         } else {
             res.json({ success: false, message: "Invalid Credentials" });
         }

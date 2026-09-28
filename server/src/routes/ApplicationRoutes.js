@@ -674,28 +674,7 @@ router.get('/pdf/:id', async (req, res) => {
     }
 });
 
-// Middleware to verify admin session
-const verifyAdmin = (req, res, next) => {
-    const token = req.header('Authorization');
-    if (!token) return res.status(401).json({ success: false, message: "Access Denied. No Token Provided." });
-
-    const tokenVal = token.replace("Bearer ", "");
-    if (tokenVal === 'employee-session') {
-        req.user = { role: 'employee' };
-        return res.status(403).json({ success: false, message: "Access Denied. Admins Only." });
-    }
-
-    try {
-        const verified = jwt.verify(tokenVal, process.env.JWT_SECRET);
-        req.user = verified;
-        if (verified.role !== 'admin') {
-            return res.status(403).json({ success: false, message: "Access Denied. Admins Only." });
-        }
-        next();
-    } catch (err) {
-        res.status(400).json({ success: false, message: "Invalid Token" });
-    }
-};
+const { verifyAdmin } = require('../middleware/auth');
 
 // Route for admin to directly generate a candidate pass (payment bypass, custom roles & fee)
 router.post('/admin/create', verifyAdmin, handlePhotoUpload, async (req, res) => {

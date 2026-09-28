@@ -3,6 +3,7 @@ const router = express.Router();
 const Attendance = require('../models/AttendanceSchema');
 const Employee = require('../models/AddNewEmployeeSchema');
 const { Applicant, NormalApplicant } = require('../models/ApplicationSchema');
+const { verifyAdminOrEmployee } = require('../middleware/auth');
 
 // Utility helper to format Date to YYYY-MM-DD (Local ISO date string)
 const getTodayString = (dateObj = new Date()) => {
@@ -201,12 +202,19 @@ router.post('/heartbeat', async (req, res) => {
 // ============================================
 // 4. GET EMPLOYEE'S OWN ATTENDANCE HISTORY
 // ============================================
-router.get('/my-attendance', async (req, res) => {
+router.get('/my-attendance', verifyAdminOrEmployee, async (req, res) => {
     try {
-        const { email } = req.query;
+        let email = '';
+        if (req.user && req.user.role === 'admin' && req.query.email) {
+            email = req.query.email.toString().trim();
+        } else if (req.user && (req.user.email || req.user.emp_username)) {
+            email = (req.user.email || req.user.emp_username).toString().trim();
+        } else {
+            email = (req.query.email || '').toString().trim();
+        }
 
         if (!email) {
-            return res.status(400).json({ success: false, message: "Email query param is required." });
+            return res.status(400).json({ success: false, message: "Authenticated user email is required." });
         }
 
         const todayStr = getTodayString();
